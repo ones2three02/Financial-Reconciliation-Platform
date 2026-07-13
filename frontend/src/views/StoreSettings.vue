@@ -52,13 +52,19 @@
                 <span class="font-bold text-slate-700">{{ s.name }}</span>
               </div>
               <Button 
-                @click="deleteStore(s.id)" 
+                v-if="confirmDeleteStoreId !== s.id"
+                @click="confirmDeleteStoreId = s.id" 
                 variant="ghost"
                 size="xs"
                 class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all font-semibold rounded-lg h-7 w-7 p-0 flex items-center justify-center"
+                title="删除门店"
               >
                 <Trash2 class="w-3.5 h-3.5" />
               </Button>
+              <div v-else class="flex items-center gap-1 shrink-0">
+                <Button @click="deleteStore(s.id)" size="xs" class="bg-rose-600 hover:bg-rose-700 text-white h-6 text-[9px] px-1.5 font-bold">确认</Button>
+                <Button @click="confirmDeleteStoreId = null" size="xs" variant="outline" class="h-6 text-[9px] px-1.5 font-bold">取消</Button>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -173,6 +179,7 @@ const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);
 const newStoreName = ref('');
 const aliasFilter = ref('pending'); // Default to show pending mappings first
+const confirmDeleteStoreId = ref<number | null>(null);
 
 const filterOptions = [
   { value: '', label: '全部别名' },
@@ -220,9 +227,9 @@ const saveStore = async () => {
 };
 
 const deleteStore = async (id: number) => {
-  if (!confirm('确定删除此标准门店吗？其绑定的所有别名关系也将被解绑！')) return;
   try {
     await api.deleteStore(id);
+    confirmDeleteStoreId.value = null;
     fetchStores();
     fetchAliases();
   } catch (error) {
