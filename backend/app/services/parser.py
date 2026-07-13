@@ -93,7 +93,22 @@ def parse_excel_file(
                 break
                 
         logger.info(f"Parsing file {filename} sheet '{selected_sheet}' for data source {data_source}")
-        df = xl.parse(selected_sheet)
+        df = xl.parse(selected_sheet, header=None)
+        
+        # Detect header row (scan first 10 rows)
+        common_keywords = ["日期", "时间", "店", "门店", "商户", "金额", "成功", "交易", "品项", "推广费", "实收", "核销", "验券"]
+        header_idx = 0
+        max_matches = 0
+        for idx in range(min(10, len(df))):
+            row_values = [str(x).strip().lower() for x in df.iloc[idx].values if pd.notna(x)]
+            matches = sum(1 for val in row_values if any(kw in val for kw in common_keywords))
+            if matches > max_matches:
+                max_matches = matches
+                header_idx = idx
+                
+        # Slice and promote detected header row
+        df.columns = [str(x).strip() for x in df.iloc[header_idx]]
+        df = df.iloc[header_idx + 1:].reset_index(drop=True)
         
         # Clean columns: strip whitespace
         df.columns = [str(c).strip() for c in df.columns]
