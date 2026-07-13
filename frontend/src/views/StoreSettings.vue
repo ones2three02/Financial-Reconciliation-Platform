@@ -139,7 +139,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { api, Store, StoreAlias } from '../services/api';
+import { api } from '../services/api';
+import type { Store, StoreAlias } from '../services/api';
 
 const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);

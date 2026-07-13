@@ -123,7 +123,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue';
-import { api, DashboardSummary, ReconciliationResult } from '../services/api';
+import { api } from '../services/api';
+import type { DashboardSummary, ReconciliationResult } from '../services/api';
 import * as echarts from 'echarts';
 
 // Date state (defaults to today)

@@ -97,7 +97,7 @@
       <div class="flex-1 overflow-auto p-8 bg-slate-50">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
-            <component :is={Component} class="fade-in" />
+            <component :is="Component" class="fade-in" />
           </transition>
         </router-view>
       </div>

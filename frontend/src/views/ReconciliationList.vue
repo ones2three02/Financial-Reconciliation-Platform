@@ -214,7 +214,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { api, ReconciliationResult } from '../services/api';
+import { api } from '../services/api';
+import type { ReconciliationResult } from '../services/api';
 
 const getTodayStr = () => {
   const d = new Date();

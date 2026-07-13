@@ -131,7 +131,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { api, FieldMapping } from '../services/api';
+import { api } from '../services/api';
+import type { FieldMapping } from '../services/api';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', badge: 'bg-violet-50 text-violet-600' },

@@ -157,7 +157,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { api, ImportFile } from '../services/api';
+import { api } from '../services/api';
+import type { ImportFile } from '../services/api';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', desc: '第三方好老板系统流水', badge: 'bg-violet-50 text-violet-600' },

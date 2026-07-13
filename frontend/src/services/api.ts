@@ -11,7 +11,7 @@ const client = axios.create({
 
 export interface Store {
   id: number;
-  name: str;
+  name: string;
   is_active: boolean;
   created_at: string;
 }
