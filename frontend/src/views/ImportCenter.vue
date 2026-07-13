@@ -99,17 +99,25 @@
           </CardTitle>
           <CardDescription>追溯已上传文件的清洗历史、解析行数与对账状态日志</CardDescription>
         </div>
-        <Button 
-          @click="fetchImportHistory" 
-          variant="outline"
-          size="sm"
-          class="h-8 text-xs font-semibold"
-        >
-          🔄 刷新日志
-        </Button>
+        <!-- Search and refresh controls -->
+        <div class="flex items-center gap-3">
+          <Input 
+            v-model="searchQuery" 
+            placeholder="搜索文件名..." 
+            class="h-8.5 w-48 text-xs font-semibold rounded-lg"
+          />
+          <Button 
+            @click="fetchImportHistory" 
+            variant="outline"
+            size="sm"
+            class="h-8.5 text-xs font-semibold border border-slate-200/80 hover:bg-slate-50 flex items-center gap-1"
+          >
+            🔄 刷新日志
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
-        <div class="overflow-hidden rounded-xl border border-slate-200/80">
+      <CardContent class="p-0">
+        <div class="overflow-hidden border-t border-slate-100">
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
@@ -123,32 +131,32 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 text-xs">
-              <tr v-if="history.length === 0">
+              <tr v-if="paginatedHistory.length === 0">
                 <td colspan="7" class="p-8 text-center text-slate-400 font-medium">
                   <div class="flex flex-col items-center justify-center gap-2">
                     <FolderOpen class="w-8 h-8 text-slate-300" />
-                    <span>暂无上传记录</span>
+                    <span>暂无满足条件的上传记录</span>
                   </div>
                 </td>
               </tr>
-              <tr v-for="item in history" :key="item.id" class="hover:bg-slate-50/40 transition-colors">
+              <tr v-for="item in paginatedHistory" :key="item.id" class="hover:bg-slate-50/40 transition-colors">
                 <td class="p-4 font-bold text-slate-700 flex items-center gap-2">
-                  <FileSpreadsheet class="w-4 h-4 text-emerald-600" />
-                  <span>{{ item.filename }}</span>
+                  <FileSpreadsheet class="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span class="truncate max-w-[200px]" :title="item.filename">{{ item.filename }}</span>
                 </td>
                 <td class="p-4">
                   <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(item.data_source)">
                     {{ getSourceLabel(item.data_source) }}
                   </span>
                 </td>
-                <td class="p-4 text-slate-500">{{ formatDate(item.uploaded_at) }}</td>
+                <td class="p-4 text-slate-500 font-mono">{{ formatDate(item.uploaded_at) }}</td>
                 <td class="p-4 text-center">
                   <span 
                     class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                     :class="{
-                      'bg-emerald-50 text-emerald-600 border border-emerald-200': item.upload_status === 'parsed',
-                      'bg-blue-50 text-blue-600 border border-blue-200': item.upload_status === 'pending',
-                      'bg-rose-50 text-rose-600 border border-rose-200': item.upload_status === 'failed',
+                      'bg-emerald-50 text-emerald-600 border border-emerald-250': item.upload_status === 'parsed',
+                      'bg-blue-50 text-blue-600 border border-blue-250': item.upload_status === 'pending',
+                      'bg-rose-50 text-rose-600 border border-rose-250': item.upload_status === 'failed',
                     }"
                   >
                     {{ getStatusLabel(item.upload_status) }}
@@ -173,17 +181,46 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
+          <div class="text-slate-400 font-medium select-none">
+            显示第 {{ (currentPage - 1) * pageSize + 1 }} 至 {{ Math.min(currentPage * pageSize, filteredHistory.length) }} 条记录，共 {{ filteredHistory.length }} 条
+          </div>
+          <div class="flex items-center gap-2">
+            <Button 
+              size="xs" 
+              variant="outline" 
+              :disabled="currentPage === 1" 
+              @click="currentPage--"
+              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+            >
+              上一页
+            </Button>
+            <span class="text-slate-600 font-bold px-2 select-none">第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <Button 
+              size="xs" 
+              variant="outline" 
+              :disabled="currentPage === totalPages" 
+              @click="currentPage++"
+              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+            >
+              下一页
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { api } from '../services/api';
 import type { ImportFile } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Sliders, UploadCloud, FileSpreadsheet, CheckCircle2, History, FolderOpen } from 'lucide-vue-next';
 
 const sources = [
@@ -199,6 +236,11 @@ const dragOver = ref(false);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const history = ref<ImportFile[]>([]);
 const reprocessingId = ref<number | null>(null);
+
+// Pagination and Search states
+const searchQuery = ref('');
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 interface UploadItem {
   name: string;
@@ -228,6 +270,26 @@ const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
+
+// Filtered and Paginated computed history
+const filteredHistory = computed(() => {
+  if (!searchQuery.value.trim()) return history.value;
+  const q = searchQuery.value.toLowerCase().trim();
+  return history.value.filter(item => item.filename.toLowerCase().includes(q));
+});
+
+const totalPages = computed(() => Math.ceil(filteredHistory.value.length / pageSize.value) || 1);
+
+const paginatedHistory = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredHistory.value.slice(start, end);
+});
+
+// Reset page on search
+watch(searchQuery, () => {
+  currentPage.value = 1;
+});
 
 const fetchImportHistory = async () => {
   try {

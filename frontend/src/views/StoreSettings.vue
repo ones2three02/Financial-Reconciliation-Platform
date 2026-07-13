@@ -31,16 +31,24 @@
             </CardTitle>
             <CardDescription>配置集团下属的标准门店基本信息与联系人，用于生成统一对账报表</CardDescription>
           </div>
-          <Button 
-            @click="openAddModal"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5 h-9"
-          >
-            <Plus class="w-4 h-4" />
-            <span>新增标准门店</span>
-          </Button>
+          <!-- Search & Add Actions -->
+          <div class="flex items-center gap-3">
+            <Input 
+              v-model="storeSearchQuery" 
+              placeholder="搜索名称/编码/区域..." 
+              class="h-9 w-48 text-xs font-semibold rounded-lg"
+            />
+            <Button 
+              @click="openAddModal"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5 h-9 shrink-0"
+            >
+              <Plus class="w-4 h-4" />
+              <span>新增标准门店</span>
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div class="overflow-hidden rounded-xl border border-slate-200/80">
+        <CardContent class="p-0">
+          <div class="overflow-hidden border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
@@ -54,15 +62,15 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs">
-                <tr v-if="stores.length === 0">
+                <tr v-if="paginatedStores.length === 0">
                   <td colspan="7" class="p-12 text-center text-slate-400 font-medium">
                     <div class="flex flex-col items-center justify-center gap-2">
                       <FolderOpen class="w-8 h-8 text-slate-300" />
-                      <span>暂无标准门店记录</span>
+                      <span>暂无满足条件的标准门店记录</span>
                     </div>
                   </td>
                 </tr>
-                <tr v-for="s in stores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
+                <tr v-for="s in paginatedStores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
                   <td class="p-4 font-mono font-bold text-slate-500">{{ s.code || '—' }}</td>
                   <td class="p-4 font-extrabold text-slate-800">{{ s.name }}</td>
                   <td class="p-4 font-medium text-slate-600">{{ s.region || '—' }}</td>
@@ -107,6 +115,34 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Stores Pagination Controls -->
+          <div v-if="storeTotalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
+            <div class="text-slate-400 font-medium select-none">
+              显示第 {{ (storeCurrentPage - 1) * storePageSize + 1 }} 至 {{ Math.min(storeCurrentPage * storePageSize, filteredStores.length) }} 家门店，共 {{ filteredStores.length }} 家
+            </div>
+            <div class="flex items-center gap-2">
+              <Button 
+                size="xs" 
+                variant="outline" 
+                :disabled="storeCurrentPage === 1" 
+                @click="storeCurrentPage--"
+                class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+              >
+                上一页
+              </Button>
+              <span class="text-slate-600 font-bold px-2 select-none">第 {{ storeCurrentPage }} / {{ storeTotalPages }} 页</span>
+              <Button 
+                size="xs" 
+                variant="outline" 
+                :disabled="storeCurrentPage === storeTotalPages" 
+                @click="storeCurrentPage++"
+                class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+              >
+                下一页
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -124,20 +160,27 @@
           </div>
 
           <!-- Filters -->
-          <div class="flex items-center gap-3">
-            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">过滤别名</label>
-            <Select 
-              v-model="aliasFilter" 
-              :options="filterOptions"
-              @change="fetchAliases"
-              class="w-36 h-9"
-              align="right"
+          <div class="flex items-center gap-4 flex-wrap">
+            <Input 
+              v-model="aliasSearchQuery" 
+              placeholder="搜索渠道原始名..." 
+              class="h-9 w-48 text-xs font-semibold rounded-lg"
             />
+            <div class="flex items-center gap-3">
+              <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 select-none">过滤状态</label>
+              <Select 
+                v-model="aliasFilter" 
+                :options="filterOptions"
+                @change="fetchAliases"
+                class="w-36 h-9"
+                align="right"
+              />
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent class="p-0">
           <!-- Alias Mapping Table -->
-          <div class="overflow-hidden rounded-xl border border-slate-200/80">
+          <div class="overflow-hidden border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
@@ -148,7 +191,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs">
-                <tr v-if="aliases.length === 0">
+                <tr v-if="paginatedAliases.length === 0">
                   <td colspan="4" class="p-8 text-center text-slate-400 font-medium">
                     <div class="flex flex-col items-center justify-center gap-2">
                       <FolderOpen class="w-8 h-8 text-slate-300" />
@@ -157,7 +200,7 @@
                   </td>
                 </tr>
                 <tr 
-                  v-for="a in aliases" 
+                  v-for="a in paginatedAliases" 
                   :key="a.id"
                   class="hover:bg-slate-50/40 transition-colors"
                   :class="{'bg-amber-50/10': a.status === 'pending'}"
@@ -200,6 +243,34 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Aliases Pagination Controls -->
+          <div v-if="aliasTotalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
+            <div class="text-slate-400 font-medium select-none">
+              显示第 {{ (aliasCurrentPage - 1) * aliasPageSize + 1 }} 至 {{ Math.min(aliasCurrentPage * aliasPageSize, filteredAliases.length) }} 条，共 {{ filteredAliases.length }} 条
+            </div>
+            <div class="flex items-center gap-2">
+              <Button 
+                size="xs" 
+                variant="outline" 
+                :disabled="aliasCurrentPage === 1" 
+                @click="aliasCurrentPage--"
+                class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+              >
+                上一页
+              </Button>
+              <span class="text-slate-600 font-bold px-2 select-none">第 {{ aliasCurrentPage }} / {{ aliasTotalPages }} 页</span>
+              <Button 
+                size="xs" 
+                variant="outline" 
+                :disabled="aliasCurrentPage === aliasTotalPages" 
+                @click="aliasCurrentPage++"
+                class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+              >
+                下一页
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -323,7 +394,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { api } from '../services/api';
 import type { Store, StoreAlias } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
@@ -344,6 +415,16 @@ const confirmDeleteStoreId = ref<number | null>(null);
 
 // Alias filtering states
 const aliasFilter = ref('pending');
+
+// Search & Pagination states for Standard Stores
+const storeSearchQuery = ref('');
+const storeCurrentPage = ref(1);
+const storePageSize = ref(10);
+
+// Search & Pagination states for Aliases
+const aliasSearchQuery = ref('');
+const aliasCurrentPage = ref(1);
+const aliasPageSize = ref(10);
 
 // Modal Form states
 const showEditModal = ref(false);
@@ -368,6 +449,56 @@ const storeOptions = computed(() => {
     { value: null, label: '-- 请选择标准店名 (待认领) --' },
     ...stores.value.map(s => ({ value: s.id, label: s.name }))
   ];
+});
+
+// Standard Stores computed filtered and paginated
+const filteredStores = computed(() => {
+  if (!storeSearchQuery.value.trim()) return stores.value;
+  const q = storeSearchQuery.value.toLowerCase().trim();
+  return stores.value.filter(s => 
+    s.name.toLowerCase().includes(q) ||
+    (s.code && s.code.toLowerCase().includes(q)) ||
+    (s.region && s.region.toLowerCase().includes(q)) ||
+    (s.manager && s.manager.toLowerCase().includes(q)) ||
+    (s.phone && s.phone.toLowerCase().includes(q))
+  );
+});
+
+const storeTotalPages = computed(() => Math.ceil(filteredStores.value.length / storePageSize.value) || 1);
+
+const paginatedStores = computed(() => {
+  const start = (storeCurrentPage.value - 1) * storePageSize.value;
+  const end = start + storePageSize.value;
+  return filteredStores.value.slice(start, end);
+});
+
+// Watch standard store search query
+watch(storeSearchQuery, () => {
+  storeCurrentPage.value = 1;
+});
+
+// Store Aliases computed filtered and paginated
+const filteredAliases = computed(() => {
+  if (!aliasSearchQuery.value.trim()) return aliases.value;
+  const q = aliasSearchQuery.value.toLowerCase().trim();
+  return aliases.value.filter(a => a.alias_name.toLowerCase().includes(q));
+});
+
+const aliasTotalPages = computed(() => Math.ceil(filteredAliases.value.length / aliasPageSize.value) || 1);
+
+const paginatedAliases = computed(() => {
+  const start = (aliasCurrentPage.value - 1) * aliasPageSize.value;
+  const end = start + aliasPageSize.value;
+  return filteredAliases.value.slice(start, end);
+});
+
+// Watch alias search query or status filters
+watch(aliasSearchQuery, () => {
+  aliasCurrentPage.value = 1;
+});
+
+watch(aliasFilter, () => {
+  aliasCurrentPage.value = 1;
 });
 
 const fetchStores = async () => {

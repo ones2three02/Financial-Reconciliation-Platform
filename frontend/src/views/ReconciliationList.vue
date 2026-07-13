@@ -13,6 +13,19 @@
             <DatePicker v-model="globalDate" />
           </div>
 
+          <!-- Store Search Filter -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Search class="w-3.5 h-3.5 text-slate-400" />
+              <span>搜索门店</span>
+            </label>
+            <Input 
+              v-model="storeSearchQuery" 
+              placeholder="输入门店名称..."
+              class="h-9 w-40 text-xs font-semibold rounded-lg bg-white"
+            />
+          </div>
+
           <!-- Status Filter -->
           <div class="flex flex-col gap-1.5">
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
@@ -86,16 +99,16 @@
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 text-xs">
-              <tr v-if="results.length === 0">
+              <tr v-if="paginatedResults.length === 0">
                 <td colspan="9" class="p-12 text-center text-slate-400 font-medium">
                   <div class="flex flex-col items-center justify-center gap-2">
                     <FolderOpen class="w-8 h-8 text-slate-300" />
-                    <span>该账期无对账明细，请确认是否导入相应流水文件</span>
+                    <span>暂无符合筛选条件的门店对账明细</span>
                   </div>
                 </td>
               </tr>
               <tr 
-                v-for="r in results" 
+                v-for="r in paginatedResults" 
                 :key="r.id"
                 class="hover:bg-slate-50/40 transition-colors"
                 :class="{'bg-rose-50/5': r.status === 'discrepancy' && !r.is_resolved}"
@@ -137,6 +150,34 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
+          <div class="text-slate-400 font-medium select-none">
+            显示第 {{ (currentPage - 1) * pageSize + 1 }} 至 {{ Math.min(currentPage * pageSize, filteredResults.length) }} 家门店，共 {{ filteredResults.length }} 家
+          </div>
+          <div class="flex items-center gap-2">
+            <Button 
+              size="xs" 
+              variant="outline" 
+              :disabled="currentPage === 1" 
+              @click="currentPage--"
+              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+            >
+              上一页
+            </Button>
+            <span class="text-slate-600 font-bold px-2 select-none">第 {{ currentPage }} / {{ totalPages }} 页</span>
+            <Button 
+              size="xs" 
+              variant="outline" 
+              :disabled="currentPage === totalPages" 
+              @click="currentPage++"
+              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
+            >
+              下一页
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -227,19 +268,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { api } from '../services/api';
 import type { ReconciliationResult } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Select } from '../components/ui/select';
+import { Input } from '../components/ui/input';
 import { DatePicker } from '../components/ui/date-picker';
-import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen } from 'lucide-vue-next';
+import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen, Search } from 'lucide-vue-next';
 import { globalDate } from '../services/store';
 
-// Filter states
+// Filter & Search states
 const filterStatus = ref('');
 const filterResolved = ref('');
+const storeSearchQuery = ref('');
+
+// Pagination states
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 const statusOptions = [
   { value: '', label: '全部状态' },
@@ -299,6 +346,26 @@ const getStatusLabel = (status: string) => {
     default: return status;
   }
 };
+
+// Filtered results by store name search query locally
+const filteredResults = computed(() => {
+  if (!storeSearchQuery.value.trim()) return results.value;
+  const q = storeSearchQuery.value.toLowerCase().trim();
+  return results.value.filter(r => r.standard_store_name.toLowerCase().includes(q));
+});
+
+const totalPages = computed(() => Math.ceil(filteredResults.value.length / pageSize.value) || 1);
+
+const paginatedResults = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredResults.value.slice(start, end);
+});
+
+// Watch triggers to reset pagination to page 1
+watch([storeSearchQuery, filterStatus, filterResolved, globalDate], () => {
+  currentPage.value = 1;
+});
 
 const fetchResults = async () => {
   try {
