@@ -41,17 +41,26 @@ from backend.app.models.store import Store, StoreAlias
 def seed_stores():
     db = SessionLocal()
     try:
+        default_stores = [
+            "蚌埠吾悦店", "蚌埠银泰店", "淮北吾悦店", "淮南吾悦店", "宿州吾悦店",
+            "颍上店", "华农店", "荆州店", "荆州二店", "民院店",
+            "杨家湾", "财富中心店", "钟祥店", "高新吾悦店", "进贤吾悦店",
+            "新力店", "新余二店", "新余店", "旭辉店", "瑶湖店",
+            "宜春店", "阜阳宝龙店"
+        ]
+        
         if db.query(Store).count() == 0:
-            default_stores = [
-                "蚌埠吾悦店", "蚌埠银泰店", "淮北吾悦店", "淮南吾悦店", "宿州吾悦店",
-                "颍上店", "华农店", "荆州店", "荆州二店", "民院店",
-                "杨家湾", "财富中心店", "钟祥店", "高新吾悦店", "进贤吾悦店",
-                "新力店", "新余二店", "新余店", "旭辉店", "瑶湖店",
-                "宜春店", "阜阳宝龙店"
-            ]
-            for name in default_stores:
-                db.add(Store(name=name))
+            for idx, name in enumerate(default_stores):
+                code = f"MD{str(idx + 1).zfill(3)}"
+                db.add(Store(name=name, code=code))
             db.commit()
+            
+        # Backfill codes for any existing stores whose codes are null or empty
+        all_stores = db.query(Store).order_by(Store.id).all()
+        for idx, s in enumerate(all_stores):
+            if not s.code:
+                s.code = f"MD{str(idx + 1).zfill(3)}"
+        db.commit()
             
         # Seed example store aliases for testing & automatic mapping
         aliases_map = {

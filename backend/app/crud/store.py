@@ -14,10 +14,28 @@ def get_store_by_name(db: Session, name: str) -> Optional[Store]:
 def get_stores(db: Session, skip: int = 0, limit: int = 100) -> List[Store]:
     return db.query(Store).offset(skip).limit(limit).all()
 
+def generate_next_store_code(db: Session) -> str:
+    # Look for highest MDxxx code
+    last_store = db.query(Store).filter(Store.code.like("MD%")).order_by(Store.code.desc()).first()
+    if last_store and last_store.code:
+        try:
+            num = int(last_store.code[2:])
+            return f"MD{str(num + 1).zfill(3)}"
+        except ValueError:
+            pass
+    # Fallback to store count + 1
+    count = db.query(Store).count()
+    return f"MD{str(count + 1).zfill(3)}"
+
 def create_store(db: Session, store: StoreCreate) -> Store:
+    # Auto generate code if not provided
+    code = store.code.strip() if (store.code and store.code.strip()) else None
+    if not code:
+        code = generate_next_store_code(db)
+        
     db_store = Store(
         name=store.name,
-        code=store.code,
+        code=code,
         region=store.region,
         manager=store.manager,
         phone=store.phone,
