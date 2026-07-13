@@ -12,8 +12,7 @@
           <input 
             id="date-select"
             type="date" 
-            v-model="selectedDate" 
-            @change="fetchDashboardData"
+            v-model="globalDate" 
             class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9"
           />
         </div>
@@ -26,7 +25,7 @@
       <Card class="shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
         <CardContent class="p-6 flex items-center gap-4">
           <div class="p-3 bg-blue-50 rounded-xl text-blue-600">
-            <Store class="w-5 h-5" />
+            <StoreIcon class="w-5 h-5" />
           </div>
           <div class="space-y-1">
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">对账门店总数</span>
@@ -84,6 +83,66 @@
       </Card>
     </div>
 
+    <!-- Recent 7 Days Backlog Catch-up Card -->
+    <Card class="shadow-sm border border-slate-200/80">
+      <CardHeader class="pb-2">
+        <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+          <CalendarDays class="w-4.5 h-4.5 text-blue-500" />
+          <span>连续账期核验面板 (支持假期归来补账)</span>
+        </CardTitle>
+        <CardDescription>查阅最近 7 天的每日对账覆盖状态，点击即可快速切换到对应账期进行核实对账</CardDescription>
+      </CardHeader>
+      <CardContent class="p-6 pt-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+          <div 
+            v-for="day in recentTrends" 
+            :key="day.date"
+            class="p-4 rounded-xl border flex flex-col justify-between h-[125px] transition-all duration-150 bg-white"
+            :class="
+              globalDate === day.date 
+                ? 'border-blue-500 bg-blue-50/10 shadow-sm ring-1 ring-blue-500/20' 
+                : 'border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md'
+            "
+          >
+            <div>
+              <div class="text-[10px] font-bold text-slate-400 font-mono tracking-wider">{{ day.date.slice(5) }} ({{ getDayOfWeek(day.date) }})</div>
+              
+              <!-- Status text with badges -->
+              <div class="mt-2.5 text-xs font-extrabold">
+                <span v-if="day.total_stores === 0" class="text-slate-400 inline-flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                  <span>无比对数据</span>
+                </span>
+                <span v-else-if="day.discrepancies > 0" class="text-rose-600 inline-flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                  <span>{{ day.discrepancies }} 家差异</span>
+                </span>
+                <span v-else class="text-emerald-600 inline-flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>全部一致</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Action button -->
+            <Button 
+              @click="goToDate(day.date)"
+              variant="ghost"
+              size="xs"
+              class="w-full text-[10px] font-bold h-7 border rounded-lg transition-all"
+              :class="
+                day.date === globalDate 
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                  : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 border-slate-200/60'
+              "
+            >
+              <span>{{ day.date === globalDate ? '当前账期' : '切换核验' }}</span>
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+
     <!-- Charts and Leaders Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Trend Line Chart -->
@@ -105,14 +164,14 @@
         <CardHeader class="pb-2">
           <CardTitle class="flex items-center gap-2 text-sm font-bold text-slate-800">
             <AlertTriangle class="w-4 h-4 text-rose-500" />
-            <span>今日差异排行 (Top 5)</span>
+            <span>当前差异排行 (Top 5)</span>
           </CardTitle>
           <CardDescription>差额绝对值越大，代表对账异常越严重</CardDescription>
         </CardHeader>
         <CardContent class="flex-1 overflow-y-auto space-y-3 pt-2">
           <div v-if="discrepancyStores.length === 0" class="h-full flex flex-col items-center justify-center text-slate-400 gap-2">
             <CheckCircle2 class="w-8 h-8 text-emerald-500" />
-            <span class="text-xs font-semibold">今日暂无对账异常门店</span>
+            <span class="text-xs font-semibold">当前暂无对账异常门店</span>
           </div>
           <div 
             v-for="(store, index) in discrepancyStores.slice(0, 5)" 
@@ -146,21 +205,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import { api } from '../services/api';
 import type { DashboardSummary, ReconciliationResult } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Store, CheckCircle2, AlertTriangle, Coins, LineChart } from 'lucide-vue-next';
+import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays } from 'lucide-vue-next';
 import * as echarts from 'echarts';
-
-// Date state (defaults to today)
-const getTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-const selectedDate = ref(getTodayStr());
+import { globalDate, setGlobalDate } from '../services/store';
 
 const summary = ref<DashboardSummary>({
   total_stores: 0,
@@ -173,6 +225,7 @@ const summary = ref<DashboardSummary>({
 });
 
 const discrepancyStores = ref<ReconciliationResult[]>([]);
+const recentTrends = ref<any[]>([]);
 
 // Chart reference
 const trendChartRef = ref<HTMLDivElement | null>(null);
@@ -264,18 +317,30 @@ const initChart = (trends: any[]) => {
   trendChart.setOption(option);
 };
 
+const getDayOfWeek = (dateStr: string) => {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  const d = new Date(dateStr);
+  return days[d.getDay()];
+};
+
+const goToDate = (dateStr: string) => {
+  setGlobalDate(dateStr);
+};
+
 const fetchDashboardData = async () => {
   try {
-    const sumData = await api.getDashboardSummary(selectedDate.value);
+    const sumData = await api.getDashboardSummary(globalDate.value);
     summary.value = sumData;
     
     const reconData = await api.getReconciliationResults({
-      trade_date: selectedDate.value,
+      trade_date: globalDate.value,
       is_resolved: false
     });
     discrepancyStores.value = reconData.filter(r => r.status !== 'consistent');
     
     const trendData = await api.getDashboardTrends(7);
+    recentTrends.value = [...trendData].reverse(); // Copy and reverse to show newest first
+    
     nextTick(() => {
       initChart(trendData);
     });
@@ -289,6 +354,10 @@ const handleResize = () => {
     trendChart.resize();
   }
 };
+
+watch(globalDate, () => {
+  fetchDashboardData();
+});
 
 onMounted(() => {
   fetchDashboardData();

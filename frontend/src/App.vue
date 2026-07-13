@@ -136,9 +136,15 @@
         
         <!-- Header Right side details -->
         <div class="flex items-center gap-4 shrink-0">
-          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
+          <!-- Shared Global Date Selector -->
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200/80 rounded-lg px-2.5 py-1.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all shrink-0">
             <Calendar class="w-3.5 h-3.5 text-slate-400" />
-            <span>当前账期: {{ currentDate }}</span>
+            <span class="text-slate-400 mr-1 select-none">全局账期:</span>
+            <input 
+              type="date" 
+              v-model="globalDate" 
+              class="bg-transparent border-0 font-bold focus:outline-none focus:ring-0 text-slate-700 cursor-pointer text-xs p-0 m-0 w-28" 
+            />
           </div>
 
           <!-- User profile Badge and safety logout -->
@@ -174,6 +180,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { globalDate } from './services/store';
 import { 
   LayoutDashboard, 
   FileUp, 
@@ -238,11 +245,6 @@ const breadcrumbSection = computed(() => {
     default:
       return '核心系统';
   }
-});
-
-const currentDate = computed(() => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 });
 </script>
 

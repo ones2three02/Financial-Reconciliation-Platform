@@ -13,8 +13,7 @@
             <input 
               id="filter-date"
               type="date" 
-              v-model="filterDate" 
-              @change="fetchResults"
+              v-model="globalDate" 
               class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9"
             />
           </div>
@@ -242,20 +241,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { api } from '../services/api';
 import type { ReconciliationResult } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen } from 'lucide-vue-next';
-
-const getTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+import { globalDate } from '../services/store';
 
 // Filter states
-const filterDate = ref(getTodayStr());
 const filterStatus = ref('');
 const filterResolved = ref('');
 
@@ -308,7 +302,7 @@ const getStatusLabel = (status: string) => {
 const fetchResults = async () => {
   try {
     const data = await api.getReconciliationResults({
-      trade_date: filterDate.value,
+      trade_date: globalDate.value,
       status: filterStatus.value || undefined,
       is_resolved: filterResolved.value === '' ? undefined : filterResolved.value === 'true'
     });
@@ -321,7 +315,7 @@ const fetchResults = async () => {
 const recalculate = async () => {
   isRecalculating.value = true;
   try {
-    await api.recalculateDate(filterDate.value);
+    await api.recalculateDate(globalDate.value);
     alert('重新计算对账完成！');
     fetchResults();
   } catch (error) {
@@ -332,7 +326,7 @@ const recalculate = async () => {
 };
 
 const exportExcel = () => {
-  const url = api.getExportUrl(filterDate.value);
+  const url = api.getExportUrl(globalDate.value);
   window.open(url, '_blank');
 };
 
@@ -361,6 +355,10 @@ const saveAudit = async () => {
     alert('保存核实说明失败！');
   }
 };
+
+watch(globalDate, () => {
+  fetchResults();
+});
 
 onMounted(() => {
   fetchResults();
