@@ -139,7 +139,7 @@
           <!-- Shared Global Date Selector -->
           <div class="flex items-center gap-2">
             <span class="text-xs font-semibold text-slate-400 select-none">全局账期:</span>
-            <DatePicker v-model="globalDate" class="h-9" />
+            <DatePicker v-model="globalDate" align="right" class="h-9" />
           </div>
 
           <!-- User profile Badge and safety logout -->

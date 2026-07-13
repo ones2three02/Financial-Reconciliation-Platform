@@ -3,10 +3,16 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { cn } from '../../../lib/utils';
 
-const props = defineProps<{
-  modelValue: string; // Format: YYYY-MM-DD
-  class?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string; // Format: YYYY-MM-DD
+    class?: string;
+    align?: 'left' | 'right';
+  }>(),
+  {
+    align: 'left'
+  }
+);
 
 const emit = defineEmits<{
   (e: 'update:modelValue', payload: string): void;
@@ -141,7 +147,12 @@ const selectDay = (dateStr: string) => {
     <transition name="popover-fade">
       <div
         v-if="isOpen"
-        class="absolute right-0 mt-2 w-[270px] origin-top-right rounded-xl border border-slate-200 bg-white p-3.5 shadow-xl ring-1 ring-black/5 z-50 focus:outline-none"
+        :class="
+          cn(
+            'absolute mt-2 w-[270px] rounded-xl border border-slate-200 bg-white p-3.5 shadow-xl ring-1 ring-black/5 z-50 focus:outline-none',
+            props.align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
+          )
+        "
       >
         <!-- Calendar Header -->
         <div class="flex items-center justify-between mb-3">
