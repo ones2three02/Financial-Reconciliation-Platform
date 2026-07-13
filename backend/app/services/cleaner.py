@@ -127,13 +127,26 @@ def detect_default_store_from_filename(db: Session, filename: str) -> Optional[s
         return None
     # Get all active standard stores
     stores = db.query(Store).filter(Store.is_active == True).all()
-    for s in stores:
+    
+    # Sort standard stores by length of their name in descending order
+    # to avoid matching shorter substrings first (e.g. "荆州店" matching inside "荆州二店")
+    stores_sorted = sorted(stores, key=lambda s: len(s.name), reverse=True)
+    for s in stores_sorted:
         if s.name in filename:
             return s.name
-        # Check name without "店" suffix, e.g. "民院" for "民院店"
+            
+    # Sort short names by length in descending order to avoid matching "荆州" instead of "荆州二"
+    short_name_map = []
+    for s in stores:
         short_name = s.name[:-1] if s.name.endswith("店") else s.name
-        if short_name and short_name in filename:
-            return s.name
+        if short_name:
+            short_name_map.append((short_name, s.name))
+            
+    short_name_map_sorted = sorted(short_name_map, key=lambda x: len(x[0]), reverse=True)
+    for short_name, full_name in short_name_map_sorted:
+        if short_name in filename:
+            return full_name
+            
     return None
 
 def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
