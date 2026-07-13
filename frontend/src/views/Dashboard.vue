@@ -8,13 +8,8 @@
           <p class="text-xs text-slate-400">实时查阅各门店今日收支比对、核对一致率以及偏差统计</p>
         </div>
         <div class="flex items-center gap-3">
-          <label for="date-select" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">选择账期日期:</label>
-          <input 
-            id="date-select"
-            type="date" 
-            v-model="globalDate" 
-            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9"
-          />
+          <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">选择账期日期:</label>
+          <DatePicker v-model="globalDate" />
         </div>
       </CardContent>
     </Card>
@@ -213,6 +208,7 @@ import { Button } from '../components/ui/button';
 import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays } from 'lucide-vue-next';
 import * as echarts from 'echarts';
 import { globalDate, setGlobalDate } from '../services/store';
+import { DatePicker } from '../components/ui/date-picker';
 
 const summary = ref<DashboardSummary>({
   total_stores: 0,

@@ -82,7 +82,7 @@
               id="alias-filter-select"
               v-model="aliasFilter" 
               @change="fetchAliases"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white select-custom"
             >
               <option value="">全部别名</option>
               <option value="pending">待核认 / 待匹配</option>
@@ -122,7 +122,7 @@
                     <!-- Mapped Select component -->
                     <select 
                       v-model="a.store_id"
-                      class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full max-w-[200px]"
+                      class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full max-w-[200px] select-custom"
                       @change="mapAlias(a.id, a.store_id)"
                     >
                       <option :value="null">-- 请选择标准店名 (待认领) --</option>

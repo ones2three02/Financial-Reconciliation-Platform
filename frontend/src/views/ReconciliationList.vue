@@ -6,16 +6,11 @@
         <div class="flex flex-wrap items-center gap-5">
           <!-- Date Filter -->
           <div class="flex flex-col gap-1.5">
-            <label for="filter-date" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
               <Calendar class="w-3.5 h-3.5" />
               <span>账期日期</span>
             </label>
-            <input 
-              id="filter-date"
-              type="date" 
-              v-model="globalDate" 
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9"
-            />
+            <DatePicker v-model="globalDate" />
           </div>
 
           <!-- Status Filter -->
@@ -28,7 +23,7 @@
               id="filter-status"
               v-model="filterStatus" 
               @change="fetchResults"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[120px]"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[120px] select-custom"
             >
               <option value="">全部</option>
               <option value="consistent">账目一致</option>
@@ -47,7 +42,7 @@
               id="filter-resolved"
               v-model="filterResolved" 
               @change="fetchResults"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[100px]"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[100px] select-custom"
             >
               <option value="">全部</option>
               <option value="false">未处理</option>
@@ -248,6 +243,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '../components/ui/button';
 import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen } from 'lucide-vue-next';
 import { globalDate } from '../services/store';
+import { DatePicker } from '../components/ui/date-picker';
 
 // Filter states
 const filterStatus = ref('');

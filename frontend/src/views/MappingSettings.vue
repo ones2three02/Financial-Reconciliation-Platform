@@ -17,7 +17,7 @@
             <select 
               id="new-source"
               v-model="newMapping.data_source"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium select-custom"
             >
               <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
             </select>
@@ -29,7 +29,7 @@
             <select 
               id="new-target"
               v-model="newMapping.target_field"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium select-custom"
             >
               <option value="trade_date">交易日期 (trade_date)</option>
               <option value="store_name">门店名称 (store_name)</option>
@@ -74,7 +74,7 @@
             id="filter-source"
             v-model="selectedFilterSource" 
             @change="fetchMappings"
-            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white select-custom"
           >
             <option value="">全部来源</option>
             <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
