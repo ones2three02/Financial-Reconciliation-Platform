@@ -131,6 +131,17 @@ def parse_excel_file(
         # 4. Insert into raw_data
         raw_rows = []
         for idx, row in df.iterrows():
+            # Skip summary/total rows (typically containing keywords like 汇总, 合计, 总计)
+            row_vals_str = [str(x).strip() for x in row.values if pd.notna(x)]
+            is_summary = False
+            for val in row_vals_str:
+                if val in ["汇总", "合计", "总计", "合计：", "总计："] or val.startswith("汇总") or val.startswith("合计"):
+                    is_summary = True
+                    break
+            if is_summary:
+                logger.info(f"Skipping summary/total row at index {idx}: {row_vals_str[:3]}")
+                continue
+                
             # Convert row to dictionary, handle NaN values
             row_dict = {}
             for col in df_cols:
