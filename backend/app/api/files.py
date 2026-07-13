@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from backend.app.core.db import get_db
 from backend.app.schemas.import_file import ImportFile
@@ -25,6 +25,7 @@ def list_import_files(skip: int = 0, limit: int = 100, db: Session = Depends(get
 async def upload_file(
     file: UploadFile = File(...),
     data_source: str = Form(...),  # "tonglian", "meituan", "douyin", "cash", "sales"
+    store_id: Optional[int] = Form(None),
     db: Session = Depends(get_db)
 ):
     if data_source not in ["tonglian", "meituan", "douyin", "cash", "sales"]:
@@ -41,7 +42,8 @@ async def upload_file(
             db=db,
             file_content=content,
             filename=file.filename,
-            data_source=data_source
+            data_source=data_source,
+            store_id=store_id
         )
         
         # Check if we have all 3 standard fields mapped

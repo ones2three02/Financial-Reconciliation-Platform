@@ -30,6 +30,17 @@
             </div>
             <span class="text-[10px] font-semibold text-slate-400">{{ source.desc }}</span>
           </label>
+
+          <!-- Explicit store selection for cash/sales sources -->
+          <div v-if="selectedSource === 'cash' || selectedSource === 'sales'" class="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">指定报表归属标准门店</label>
+            <Select 
+              v-model="selectedStoreId"
+              :options="stores.map(s => ({ value: s.id, label: s.name }))"
+              placeholder="-- 请选择该报表归属的标准门店 --"
+              class="h-9"
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -123,6 +134,7 @@
               <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
                 <th class="p-4">文件名称</th>
                 <th class="p-4">数据分类</th>
+                <th class="p-4">归属门店</th>
                 <th class="p-4">上传时间</th>
                 <th class="p-4 text-center">状态</th>
                 <th class="p-4 text-center">解析记录数</th>
@@ -132,7 +144,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 text-xs">
               <tr v-if="paginatedHistory.length === 0">
-                <td colspan="7" class="p-8 text-center text-slate-400 font-medium">
+                <td colspan="8" class="p-8 text-center text-slate-400 font-medium">
                   <div class="flex flex-col items-center justify-center gap-2">
                     <FolderOpen class="w-8 h-8 text-slate-300" />
                     <span>暂无满足条件的上传记录</span>
@@ -148,6 +160,12 @@
                   <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(item.data_source)">
                     {{ getSourceLabel(item.data_source) }}
                   </span>
+                </td>
+                <td class="p-4">
+                  <span v-if="item.store_id" class="font-bold text-slate-700">
+                    {{ getStoreNameById(item.store_id) }}
+                  </span>
+                  <span v-else class="text-slate-400 font-medium">多店表自动拆分</span>
                 </td>
                 <td class="p-4 text-slate-500 font-mono">{{ formatDate(item.uploaded_at) }}</td>
                 <td class="p-4 text-center">
@@ -319,6 +337,10 @@ const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 
+// Store states
+const selectedStoreId = ref<number | null>(null);
+const stores = ref<any[]>([]);
+
 // Column mapping modal states
 const showMappingModal = ref(false);
 const isSubmittingMapping = ref(false);
@@ -360,6 +382,10 @@ const getStatusLabel = (val: string) => {
   }
 };
 
+const getStoreNameById = (id: number) => {
+  return stores.value.find(s => s.id === id)?.name || `ID: ${id}`;
+};
+
 const formatDate = (dateStr: string) => {
   const d = new Date(dateStr);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -385,11 +411,24 @@ watch(searchQuery, () => {
   currentPage.value = 1;
 });
 
+// Reset selected store when data source changes
+watch(selectedSource, () => {
+  selectedStoreId.value = null;
+});
+
 const fetchImportHistory = async () => {
   try {
     history.value = await api.getImportFiles();
   } catch (error) {
     console.error('Failed to load history:', error);
+  }
+};
+
+const fetchStores = async () => {
+  try {
+    stores.value = await api.getStores();
+  } catch (error) {
+    console.error('Failed to load stores:', error);
   }
 };
 
@@ -420,8 +459,15 @@ const uploadFiles = async (files: File[]) => {
     };
     uploadQueue.value.unshift(queueItem);
     
+    // Explicit selection check for Cash/Sales
+    if ((selectedSource.value === 'cash' || selectedSource.value === 'sales') && !selectedStoreId.value) {
+      queueItem.status = 'failed';
+      queueItem.error = '导入单店账时请先指定归属门店！';
+      continue;
+    }
+    
     try {
-      const res = await api.uploadFile(file, selectedSource.value);
+      const res = await api.uploadFile(file, selectedSource.value, selectedStoreId.value);
       if (res && res.status === 'requires_column_mapping') {
         queueItem.status = 'failed';
         queueItem.error = '需要手动指定列头';
@@ -490,5 +536,6 @@ const reprocessFile = async (fileId: number) => {
 
 onMounted(() => {
   fetchImportHistory();
+  fetchStores();
 });
 </script>

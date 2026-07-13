@@ -13,6 +13,7 @@ class ImportFile(Base):
     error_message = Column(Text, nullable=True)
     row_count = Column(Integer, default=0)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
+    store_id = Column(Integer, nullable=True)
 
     # Relationships
     raw_rows = relationship("RawData", back_populates="import_file", cascade="all, delete-orphan")

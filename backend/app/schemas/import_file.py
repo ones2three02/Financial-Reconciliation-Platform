@@ -8,6 +8,7 @@ class ImportFileBase(BaseModel):
     upload_status: Optional[str] = "pending"
     error_message: Optional[str] = None
     row_count: Optional[int] = 0
+    store_id: Optional[int] = None
 
 class ImportFileCreate(ImportFileBase):
     pass

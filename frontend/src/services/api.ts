@@ -150,10 +150,13 @@ export const api = {
   getImportFiles: () =>
     client.get<ImportFile[]>('/files/').then(res => res.data),
   
-  uploadFile: (file: File, dataSource: string) => {
+  uploadFile: (file: File, dataSource: string, storeId?: number | null) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('data_source', dataSource);
+    if (storeId) {
+      formData.append('store_id', String(storeId));
+    }
     return client.post('/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

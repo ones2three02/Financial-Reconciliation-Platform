@@ -26,6 +26,10 @@ def run_migrations():
             db.execute(text("ALTER TABLE store ADD COLUMN manager VARCHAR(50) NULL;"))
         if 'phone' not in columns:
             db.execute(text("ALTER TABLE store ADD COLUMN phone VARCHAR(50) NULL;"))
+            
+        columns_import = [c['name'] for c in inspector.get_columns('import_file')]
+        if 'store_id' not in columns_import:
+            db.execute(text("ALTER TABLE import_file ADD COLUMN store_id INT NULL;"))
         db.commit()
     except Exception as e:
         import logging

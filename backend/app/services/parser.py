@@ -69,8 +69,9 @@ def parse_excel_file(
     db: Session, 
     file_content: bytes, 
     filename: str, 
-    data_source: str
-) -> Tuple[ImportFile, List[RawData]]:
+    data_source: str,
+    store_id: Optional[int] = None
+) -> Tuple[ImportFile, List[RawData], Dict[str, str]]:
     """
     Parses Excel and saves rows into import_file and raw_data tables.
     Returns the created ImportFile object and list of RawData.
@@ -79,7 +80,8 @@ def parse_excel_file(
     db_file = ImportFile(
         filename=filename,
         data_source=data_source,
-        upload_status="pending"
+        upload_status="pending",
+        store_id=store_id
     )
     db.add(db_file)
     db.commit()

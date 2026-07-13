@@ -122,33 +122,6 @@ def get_or_create_store_alias(db: Session, raw_name: str) -> Tuple[Optional[str]
 
 from backend.app.models.import_file import ImportFile
 
-def detect_default_store_from_filename(db: Session, filename: str) -> Optional[str]:
-    if not filename:
-        return None
-    # Get all active standard stores
-    stores = db.query(Store).filter(Store.is_active == True).all()
-    
-    # Sort standard stores by length of their name in descending order
-    # to avoid matching shorter substrings first (e.g. "荆州店" matching inside "荆州二店")
-    stores_sorted = sorted(stores, key=lambda s: len(s.name), reverse=True)
-    for s in stores_sorted:
-        if s.name in filename:
-            return s.name
-            
-    # Sort short names by length in descending order to avoid matching "荆州" instead of "荆州二"
-    short_name_map = []
-    for s in stores:
-        short_name = s.name[:-1] if s.name.endswith("店") else s.name
-        if short_name:
-            short_name_map.append((short_name, s.name))
-            
-    short_name_map_sorted = sorted(short_name_map, key=lambda x: len(x[0]), reverse=True)
-    for short_name, full_name in short_name_map_sorted:
-        if short_name in filename:
-            return full_name
-            
-    return None
-
 def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     """
     Cleans all raw rows for a specific import file.
@@ -158,12 +131,14 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     db.query(CleanData).filter(CleanData.import_file_id == import_file_id).delete()
     db.commit()
     
-    # Get filename of this import file to auto-detect default store
+    # Get associated store_id from ImportFile to use as explicit fallback
     import_file = db.query(ImportFile).filter(ImportFile.id == import_file_id).first()
-    filename = import_file.filename if import_file else ""
-    default_store_name = detect_default_store_from_filename(db, filename)
-    if default_store_name:
-        logger.info(f"Detected default store '{default_store_name}' from filename '{filename}'")
+    default_store_name = None
+    if import_file and import_file.store_id:
+        store = db.query(Store).filter(Store.id == import_file.store_id).first()
+        if store:
+            default_store_name = store.name
+            logger.info(f"Using explicitly specified store '{default_store_name}' for file ID {import_file_id}")
     
     # 2. Get all raw rows
     raw_rows = db.query(RawData).filter(RawData.import_file_id == import_file_id).all()
