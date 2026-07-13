@@ -77,17 +77,14 @@
 
           <!-- Filters -->
           <div class="flex items-center gap-3">
-            <label for="alias-filter-select" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">过滤别名</label>
-            <select 
-              id="alias-filter-select"
+            <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">过滤别名</label>
+            <Select 
               v-model="aliasFilter" 
+              :options="filterOptions"
               @change="fetchAliases"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white select-custom"
-            >
-              <option value="">全部别名</option>
-              <option value="pending">待核认 / 待匹配</option>
-              <option value="mapped">已绑定映射</option>
-            </select>
+              class="w-36 h-9"
+              align="right"
+            />
           </div>
         </CardHeader>
         <CardContent>
@@ -119,15 +116,13 @@
                 >
                   <td class="p-4 font-bold text-slate-700">{{ a.alias_name }}</td>
                   <td class="p-4">
-                    <!-- Mapped Select component -->
-                    <select 
+                    <!-- Custom Select component -->
+                    <Select 
                       v-model="a.store_id"
-                      class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full max-w-[200px] select-custom"
+                      :options="storeOptions"
                       @change="mapAlias(a.id, a.store_id)"
-                    >
-                      <option :value="null">-- 请选择标准店名 (待认领) --</option>
-                      <option v-for="s in stores" :key="s.id" :value="s.id">{{ s.name }}</option>
-                    </select>
+                      class="w-full max-w-[200px] h-8"
+                    />
                   </td>
                   <td class="p-4 text-center">
                     <span 
@@ -165,18 +160,32 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { api } from '../services/api';
 import type { Store, StoreAlias } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
 import { Store as StoreIcon, Link, Plus, Trash2, CheckCircle2, FolderOpen } from 'lucide-vue-next';
 
 const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);
 const newStoreName = ref('');
 const aliasFilter = ref('pending'); // Default to show pending mappings first
+
+const filterOptions = [
+  { value: '', label: '全部别名' },
+  { value: 'pending', label: '待核认 / 待匹配' },
+  { value: 'mapped', label: '已绑定映射' }
+];
+
+const storeOptions = computed(() => {
+  return [
+    { value: null, label: '-- 请选择标准店名 (待认领) --' },
+    ...stores.value.map(s => ({ value: s.id, label: s.name }))
+  ];
+});
 
 const fetchStores = async () => {
   try {

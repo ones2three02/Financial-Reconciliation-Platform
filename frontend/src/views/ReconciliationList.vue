@@ -15,39 +15,30 @@
 
           <!-- Status Filter -->
           <div class="flex flex-col gap-1.5">
-            <label for="filter-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
               <Sliders class="w-3.5 h-3.5" />
               <span>比对状态</span>
             </label>
-            <select 
-              id="filter-status"
+            <Select 
               v-model="filterStatus" 
+              :options="statusOptions"
               @change="fetchResults"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[120px] select-custom"
-            >
-              <option value="">全部</option>
-              <option value="consistent">账目一致</option>
-              <option value="discrepancy">有差异</option>
-              <option value="missing_data">缺少数据</option>
-            </select>
+              class="w-32 h-9"
+            />
           </div>
 
           <!-- Resolution Filter -->
           <div class="flex flex-col gap-1.5">
-            <label for="filter-resolved" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
               <CheckCircle2 class="w-3.5 h-3.5" />
               <span>核实处理</span>
             </label>
-            <select 
-              id="filter-resolved"
+            <Select 
               v-model="filterResolved" 
+              :options="resolvedOptions"
               @change="fetchResults"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[100px] select-custom"
-            >
-              <option value="">全部</option>
-              <option value="false">未处理</option>
-              <option value="true">已处理</option>
-            </select>
+              class="w-28 h-9"
+            />
           </div>
         </div>
 
@@ -241,13 +232,27 @@ import { api } from '../services/api';
 import type { ReconciliationResult } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Select } from '../components/ui/select';
+import { DatePicker } from '../components/ui/date-picker';
 import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen } from 'lucide-vue-next';
 import { globalDate } from '../services/store';
-import { DatePicker } from '../components/ui/date-picker';
 
 // Filter states
 const filterStatus = ref('');
 const filterResolved = ref('');
+
+const statusOptions = [
+  { value: '', label: '全部状态' },
+  { value: 'consistent', label: '账目一致' },
+  { value: 'discrepancy', label: '金额不符' },
+  { value: 'missing_data', label: '缺失数据' }
+];
+
+const resolvedOptions = [
+  { value: '', label: '全部处理' },
+  { value: 'false', label: '未处理' },
+  { value: 'true', label: '已处理' }
+];
 
 const results = ref<ReconciliationResult[]>([]);
 const isRecalculating = ref(false);

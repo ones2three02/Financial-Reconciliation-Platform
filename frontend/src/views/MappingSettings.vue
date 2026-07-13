@@ -13,28 +13,22 @@
         <CardContent class="space-y-4">
           <!-- Source Selector -->
           <div class="flex flex-col gap-1.5">
-            <label for="new-source" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">数据来源通道</label>
-            <select 
-              id="new-source"
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">数据来源通道</label>
+            <Select 
               v-model="newMapping.data_source"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium select-custom"
-            >
-              <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
-            </select>
+              :options="sourceOptions"
+              class="h-9"
+            />
           </div>
 
           <!-- Target Field Selector -->
           <div class="flex flex-col gap-1.5">
-            <label for="new-target" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">目标标准系统字段</label>
-            <select 
-              id="new-target"
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">目标标准系统字段</label>
+            <Select 
               v-model="newMapping.target_field"
-              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium select-custom"
-            >
-              <option value="trade_date">交易日期 (trade_date)</option>
-              <option value="store_name">门店名称 (store_name)</option>
-              <option value="amount">交易金额 (amount)</option>
-            </select>
+              :options="targetFieldOptions"
+              class="h-9"
+            />
           </div>
 
           <!-- Source Column Input -->
@@ -70,15 +64,13 @@
             <CardDescription>系统支持的所有来源 Excel 的列头转换匹配规则</CardDescription>
           </div>
           
-          <select 
-            id="filter-source"
+          <Select 
             v-model="selectedFilterSource" 
+            :options="filterSourceOptions"
             @change="fetchMappings"
-            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white select-custom"
-          >
-            <option value="">全部来源</option>
-            <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
+            class="w-36 h-9"
+            align="right"
+          />
         </CardHeader>
         <CardContent>
           <!-- Mappings Table -->
@@ -128,13 +120,18 @@
                   </td>
                   <td class="p-4 text-center">
                     <Button 
-                      @click="deleteMapping(m.id)" 
+                      v-if="confirmDeleteId !== m.id"
+                      @click="confirmDeleteId = m.id" 
                       variant="ghost"
                       size="xs"
                       class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold"
                     >
                       🗑 删除
                     </Button>
+                    <div v-else class="flex items-center gap-1 justify-center">
+                      <Button @click="deleteMapping(m.id)" size="xs" class="bg-rose-600 hover:bg-rose-700 text-white h-7 text-[10px] px-2 font-bold">确认</Button>
+                      <Button @click="confirmDeleteId = null" size="xs" variant="outline" class="h-7 text-[10px] px-2 font-bold">取消</Button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -153,6 +150,7 @@ import type { FieldMapping } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Select } from '../components/ui/select';
 import { Sliders, Plus, Trash2, FolderOpen } from 'lucide-vue-next';
 
 const sources = [
@@ -163,8 +161,28 @@ const sources = [
   { value: 'sales', label: '销售收入', badge: 'bg-blue-50 text-blue-600' },
 ];
 
+const sourceOptions = [
+  { value: 'tonglian', label: '通联后台' },
+  { value: 'meituan', label: '美团收入' },
+  { value: 'douyin', label: '抖音收入' },
+  { value: 'cash', label: '现金收入' },
+  { value: 'sales', label: '销售收入' }
+];
+
+const filterSourceOptions = [
+  { value: '', label: '全部来源' },
+  ...sourceOptions
+];
+
+const targetFieldOptions = [
+  { value: 'trade_date', label: '交易日期 (trade_date)' },
+  { value: 'store_name', label: '门店名称 (store_name)' },
+  { value: 'amount', label: '交易金额 (amount)' }
+];
+
 const selectedFilterSource = ref('');
 const mappings = ref<FieldMapping[]>([]);
+const confirmDeleteId = ref<number | null>(null);
 
 const newMapping = ref({
   data_source: 'tonglian',
@@ -222,9 +240,9 @@ const toggleActive = async (m: FieldMapping) => {
 };
 
 const deleteMapping = async (id: number) => {
-  if (!confirm('确定删除此条列头配置吗？')) return;
   try {
     await api.deleteFieldMapping(id);
+    confirmDeleteId.value = null;
     fetchMappings();
   } catch (error) {
     alert('删除映射失败！');
