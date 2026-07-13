@@ -8,6 +8,10 @@ class Store(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False, index=True)
+    code = Column(String(50), nullable=True)
+    region = Column(String(100), nullable=True)
+    manager = Column(String(50), nullable=True)
+    phone = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

@@ -21,6 +21,10 @@ client.interceptors.request.use((config) => {
 export interface Store {
   id: number;
   name: string;
+  code?: string | null;
+  region?: string | null;
+  manager?: string | null;
+  phone?: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -107,10 +111,10 @@ export const api = {
   getStores: () =>
     client.get<Store[]>('/stores/').then(res => res.data),
   
-  createStore: (name: string) =>
-    client.post<Store>('/stores/', { name }).then(res => res.data),
+  createStore: (data: { name: string; code?: string; region?: string; manager?: string; phone?: string; is_active?: boolean }) =>
+    client.post<Store>('/stores/', data).then(res => res.data),
   
-  updateStore: (id: number, data: { name?: string; is_active?: boolean }) =>
+  updateStore: (id: number, data: { name?: string; code?: string; region?: string; manager?: string; phone?: string; is_active?: boolean }) =>
     client.put<Store>(`/stores/${id}`, data).then(res => res.data),
   
   deleteStore: (id: number) =>

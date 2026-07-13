@@ -9,6 +9,32 @@ from backend.app.api import stores, mappings, files, reconciliation, dashboard, 
 # In production, Alembic migrations are used
 Base.metadata.create_all(bind=engine)
 
+# Safely run table columns check and migration for MVP
+def run_migrations():
+    from sqlalchemy import inspect, text
+    db = SessionLocal()
+    try:
+        inspector = inspect(engine)
+        columns = [c['name'] for c in inspector.get_columns('store')]
+        
+        # Check and add columns
+        if 'code' not in columns:
+            db.execute(text("ALTER TABLE store ADD COLUMN code VARCHAR(50) NULL;"))
+        if 'region' not in columns:
+            db.execute(text("ALTER TABLE store ADD COLUMN region VARCHAR(100) NULL;"))
+        if 'manager' not in columns:
+            db.execute(text("ALTER TABLE store ADD COLUMN manager VARCHAR(50) NULL;"))
+        if 'phone' not in columns:
+            db.execute(text("ALTER TABLE store ADD COLUMN phone VARCHAR(50) NULL;"))
+        db.commit()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Database migration failed: {e}")
+    finally:
+        db.close()
+
+run_migrations()
+
 # Seed the 22 standard stores if the table is empty
 def seed_stores():
     db = SessionLocal()

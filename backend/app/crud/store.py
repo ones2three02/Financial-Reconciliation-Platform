@@ -15,7 +15,14 @@ def get_stores(db: Session, skip: int = 0, limit: int = 100) -> List[Store]:
     return db.query(Store).offset(skip).limit(limit).all()
 
 def create_store(db: Session, store: StoreCreate) -> Store:
-    db_store = Store(name=store.name, is_active=store.is_active)
+    db_store = Store(
+        name=store.name,
+        code=store.code,
+        region=store.region,
+        manager=store.manager,
+        phone=store.phone,
+        is_active=store.is_active
+    )
     db.add(db_store)
     db.commit()
     db.refresh(db_store)

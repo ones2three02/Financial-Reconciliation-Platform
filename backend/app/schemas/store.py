@@ -26,13 +26,26 @@ class StoreAlias(StoreAliasBase):
 # Store Schemas
 class StoreBase(BaseModel):
     name: str
+    code: Optional[str] = None
+    region: Optional[str] = None
+    manager: Optional[str] = None
+    phone: Optional[str] = None
     is_active: Optional[bool] = True
 
-class StoreCreate(StoreBase):
-    pass
+class StoreCreate(BaseModel):
+    name: str
+    code: Optional[str] = None
+    region: Optional[str] = None
+    manager: Optional[str] = None
+    phone: Optional[str] = None
+    is_active: Optional[bool] = True
 
 class StoreUpdate(BaseModel):
     name: Optional[str] = None
+    code: Optional[str] = None
+    region: Optional[str] = None
+    manager: Optional[str] = None
+    phone: Optional[str] = None
     is_active: Optional[bool] = None
 
 class Store(StoreBase):
