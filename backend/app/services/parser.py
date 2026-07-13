@@ -11,11 +11,21 @@ import io
 
 logger = logging.getLogger(__name__)
 
+# --- MONKEYPATCH FOR OPENPYXL FILTER BUG ---
+try:
+    from openpyxl.worksheet.filters import CustomFilterValueDescriptor
+    def patched_set(self, instance, value):
+        instance.__dict__[self.name] = value
+    CustomFilterValueDescriptor.__set__ = patched_set
+    logger.info("Successfully monkeypatched openpyxl CustomFilterValueDescriptor")
+except Exception as patch_err:
+    logger.warning(f"Could not patch openpyxl filter descriptor: {patch_err}")
+
 # Fallback column search keywords (lowercased)
 FALLBACK_KEYWORDS = {
-    "trade_date": ["日期", "交易日期", "账期", "交易时间", "时间", "date", "trade_date", "交易账期"],
-    "store_name": ["商户名称", "门店", "门店名称", "店铺", "店铺名称", "分店", "分店名称", "商户", "终端名称", "店名", "store", "store_name"],
-    "amount": ["金额", "交易金额", "金额(元)", "销售额", "销售金额", "实收金额", "收入", "应收金额", "实收", "amount", "total_amount", "交易净额"]
+    "trade_date": ["日期", "交易日期", "账期", "交易时间", "时间", "date", "trade_date", "交易账期", "核销时间", "验券/退款/"],
+    "store_name": ["商户名称", "门店", "门店名称", "店铺", "店铺名称", "分店", "分店名称", "商户", "终端名称", "店名", "store", "store_name", "消费门店", "门店名", "核销门店"],
+    "amount": ["金额", "交易金额", "金额(元)", "销售额", "销售金额", "实收金额", "收入", "应收金额", "实收", "amount", "total_amount", "交易净额", "成功交易金额", "订单实收", "总收入（元）"]
 }
 
 def detect_column_mappings(df_cols: List[str], db_mappings: List[FieldMapping], data_source: str) -> Dict[str, str]:
@@ -68,8 +78,21 @@ def parse_excel_file(
     
     try:
         # 2. Read Excel into Pandas
-        # Reads the first sheet
-        df = pd.read_excel(io.BytesIO(file_content))
+        xl = pd.ExcelFile(io.BytesIO(file_content))
+        sheet_names = xl.sheet_names
+        
+        # Smart sheet selection
+        selected_sheet = sheet_names[0]
+        # Prioritize matching typical transaction detail sheets
+        target_keywords = ["流水", "明细", "核销"]
+        for kw in target_keywords:
+            matched = [s for s in sheet_names if kw in s]
+            if matched:
+                selected_sheet = matched[0]
+                break
+                
+        logger.info(f"Parsing file {filename} sheet '{selected_sheet}' for data source {data_source}")
+        df = xl.parse(selected_sheet)
         
         # Clean columns: strip whitespace
         df.columns = [str(c).strip() for c in df.columns]

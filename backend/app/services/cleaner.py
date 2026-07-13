@@ -73,11 +73,6 @@ def clean_date(val: Any) -> date:
     # Handle Excel float serial numbers if loaded as string float
     try:
         f = float(s)
-        # 1900-01-01 is serial 1 in Excel
-        # Python datetime/date from ordinal: serial 1 is 1900-01-01, but Excel treats 1900 as leap year (incorrectly).
-        # We can do a quick approximation for common dates:
-        # Excel date offset is 693594 days from Python's proleptic Gregorian calendar origin.
-        # Check if the float looks like a serial date (e.g. 40000 to 60000 range)
         if 30000 < f < 70000:
             import pandas as pd
             return pd.to_datetime(f, unit='D', origin='1899-12-30').date()
@@ -137,9 +132,6 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     # 2. Get all raw rows
     raw_rows = db.query(RawData).filter(RawData.import_file_id == import_file_id).all()
     
-    # Get mapping definitions
-    # Since we saved _detected_mappings in the content dictionary of each raw row, we can use it.
-    
     summary = {
         "total": len(raw_rows),
         "cleaned": 0,
@@ -154,6 +146,14 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
         col_date = detected_maps.get("trade_date")
         col_store = detected_maps.get("store_name")
         col_amount = detected_maps.get("amount")
+        
+        # --- CASH FILTER RULE ---
+        # For cash dataset, only import records where payment method is "现金"
+        if row.data_source == "cash":
+            pay_method = content.get("付款方式") or content.get("支付方式")
+            if not pay_method or str(pay_method).strip() != "现金":
+                summary["total"] -= 1  # exclude this row from the dataset statistics
+                continue
         
         error_msgs = []
         parsed_date = None
@@ -183,15 +183,26 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
         else:
             error_msgs.append("Missing store column mapping")
             
-        # Parse Amount
-        if col_amount and col_amount in content:
+        # --- AMOUNT CALCULATION RULE ---
+        if row.data_source == "meituan":
+            # Meituan calculation logic: 总收入（元） + 商家营销费用（元）
             try:
-                parsed_amount = clean_amount(content[col_amount])
+                col_total_income = "总收入（元）"
+                col_marketing = "商家营销费用（元）"
+                val_total = content.get(col_total_income) if col_total_income in content else content.get(col_amount)
+                val_mkt = content.get(col_marketing, 0)
+                parsed_amount = clean_amount(val_total) + clean_amount(val_mkt)
             except Exception as e:
-                error_msgs.append(f"Amount error: {str(e)}")
+                error_msgs.append(f"Meituan amount parsing error: {str(e)}")
         else:
-            # For amount, if missing we treat it as 0.00 or error
-            error_msgs.append("Missing amount column mapping")
+            # Standard amount parsing
+            if col_amount and col_amount in content:
+                try:
+                    parsed_amount = clean_amount(content[col_amount])
+                except Exception as e:
+                    error_msgs.append(f"Amount error: {str(e)}")
+            else:
+                error_msgs.append("Missing amount column mapping")
             
         if error_msgs:
             clean_status = "error"

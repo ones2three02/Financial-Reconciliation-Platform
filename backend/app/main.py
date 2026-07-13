@@ -35,6 +35,8 @@ def run_migrations():
 
 run_migrations()
 
+from backend.app.models.store import Store, StoreAlias
+
 # Seed the 22 standard stores if the table is empty
 def seed_stores():
     db = SessionLocal()
@@ -50,9 +52,28 @@ def seed_stores():
             for name in default_stores:
                 db.add(Store(name=name))
             db.commit()
+            
+        # Seed example store aliases for testing & automatic mapping
+        aliases_map = {
+            "山道曙光游泳馆(曙光商贸城民族大道店)": "民院店",
+            "山道健身－民院健身房": "民院店",
+            "山道健身－民院游泳馆": "民院店",
+            "山道健身会所-宜春店": "宜春店",
+            "山道健身游泳(宜春润达店)": "宜春店",
+            "山道健身游泳(新余店)": "新余店",
+            "新余 : 山道健身游泳高奢店(新余上亿广场店)": "新余店",
+            "南昌 : 山道健身游泳(南昌高新吾悦广场店)": "高新吾悦店"
+        }
+        for alias_name, store_name in aliases_map.items():
+            store = db.query(Store).filter(Store.name == store_name).first()
+            if store:
+                exists = db.query(StoreAlias).filter(StoreAlias.alias_name == alias_name).first()
+                if not exists:
+                    db.add(StoreAlias(alias_name=alias_name, store_id=store.id, status="mapped"))
+        db.commit()
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning(f"Failed to seed stores: {e}")
+        logging.getLogger(__name__).warning(f"Failed to seed stores or aliases: {e}")
     finally:
         db.close()
 
