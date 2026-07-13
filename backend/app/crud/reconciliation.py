@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, Integer
 from backend.app.models.reconciliation import ReconciliationResult
 from backend.app.schemas.reconciliation import ReconciliationResultUpdate, DashboardSummary
 from datetime import date, datetime, timedelta
