@@ -9,6 +9,15 @@ const client = axios.create({
   },
 });
 
+// Auth interceptor
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export interface Store {
   id: number;
   name: string;
@@ -163,4 +172,8 @@ export const api = {
   
   getExportUrl: (tradeDate: string) =>
     `${API_BASE_URL}/reconciliation/export?trade_date=${tradeDate}`,
+
+  // Auth login
+  login: (username: string, password: string) =>
+    client.post<{ access_token: string; token_type: string; username: string }>('/auth/login', { username, password }).then(res => res.data),
 };

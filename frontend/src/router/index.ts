@@ -4,6 +4,7 @@ import ImportCenter from '../views/ImportCenter.vue';
 import ReconciliationList from '../views/ReconciliationList.vue';
 import MappingSettings from '../views/MappingSettings.vue';
 import StoreSettings from '../views/StoreSettings.vue';
+import Login from '../views/Login.vue';
 
 const routes = [
   {
@@ -31,11 +32,27 @@ const routes = [
     name: 'StoreSettings',
     component: StoreSettings,
   },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+  },
 ];
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+router.beforeEach((to, from, next) => {
+  const isAuthenticated = !!localStorage.getItem('access_token');
+  if (to.name !== 'Login' && !isAuthenticated) {
+    next({ name: 'Login' });
+  } else if (to.name === 'Login' && isAuthenticated) {
+    next({ name: 'Dashboard' });
+  } else {
+    next();
+  }
 });
 
 export default router;

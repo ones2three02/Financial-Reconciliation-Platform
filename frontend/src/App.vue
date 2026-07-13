@@ -1,5 +1,8 @@
 <template>
-  <div class="flex h-screen bg-slate-50/50 text-slate-900 font-sans overflow-hidden">
+  <div v-if="route.path === '/login'" class="h-screen w-screen bg-[#09090b] flex items-center justify-center">
+    <router-view />
+  </div>
+  <div v-else class="flex h-screen bg-slate-50/50 text-slate-900 font-sans overflow-hidden">
     <!-- Sidebar -->
     <aside 
       :class="[
@@ -131,9 +134,28 @@
           </div>
         </div>
         
-        <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5 shrink-0">
-          <Calendar class="w-3.5 h-3.5 text-slate-400" />
-          <span>当前账期: {{ currentDate }}</span>
+        <!-- Header Right side details -->
+        <div class="flex items-center gap-4 shrink-0">
+          <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200/80 rounded-lg px-3 py-1.5">
+            <Calendar class="w-3.5 h-3.5 text-slate-400" />
+            <span>当前账期: {{ currentDate }}</span>
+          </div>
+
+          <!-- User profile Badge and safety logout -->
+          <div class="flex items-center gap-2 border-l border-slate-200 pl-4">
+            <div class="w-8 h-8 rounded-full bg-blue-50/80 border border-blue-200 text-blue-600 flex items-center justify-center font-extrabold text-xs shrink-0 select-none shadow-sm">
+              {{ currentUsername ? currentUsername.charAt(0).toUpperCase() : 'A' }}
+            </div>
+            <div class="flex flex-col text-left shrink-0">
+              <span class="text-xs font-bold text-slate-700 leading-none">管理员 ({{ currentUsername }})</span>
+              <button 
+                @click="handleLogout" 
+                class="text-[10px] text-slate-400 font-bold hover:text-rose-500 hover:underline transition-all mt-0.5 text-left bg-transparent p-0 border-0"
+              >
+                安全退出
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -151,7 +173,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { 
   LayoutDashboard, 
   FileUp, 
@@ -165,6 +187,7 @@ import {
 } from 'lucide-vue-next';
 
 const route = useRoute();
+const router = useRouter();
 
 // Persist sidebar state in localStorage
 const isCollapsed = ref(localStorage.getItem('sidebar-collapsed') === 'true');
@@ -172,6 +195,16 @@ const isCollapsed = ref(localStorage.getItem('sidebar-collapsed') === 'true');
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
   localStorage.setItem('sidebar-collapsed', String(isCollapsed.value));
+};
+
+const currentUsername = computed(() => {
+  return localStorage.getItem('username') || 'admin';
+});
+
+const handleLogout = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('username');
+  router.push('/login');
 };
 
 const pageTitle = computed(() => {
