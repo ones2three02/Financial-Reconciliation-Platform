@@ -120,6 +120,22 @@ def get_or_create_store_alias(db: Session, raw_name: str) -> Tuple[Optional[str]
             
         return None, "pending_store_mapping"
 
+from backend.app.models.import_file import ImportFile
+
+def detect_default_store_from_filename(db: Session, filename: str) -> Optional[str]:
+    if not filename:
+        return None
+    # Get all active standard stores
+    stores = db.query(Store).filter(Store.is_active == True).all()
+    for s in stores:
+        if s.name in filename:
+            return s.name
+        # Check name without "店" suffix, e.g. "民院" for "民院店"
+        short_name = s.name[:-1] if s.name.endswith("店") else s.name
+        if short_name and short_name in filename:
+            return s.name
+    return None
+
 def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     """
     Cleans all raw rows for a specific import file.
@@ -128,6 +144,13 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     # 1. Clear existing clean data
     db.query(CleanData).filter(CleanData.import_file_id == import_file_id).delete()
     db.commit()
+    
+    # Get filename of this import file to auto-detect default store
+    import_file = db.query(ImportFile).filter(ImportFile.id == import_file_id).first()
+    filename = import_file.filename if import_file else ""
+    default_store_name = detect_default_store_from_filename(db, filename)
+    if default_store_name:
+        logger.info(f"Detected default store '{default_store_name}' from filename '{filename}'")
     
     # 2. Get all raw rows
     raw_rows = db.query(RawData).filter(RawData.import_file_id == import_file_id).all()
@@ -172,16 +195,26 @@ def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
             error_msgs.append("Missing date column mapping")
             
         # Parse Store Name
+        has_store_value = False
         if col_store and col_store in content:
-            raw_store_name = str(content[col_store]).strip()
-            if raw_store_name:
-                standard_store_name, store_status = get_or_create_store_alias(db, raw_store_name)
-                if store_status == "pending_store_mapping":
-                    clean_status = "pending_store_mapping"
-            else:
-                error_msgs.append("Store name is empty")
+            val_store = content[col_store]
+            if val_store is not None:
+                val_str = str(val_store).strip()
+                if val_str and val_str.lower() not in ["nan", "none", "null"]:
+                    raw_store_name = val_str
+                    has_store_value = True
+                    
+        if has_store_value:
+            standard_store_name, store_status = get_or_create_store_alias(db, raw_store_name)
+            if store_status == "pending_store_mapping":
+                clean_status = "pending_store_mapping"
         else:
-            error_msgs.append("Missing store column mapping")
+            # Fallback to default store name if detected from filename
+            if default_store_name:
+                raw_store_name = default_store_name
+                standard_store_name = default_store_name
+            else:
+                error_msgs.append("Store name is empty and could not be inferred from filename")
             
         # --- AMOUNT CALCULATION RULE ---
         if row.data_source == "meituan":
