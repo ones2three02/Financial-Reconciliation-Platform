@@ -164,6 +164,9 @@ export const api = {
   reprocessFile: (fileId: number) =>
     client.post(`/files/${fileId}/reprocess`).then(res => res.data),
 
+  confirmMapping: (importFileId: number, mappings: Record<string, string>) =>
+    client.post('/files/confirm-mapping', { import_file_id: importFileId, mappings }).then(res => res.data),
+
   // Reconciliation
   getReconciliationResults: (params: { trade_date?: string; status?: string; is_resolved?: boolean }) =>
     client.get<ReconciliationResult[]>('/reconciliation/', { params }).then(res => res.data),

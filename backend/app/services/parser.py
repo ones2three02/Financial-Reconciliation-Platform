@@ -22,11 +22,11 @@ try:
 except Exception as patch_err:
     logger.warning(f"Could not patch openpyxl filter descriptor: {patch_err}")
 
-# Fallback column search keywords (lowercased)
+# Fallback column search keywords (lowercased, ordered by priority)
 FALLBACK_KEYWORDS = {
-    "trade_date": ["日期", "交易日期", "账期", "交易时间", "时间", "date", "trade_date", "交易账期", "核销时间", "验券/退款/"],
-    "store_name": ["商户名称", "门店", "门店名称", "店铺", "店铺名称", "分店", "分店名称", "商户", "终端名称", "店名", "store", "store_name", "消费门店", "门店名", "核销门店"],
-    "amount": ["金额", "交易金额", "金额(元)", "销售额", "销售金额", "实收金额", "收入", "应收金额", "实收", "amount", "total_amount", "交易净额", "成功交易金额", "订单实收", "总收入（元）"]
+    "trade_date": ["核销时间", "验券/退款/", "交易日期", "统计日期", "日期", "账期", "交易时间", "时间", "date", "trade_date", "交易账期"],
+    "store_name": ["门店名", "门店名称", "门店", "消费门店", "店名", "核销门店", "店铺名称", "店铺", "分店名称", "分店", "商户名称", "商户", "终端名称", "store", "store_name"],
+    "amount": ["成功交易金额", "订单实收", "总收入（元）", "金额(元)", "交易金额", "金额", "销售额", "销售金额", "实收金额", "收入", "应收金额", "实收", "amount", "total_amount", "交易净额"]
 }
 
 def detect_column_mappings(df_cols: List[str], db_mappings: List[FieldMapping], data_source: str) -> Dict[str, str]:
@@ -47,12 +47,20 @@ def detect_column_mappings(df_cols: List[str], db_mappings: List[FieldMapping], 
                 mappings[standard_field] = col_name
                 continue
                 
-        # 2. Fallback to keyword matching
+        # 2. Fallback to keyword matching in priority order
         keywords = FALLBACK_KEYWORDS.get(standard_field, [])
-        for col in df_cols:
-            col_clean = str(col).strip().lower()
-            if any(kw in col_clean for kw in keywords):
-                mappings[standard_field] = col
+        found = False
+        for kw in keywords:
+            for col in df_cols:
+                col_clean = str(col).strip().lower()
+                # Exclude columns that represent codes/IDs when mapping store names
+                if standard_field == "store_name" and any(exc in col_clean for exc in ["号", "id", "编码", "code", "编号"]):
+                    continue
+                if kw in col_clean:
+                    mappings[standard_field] = col
+                    found = True
+                    break
+            if found:
                 break
                 
     return mappings
@@ -195,7 +203,7 @@ def parse_excel_file(
                 db.add(new_map)
         db.commit()
         
-        return db_file, raw_rows
+        return db_file, raw_rows, detected_maps
         
     except Exception as e:
         logger.exception(f"Failed to parse Excel file {filename}")

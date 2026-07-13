@@ -81,7 +81,7 @@
                 <span v-else-if="item.status === 'success'" class="text-emerald-500 font-bold text-[11px] inline-flex items-center gap-1">
                   <CheckCircle2 class="w-3.5 h-3.5" /> 已导入
                 </span>
-                <span v-else class="text-rose-500 font-bold text-[11px]">✗ {{ item.error }}</span>
+                <span v-else class="text-rose-500 font-bold text-[11px]" :title="item.error">✗ {{ item.error && item.error.length > 15 ? item.error.substring(0, 15) + '...' : item.error }}</span>
               </div>
             </div>
           </div>
@@ -155,7 +155,7 @@
                     class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
                     :class="{
                       'bg-emerald-50 text-emerald-600 border border-emerald-250': item.upload_status === 'parsed',
-                      'bg-blue-50 text-blue-600 border border-blue-250': item.upload_status === 'pending',
+                      'bg-blue-50 text-blue-600 border border-blue-250': item.upload_status === 'pending_mapping' || item.upload_status === 'pending',
                       'bg-rose-50 text-rose-600 border border-rose-250': item.upload_status === 'failed',
                     }"
                   >
@@ -211,6 +211,82 @@
         </div>
       </CardContent>
     </Card>
+
+    <!-- Column Mapping Confirmation Modal Dialog -->
+    <div 
+      v-if="showMappingModal" 
+      class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
+      @click.self="showMappingModal = false"
+    >
+      <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
+        <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <CardTitle class="text-base font-bold text-slate-800">手动指定表头列映射</CardTitle>
+              <CardDescription class="text-xs text-slate-400 mt-1">
+                未能自动匹配文件 [{{ mappingContext.filename }}] 的核心列，请核对指派：
+              </CardDescription>
+            </div>
+            <button @click="showMappingModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
+          </div>
+        </CardHeader>
+        
+        <CardContent class="p-6 space-y-4">
+          <!-- Trade Date Mapping -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">账期日期列</label>
+            <Select 
+              v-model="chosenMappings.trade_date"
+              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
+              placeholder="-- 选择 Excel 中代表账期日期的列 --"
+              class="h-9"
+            />
+          </div>
+
+          <!-- Store Name Mapping -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">门店名称列</label>
+            <Select 
+              v-model="chosenMappings.store_name"
+              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
+              placeholder="-- 选择 Excel 中代表门店名称的列 --"
+              class="h-9"
+            />
+          </div>
+
+          <!-- Amount Mapping -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">交易金额列</label>
+            <Select 
+              v-model="chosenMappings.amount"
+              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
+              placeholder="-- 选择 Excel 中代表交易金额的列 --"
+              class="h-9"
+            />
+          </div>
+        </CardContent>
+
+        <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
+          <Button 
+            @click="showMappingModal = false"
+            variant="outline"
+            size="sm"
+            class="h-8 text-xs font-semibold"
+          >
+            取消
+          </Button>
+          <Button 
+            @click="submitColumnMapping"
+            :disabled="isSubmittingMapping"
+            size="sm"
+            class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10 flex items-center gap-1.5"
+          >
+            <Save class="w-3.5 h-3.5" />
+            <span>{{ isSubmittingMapping ? '正在处理...' : '确认导入' }}</span>
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -218,10 +294,11 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { api } from '../services/api';
 import type { ImportFile } from '../services/api';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Sliders, UploadCloud, FileSpreadsheet, CheckCircle2, History, FolderOpen } from 'lucide-vue-next';
+import { Select } from '../components/ui/select';
+import { Sliders, UploadCloud, FileSpreadsheet, CheckCircle2, History, FolderOpen, Save } from 'lucide-vue-next';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', desc: '第三方好老板系统流水', badge: 'bg-violet-50 text-violet-600 border border-violet-100' },
@@ -242,6 +319,22 @@ const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 
+// Column mapping modal states
+const showMappingModal = ref(false);
+const isSubmittingMapping = ref(false);
+const mappingContext = ref({
+  import_file_id: 0,
+  filename: '',
+  data_source: '',
+  columns: [] as string[],
+  detected_mappings: {} as Record<string, string>
+});
+const chosenMappings = ref({
+  trade_date: '',
+  store_name: '',
+  amount: ''
+});
+
 interface UploadItem {
   name: string;
   status: 'uploading' | 'success' | 'failed';
@@ -261,6 +354,7 @@ const getStatusLabel = (val: string) => {
   switch (val) {
     case 'parsed': return '已完成';
     case 'pending': return '待处理';
+    case 'pending_mapping': return '待指派表头';
     case 'failed': return '处理失败';
     default: return val;
   }
@@ -327,8 +421,29 @@ const uploadFiles = async (files: File[]) => {
     uploadQueue.value.unshift(queueItem);
     
     try {
-      await api.uploadFile(file, selectedSource.value);
-      queueItem.status = 'success';
+      const res = await api.uploadFile(file, selectedSource.value);
+      if (res && res.status === 'requires_column_mapping') {
+        queueItem.status = 'failed';
+        queueItem.error = '需要手动指定列头';
+        
+        mappingContext.value = {
+          import_file_id: res.import_file_id,
+          filename: res.filename,
+          data_source: res.data_source,
+          columns: res.columns,
+          detected_mappings: res.detected_mappings
+        };
+        
+        chosenMappings.value = {
+          trade_date: res.detected_mappings.trade_date || '',
+          store_name: res.detected_mappings.store_name || '',
+          amount: res.detected_mappings.amount || ''
+        };
+        
+        showMappingModal.value = true;
+      } else {
+        queueItem.status = 'success';
+      }
     } catch (err: any) {
       queueItem.status = 'failed';
       queueItem.error = err.response?.data?.detail || '解析失败';
@@ -340,6 +455,24 @@ const uploadFiles = async (files: File[]) => {
   setTimeout(() => {
     uploadQueue.value = uploadQueue.value.filter(item => item.status === 'failed');
   }, 5000);
+};
+
+const submitColumnMapping = async () => {
+  if (!chosenMappings.value.trade_date || !chosenMappings.value.store_name || !chosenMappings.value.amount) {
+    alert('请为所有 3 个标准字段指定对应的 Excel 列名！');
+    return;
+  }
+  isSubmittingMapping.value = true;
+  try {
+    await api.confirmMapping(mappingContext.value.import_file_id, chosenMappings.value);
+    showMappingModal.value = false;
+    alert('映射确认成功，数据已完成对账！');
+    fetchImportHistory();
+  } catch (err: any) {
+    alert('确认映射失败: ' + (err.response?.data?.detail || '未知错误'));
+  } finally {
+    isSubmittingMapping.value = false;
+  }
 };
 
 const reprocessFile = async (fileId: number) => {

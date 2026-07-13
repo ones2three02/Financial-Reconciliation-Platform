@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
+from pydantic import BaseModel
 from backend.app.core.db import get_db
 from backend.app.schemas.import_file import ImportFile
 from backend.app.crud import import_file as crud_import_file
@@ -12,11 +13,15 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+class ConfirmMappingRequest(BaseModel):
+    import_file_id: int
+    mappings: Dict[str, str]
+
 @router.get("/", response_model=List[ImportFile])
 def list_import_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud_import_file.get_import_files(db, skip=skip, limit=limit)
 
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
+@router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
     data_source: str = Form(...),  # "tonglian", "meituan", "douyin", "cash", "sales"
@@ -32,12 +37,37 @@ async def upload_file(
         content = await file.read()
         
         # 1. Parse Excel to raw tables
-        import_file_record, _ = parse_excel_file(
+        import_file_record, raw_rows, detected_maps = parse_excel_file(
             db=db,
             file_content=content,
             filename=file.filename,
             data_source=data_source
         )
+        
+        # Check if we have all 3 standard fields mapped
+        missing_fields = [f for f in ["trade_date", "store_name", "amount"] if f not in detected_maps]
+        if missing_fields:
+            # Update status to pending_mapping
+            crud_import_file.update_import_file_status(
+                db, 
+                file_id=import_file_record.id, 
+                status="pending_mapping",
+                row_count=import_file_record.row_count
+            )
+            
+            # Extract excel columns from the raw content of the first row (excluding metadata)
+            cols = []
+            if raw_rows:
+                cols = [k for k in raw_rows[0].content.keys() if k != "_detected_mappings"]
+                
+            return {
+                "status": "requires_column_mapping",
+                "import_file_id": import_file_record.id,
+                "filename": file.filename,
+                "data_source": data_source,
+                "columns": cols,
+                "detected_mappings": detected_maps
+            }
         
         # 2. Run Cleaner (RawData -> CleanData)
         clean_summary = clean_import_file_data(db, import_file_id=import_file_record.id)
@@ -46,6 +76,7 @@ async def upload_file(
         reconciled_rows = run_reconciliation_for_import_file(db, import_file_id=import_file_record.id)
         
         return {
+            "status": "success",
             "file": import_file_record,
             "cleaning_summary": clean_summary,
             "reconciliation_count": len(reconciled_rows)
@@ -58,6 +89,68 @@ async def upload_file(
             detail=f"File processing failed: {str(e)}"
         )
 
+@router.post("/confirm-mapping")
+def confirm_mapping(req: ConfirmMappingRequest, db: Session = Depends(get_db)):
+    """
+    Called when frontend submits a manual column mapping for an upload.
+    Saves mappings, updates raw rows, cleans and reconciles the dataset.
+    """
+    import_file_record = crud_import_file.get_import_file(db, file_id=req.import_file_id)
+    if not import_file_record:
+        raise HTTPException(status_code=404, detail="Import record not found")
+        
+    try:
+        from backend.app.models.field_mapping import FieldMapping
+        from backend.app.models.raw_data import RawData
+        
+        # Delete old mappings for this source
+        db.query(FieldMapping).filter(
+            FieldMapping.data_source == import_file_record.data_source
+        ).delete()
+        
+        # Save new mappings
+        for target, col in req.mappings.items():
+            new_map = FieldMapping(
+                data_source=import_file_record.data_source,
+                target_field=target,
+                source_column=col,
+                is_active=True
+            )
+            db.add(new_map)
+        db.commit()
+        
+        # Update raw data content detected mappings for this file so cleaner uses them!
+        raw_rows = db.query(RawData).filter(RawData.import_file_id == req.import_file_id).all()
+        for row in raw_rows:
+            if row.content:
+                content_copy = dict(row.content)
+                content_copy["_detected_mappings"] = req.mappings
+                row.content = content_copy
+        db.commit()
+        
+        # Run Cleaner (RawData -> CleanData)
+        clean_summary = clean_import_file_data(db, import_file_id=req.import_file_id)
+        
+        # Run Reconciler (CleanData -> ReconciliationResult)
+        reconciled_rows = run_reconciliation_for_import_file(db, import_file_id=req.import_file_id)
+        
+        # Update status
+        crud_import_file.update_import_file_status(
+            db, 
+            file_id=req.import_file_id, 
+            status="parsed" if clean_summary["error"] == 0 else "failed",
+            row_count=import_file_record.row_count
+        )
+        
+        return {
+            "status": "success",
+            "cleaning_summary": clean_summary,
+            "reconciliation_count": len(reconciled_rows)
+        }
+    except Exception as e:
+        logger.exception(f"Reprocessing of file {req.import_file_id} failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/{file_id}/reprocess")
 def reprocess_file(file_id: int, db: Session = Depends(get_db)):
     """
@@ -69,10 +162,10 @@ def reprocess_file(file_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Import record not found")
         
     try:
-        # 1. Run Cleaner again
+        # Run Cleaner again
         clean_summary = clean_import_file_data(db, import_file_id=file_id)
         
-        # 2. Run Reconciler again
+        # Run Reconciler again
         reconciled_rows = run_reconciliation_for_import_file(db, import_file_id=file_id)
         
         # Update import file status
