@@ -4,49 +4,60 @@
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
       
       <!-- Standard Stores Management (Left Column) -->
-      <Card class="h-fit">
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2">
-            <span>🏪</span> 标准门店名录
+      <Card class="h-fit shadow-sm border border-slate-200/80">
+        <CardHeader class="pb-4">
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <StoreIcon class="h-4.5 w-4.5 text-blue-500" />
+            <span>标准门店名录</span>
           </CardTitle>
           <CardDescription>定义唯一的财务汇总标准门店名称</CardDescription>
         </CardHeader>
-        <CardContent class="space-y-6">
+        <CardContent class="space-y-5">
           <!-- Add Store Form -->
           <div class="flex items-center gap-2">
             <Input 
               id="new-store-name"
               v-model="newStoreName" 
               placeholder="例如: 杨一一店"
+              class="h-9 text-xs"
               @keyup.enter="saveStore"
             />
             <Button 
               @click="saveStore"
-              class="shrink-0"
+              size="sm"
+              class="shrink-0 h-9 flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
-              添加
+              <Plus class="w-3.5 h-3.5" />
+              <span>添加</span>
             </Button>
           </div>
 
           <!-- Store List -->
-          <div class="divide-y divide-slate-100 max-h-[350px] overflow-y-auto pr-1 text-sm">
-            <div v-if="stores.length === 0" class="py-4 text-center text-slate-400 text-sm">暂无标准门店记录</div>
+          <div class="max-h-[350px] overflow-y-auto pr-1 text-xs space-y-2">
+            <div 
+              v-if="stores.length === 0" 
+              class="py-8 flex flex-col items-center justify-center text-slate-400 gap-1.5 border border-dashed border-slate-200 rounded-xl bg-slate-50/50"
+            >
+              <FolderOpen class="w-6 h-6 text-slate-300" />
+              <span>暂无标准门店记录</span>
+            </div>
+            
             <div 
               v-for="s in stores" 
               :key="s.id"
-              class="py-3 flex items-center justify-between group"
+              class="px-3.5 py-2.5 bg-white border border-slate-100 hover:border-slate-200 rounded-xl flex items-center justify-between group transition-all duration-150 hover:shadow-sm"
             >
-              <div class="flex items-center gap-2">
-                <span>🏪</span>
-                <span class="font-semibold text-slate-700">{{ s.name }}</span>
+              <div class="flex items-center gap-2.5">
+                <div class="w-2 h-2 rounded-full bg-blue-500/80"></div>
+                <span class="font-bold text-slate-700">{{ s.name }}</span>
               </div>
               <Button 
                 @click="deleteStore(s.id)" 
                 variant="ghost"
                 size="xs"
-                class="text-rose-500 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-all font-semibold"
+                class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all font-semibold rounded-lg h-7 w-7 p-0 flex items-center justify-center"
               >
-                🗑 删除
+                <Trash2 class="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
@@ -54,58 +65,64 @@
       </Card>
 
       <!-- Store Aliases Binding (Right Columns) -->
-      <Card class="xl:col-span-2">
-        <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4">
+      <Card class="xl:col-span-2 shadow-sm border border-slate-200/80">
+        <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
-            <CardTitle class="flex items-center gap-2">
-              <span>🔗</span> 门店别名标准化
+            <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+              <Link class="h-4.5 w-4.5 text-blue-500" />
+              <span>门店别名标准化</span>
             </CardTitle>
             <CardDescription>关联来自三方 Excel 的非标准化店名到财务标准店名</CardDescription>
           </div>
 
           <!-- Filters -->
           <div class="flex items-center gap-3">
-            <label for="alias-filter-select" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">过滤别名</label>
+            <label for="alias-filter-select" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">过滤别名</label>
             <select 
               id="alias-filter-select"
               v-model="aliasFilter" 
               @change="fetchAliases"
-              class="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">全部别名</option>
-              <option value="pending">待认领 / 待匹配</option>
+              <option value="pending">待核认 / 待匹配</option>
               <option value="mapped">已绑定映射</option>
             </select>
           </div>
         </CardHeader>
         <CardContent>
           <!-- Alias Mapping Table -->
-          <div class="overflow-x-auto rounded-xl border border-slate-100">
+          <div class="overflow-hidden rounded-xl border border-slate-200/80">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-50 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
+                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
                   <th class="p-4">Excel 中的原始店名</th>
                   <th class="p-4">对应标准门店</th>
                   <th class="p-4 text-center">状态</th>
                   <th class="p-4 text-center">更新操作</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-slate-100 text-sm">
+              <tbody class="divide-y divide-slate-100 text-xs">
                 <tr v-if="aliases.length === 0">
-                  <td colspan="4" class="p-8 text-center text-slate-400 text-sm">无需要配置的原始别名记录</td>
+                  <td colspan="4" class="p-8 text-center text-slate-400 font-medium">
+                    <div class="flex flex-col items-center justify-center gap-2">
+                      <FolderOpen class="w-8 h-8 text-slate-300" />
+                      <span>无需要配置的原始别名记录</span>
+                    </div>
+                  </td>
                 </tr>
                 <tr 
                   v-for="a in aliases" 
                   :key="a.id"
-                  class="hover:bg-slate-50/50 transition-colors"
-                  :class="{'bg-amber-50/20': a.status === 'pending'}"
+                  class="hover:bg-slate-50/40 transition-colors"
+                  :class="{'bg-amber-50/10': a.status === 'pending'}"
                 >
                   <td class="p-4 font-bold text-slate-700">{{ a.alias_name }}</td>
                   <td class="p-4">
                     <!-- Mapped Select component -->
                     <select 
                       v-model="a.store_id"
-                      class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full max-w-[200px]"
+                      class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white w-full max-w-[200px]"
                       @change="mapAlias(a.id, a.store_id)"
                     >
                       <option :value="null">-- 请选择标准店名 (待认领) --</option>
@@ -114,10 +131,11 @@
                   </td>
                   <td class="p-4 text-center">
                     <span 
-                      class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold"
                       :class="a.status === 'mapped' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
                     >
-                      {{ a.status === 'mapped' ? '已绑定' : '待财务核认' }}
+                      <span class="w-1.5 h-1.5 rounded-full" :class="a.status === 'mapped' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+                      <span>{{ a.status === 'mapped' ? '已绑定' : '待财务核认' }}</span>
                     </span>
                   </td>
                   <td class="p-4 text-center">
@@ -126,10 +144,15 @@
                       @click="mapAlias(a.id, a.store_id)" 
                       size="xs"
                       :disabled="!a.store_id"
+                      class="h-7 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium inline-flex items-center gap-1"
                     >
-                      ✓ 确认绑定
+                      <CheckCircle2 class="w-3.5 h-3.5" />
+                      <span>确认绑定</span>
                     </Button>
-                    <span v-else class="text-xs text-slate-400 font-medium">绑定完成</span>
+                    <span v-else class="text-xs text-slate-400 font-semibold inline-flex items-center gap-1">
+                      <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+                      <span>已同步</span>
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -148,6 +171,7 @@ import type { Store, StoreAlias } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Store as StoreIcon, Link, Plus, Trash2, CheckCircle2, FolderOpen } from 'lucide-vue-next';
 
 const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);

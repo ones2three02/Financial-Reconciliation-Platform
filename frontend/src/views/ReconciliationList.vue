@@ -1,180 +1,207 @@
 <template>
   <div class="space-y-8 fade-in">
-    <!-- Filter & Action Bar -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-4">
-        <!-- Date Filter -->
-        <div class="flex flex-col gap-1">
-          <label for="filter-date" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">账期日期</label>
-          <input 
-            id="filter-date"
-            type="date" 
-            v-model="filterDate" 
-            @change="fetchResults"
-            class="border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+    <!-- Filter & Action Bar Card -->
+    <Card class="shadow-sm border border-slate-200/80">
+      <CardContent class="p-6 flex flex-wrap items-center justify-between gap-6">
+        <div class="flex flex-wrap items-center gap-5">
+          <!-- Date Filter -->
+          <div class="flex flex-col gap-1.5">
+            <label for="filter-date" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Calendar class="w-3.5 h-3.5" />
+              <span>账期日期</span>
+            </label>
+            <input 
+              id="filter-date"
+              type="date" 
+              v-model="filterDate" 
+              @change="fetchResults"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9"
+            />
+          </div>
 
-        <!-- Status Filter -->
-        <div class="flex flex-col gap-1">
-          <label for="filter-status" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">比对状态</label>
-          <select 
-            id="filter-status"
-            v-model="filterStatus" 
-            @change="fetchResults"
-            class="border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">全部</option>
-            <option value="consistent">一致 (Consistent)</option>
-            <option value="discrepancy">有差异 (Discrepancy)</option>
-            <option value="missing_data">缺失数据 (Missing)</option>
-          </select>
-        </div>
-
-        <!-- Resolution Filter -->
-        <div class="flex flex-col gap-1">
-          <label for="filter-resolved" class="text-xs font-semibold text-slate-400 uppercase tracking-wider">核实处理</label>
-          <select 
-            id="filter-resolved"
-            v-model="filterResolved" 
-            @change="fetchResults"
-            class="border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-          >
-            <option value="">全部</option>
-            <option value="false">未处理</option>
-            <option value="true">已标记处理</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="flex items-center gap-3 self-end">
-        <button 
-          @click="recalculate"
-          class="px-4 py-2 border border-blue-200 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
-          :disabled="isRecalculating"
-        >
-          ⚡ {{ isRecalculating ? '重算中...' : '重新对账' }}
-        </button>
-        <button 
-          @click="exportExcel"
-          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2"
-        >
-          📥 导出 Excel 报表
-        </button>
-      </div>
-    </div>
-
-    <!-- Main Results Table -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
-              <th class="p-4">标准门店</th>
-              <th class="p-4 text-right">销售系统 (S)</th>
-              <th class="p-4 text-right">交班现金 (C)</th>
-              <th class="p-4 text-right">应收 (S - C)</th>
-              <th class="p-4 text-right">后台实收汇总 (P)</th>
-              <th class="p-4 text-right">差异额 (P - 应收)</th>
-              <th class="p-4 text-center">状态</th>
-              <th class="p-4">核实说明</th>
-              <th class="p-4 text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 text-sm">
-            <tr v-if="results.length === 0">
-              <td colspan="9" class="p-8 text-center text-slate-400 text-sm">此账期日期暂无对账明细。请确保已导入当日文件。</td>
-            </tr>
-            <tr 
-              v-for="r in results" 
-              :key="r.id"
-              class="hover:bg-slate-50/50 transition-colors"
-              :class="{'bg-rose-50/10': r.status === 'discrepancy' && !r.is_resolved}"
+          <!-- Status Filter -->
+          <div class="flex flex-col gap-1.5">
+            <label for="filter-status" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Sliders class="w-3.5 h-3.5" />
+              <span>比对状态</span>
+            </label>
+            <select 
+              id="filter-status"
+              v-model="filterStatus" 
+              @change="fetchResults"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[120px]"
             >
-              <td class="p-4 font-bold text-slate-700">{{ r.standard_store_name }}</td>
-              <td class="p-4 text-right font-medium text-slate-600">¥{{ Number(r.sales_amount).toFixed(2) }}</td>
-              <td class="p-4 text-right font-medium text-slate-600">¥{{ Number(r.cash_amount).toFixed(2) }}</td>
-              <td class="p-4 text-right font-bold text-slate-700 bg-slate-50/20">
-                ¥{{ Number(r.actual_amount).toFixed(2) }}
-              </td>
-              <td class="p-4 text-right font-bold text-slate-700" title="通联+美团+抖音">
-                ¥{{ Number(r.expected_amount).toFixed(2) }}
-              </td>
-              <td class="p-4 text-right font-bold" :class="getDifferenceClass(r)">
-                {{ getDifferencePrefix(r.difference) }}¥{{ Math.abs(r.difference).toFixed(2) }}
-              </td>
-              <td class="p-4 text-center">
-                <span 
-                  class="px-2.5 py-1 rounded-full text-xs font-semibold"
-                  :class="getStatusBadgeClass(r.status)"
-                >
-                  {{ getStatusLabel(r.status) }}
-                </span>
-              </td>
-              <td class="p-4 max-w-xs truncate text-slate-500" :title="r.remarks || ''">
-                {{ r.remarks || '—' }}
-              </td>
-              <td class="p-4 text-center">
-                <button 
-                  @click="openAuditModal(r)"
-                  class="px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 hover:text-blue-600 transition-colors"
-                >
-                  📝 核实备注
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+              <option value="">全部</option>
+              <option value="consistent">账目一致</option>
+              <option value="discrepancy">有差异</option>
+              <option value="missing_data">缺少数据</option>
+            </select>
+          </div>
 
-    <!-- Audit Modal -->
+          <!-- Resolution Filter -->
+          <div class="flex flex-col gap-1.5">
+            <label for="filter-resolved" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <CheckCircle2 class="w-3.5 h-3.5" />
+              <span>核实处理</span>
+            </label>
+            <select 
+              id="filter-resolved"
+              v-model="filterResolved" 
+              @change="fetchResults"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white h-9 min-w-[100px]"
+            >
+              <option value="">全部</option>
+              <option value="false">未处理</option>
+              <option value="true">已处理</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3.5 shrink-0 self-end">
+          <Button 
+            @click="recalculate"
+            variant="outline"
+            size="sm"
+            class="h-9 font-semibold text-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-1.5"
+            :disabled="isRecalculating"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{'animate-spin': isRecalculating}" />
+            <span>重新对账</span>
+          </Button>
+          
+          <Button 
+            @click="exportExcel"
+            size="sm"
+            class="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+          >
+            <Download class="w-3.5 h-3.5" />
+            <span>导出报表</span>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- Main Results Card / Table -->
+    <Card class="shadow-sm border border-slate-200/80 overflow-hidden">
+      <CardContent class="p-0">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                <th class="p-4">标准门店</th>
+                <th class="p-4 text-right">销售系统 (S)</th>
+                <th class="p-4 text-right">交班现金 (C)</th>
+                <th class="p-4 text-right">计算应收 (S - C)</th>
+                <th class="p-4 text-right">后台实收汇总 (P)</th>
+                <th class="p-4 text-right">偏差额 (P - 应收)</th>
+                <th class="p-4 text-center">状态</th>
+                <th class="p-4">核实备注</th>
+                <th class="p-4 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-xs">
+              <tr v-if="results.length === 0">
+                <td colspan="9" class="p-12 text-center text-slate-400 font-medium">
+                  <div class="flex flex-col items-center justify-center gap-2">
+                    <FolderOpen class="w-8 h-8 text-slate-300" />
+                    <span>该账期无对账明细，请确认是否导入相应流水文件</span>
+                  </div>
+                </td>
+              </tr>
+              <tr 
+                v-for="r in results" 
+                :key="r.id"
+                class="hover:bg-slate-50/40 transition-colors"
+                :class="{'bg-rose-50/5': r.status === 'discrepancy' && !r.is_resolved}"
+              >
+                <td class="p-4 font-bold text-slate-700">{{ r.standard_store_name }}</td>
+                <td class="p-4 text-right font-semibold text-slate-600">¥{{ Number(r.sales_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}</td>
+                <td class="p-4 text-right font-semibold text-slate-600">¥{{ Number(r.cash_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}</td>
+                <td class="p-4 text-right font-bold text-slate-700 bg-slate-50/30">
+                  ¥{{ Number(r.actual_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
+                </td>
+                <td class="p-4 text-right font-bold text-slate-700" title="通联+美团+抖音">
+                  ¥{{ Number(r.expected_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
+                </td>
+                <td class="p-4 text-right font-extrabold" :class="getDifferenceClass(r)">
+                  {{ getDifferencePrefix(r.difference) }}¥{{ Math.abs(r.difference).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
+                </td>
+                <td class="p-4 text-center">
+                  <span 
+                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                    :class="getStatusBadgeClass(r.status)"
+                  >
+                    <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(r.status)"></span>
+                    <span>{{ getStatusLabel(r.status) }}</span>
+                  </span>
+                </td>
+                <td class="p-4 max-w-xs truncate text-slate-400 font-medium" :title="r.remarks || ''">
+                  {{ r.remarks || '—' }}
+                </td>
+                <td class="p-4 text-center">
+                  <Button 
+                    @click="openAuditModal(r)"
+                    variant="ghost"
+                    size="xs"
+                    class="h-7 border border-slate-200 hover:bg-slate-50 text-[11px] font-bold text-slate-700"
+                  >
+                    📝 核实
+                  </Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- Audit Dialog Modal (shadcn style) -->
     <div 
       v-if="showAuditModal" 
-      class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
+      class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
       @click.self="showAuditModal = false"
     >
-      <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-100">
-        <!-- Modal Header -->
-        <div class="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 class="font-bold text-slate-900 text-base">核实处理: {{ activeRow?.standard_store_name }}</h3>
-            <p class="text-xs text-slate-500">账期: {{ activeRow?.trade_date }}</p>
+      <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
+        <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <CardTitle class="text-base font-bold text-slate-800">门店对账核实</CardTitle>
+              <CardDescription class="text-xs text-slate-400">标准门店: {{ activeRow?.standard_store_name }} ({{ activeRow?.trade_date }})</CardDescription>
+            </div>
+            <button @click="showAuditModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
           </div>
-          <button @click="showAuditModal = false" class="text-slate-400 hover:text-slate-600 text-lg">×</button>
-        </div>
-
-        <!-- Modal Body -->
-        <div class="p-6 space-y-6">
-          <!-- Summary Box -->
-          <div class="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm">
+        </CardHeader>
+        
+        <CardContent class="p-6 space-y-5">
+          <!-- Summary Metrics inside modal -->
+          <div class="grid grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200/60 rounded-xl text-xs font-semibold">
             <div>
-              <span class="text-xs text-slate-400 block mb-0.5">销售应收(销售-现金)</span>
-              <span class="font-bold text-slate-700">¥{{ activeRow ? Number(activeRow.actual_amount).toFixed(2) : '0.00' }}</span>
+              <span class="text-slate-400 block mb-0.5">计算应收 (销售-现金)</span>
+              <span class="font-bold text-slate-700 text-sm">¥{{ activeRow ? Number(activeRow.actual_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}</span>
             </div>
             <div>
-              <span class="text-xs text-slate-400 block mb-0.5">后台实收汇总</span>
-              <span class="font-bold text-slate-700">¥{{ activeRow ? Number(activeRow.expected_amount).toFixed(2) : '0.00' }}</span>
+              <span class="text-slate-400 block mb-0.5">三方实收汇总</span>
+              <span class="font-bold text-slate-700 text-sm">¥{{ activeRow ? Number(activeRow.expected_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}</span>
             </div>
-            <div class="col-span-2 border-t border-slate-200/60 pt-2 flex items-center justify-between">
-              <span class="text-xs font-semibold text-slate-500">账面偏差值</span>
-              <span class="font-bold" :class="activeRow ? getDifferenceClass(activeRow) : ''">
-                ¥{{ activeRow ? Number(activeRow.difference).toFixed(2) : '0.00' }}
+            <div class="col-span-2 border-t border-slate-200/80 pt-2.5 flex items-center justify-between">
+              <span class="text-slate-500">偏差金额</span>
+              <span class="font-bold text-sm" :class="activeRow ? getDifferenceClass(activeRow) : ''">
+                ¥{{ activeRow ? Number(activeRow.difference).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}
               </span>
             </div>
           </div>
 
-          <!-- Audit Inputs -->
+          <!-- Inputs -->
           <div class="space-y-4">
             <div class="flex flex-col gap-1.5">
-              <label for="audit-remark" class="text-xs font-bold text-slate-500 uppercase tracking-wider">处理备注/原因分析</label>
+              <label for="audit-remark" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">异常成因备注</label>
               <textarea 
                 id="audit-remark"
                 v-model="auditRemark" 
                 rows="3" 
-                placeholder="例如: 财务核实杨一一店因美团退款未及时入账导致差异，明日对账自动结平。"
-                class="border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例如: 财务确认今日美团因退款延迟核销导致100元差异，已与店长核实。"
+                class="border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               ></textarea>
             </div>
 
@@ -183,31 +210,33 @@
                 id="is-resolved-cb"
                 type="checkbox" 
                 v-model="auditResolved" 
-                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
-              <label for="is-resolved-cb" class="text-sm font-semibold text-slate-700 cursor-pointer">
+              <label for="is-resolved-cb" class="text-xs font-bold text-slate-700 cursor-pointer">
                 已核实并标记解决 (Resolved)
               </label>
             </div>
           </div>
-        </div>
+        </CardContent>
 
-        <!-- Modal Footer -->
-        <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-          <button 
+        <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
+          <Button 
             @click="showAuditModal = false"
-            class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-100 transition-colors"
+            variant="outline"
+            size="sm"
+            class="h-8 text-xs font-semibold"
           >
             取消
-          </button>
-          <button 
+          </Button>
+          <Button 
             @click="saveAudit"
-            class="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all"
+            size="sm"
+            class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10"
           >
-            保存并返回
-          </button>
-        </div>
-      </div>
+            保存备注
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   </div>
 </template>
@@ -216,6 +245,9 @@
 import { ref, onMounted } from 'vue';
 import { api } from '../services/api';
 import type { ReconciliationResult } from '../services/api';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen } from 'lucide-vue-next';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -248,17 +280,26 @@ const getDifferencePrefix = (diff: number) => {
 
 const getStatusBadgeClass = (status: string) => {
   switch (status) {
-    case 'consistent': return 'bg-emerald-50 text-emerald-600';
-    case 'discrepancy': return 'bg-rose-50 text-rose-600';
-    case 'missing_data': return 'bg-amber-50 text-amber-600';
-    default: return 'bg-slate-100 text-slate-600';
+    case 'consistent': return 'bg-emerald-50 text-emerald-600 border border-emerald-150';
+    case 'discrepancy': return 'bg-rose-50 text-rose-600 border border-rose-150';
+    case 'missing_data': return 'bg-amber-50 text-amber-600 border border-amber-150';
+    default: return 'bg-slate-100 text-slate-600 border border-slate-200';
+  }
+};
+
+const getStatusDotClass = (status: string) => {
+  switch (status) {
+    case 'consistent': return 'bg-emerald-500';
+    case 'discrepancy': return 'bg-rose-500';
+    case 'missing_data': return 'bg-amber-500';
+    default: return 'bg-slate-400';
   }
 };
 
 const getStatusLabel = (status: string) => {
   switch (status) {
     case 'consistent': return '一致';
-    case 'discrepancy': return '异常差异';
+    case 'discrepancy': return '金额不符';
     case 'missing_data': return '缺失数据';
     default: return status;
   }
@@ -311,7 +352,6 @@ const saveAudit = async () => {
       resolved_by: '财务管理员'
     });
     
-    // Update local list row
     const idx = results.value.findIndex(r => r.id === updated.id);
     if (idx !== -1) {
       results.value[idx] = updated;

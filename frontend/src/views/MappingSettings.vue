@@ -2,129 +2,146 @@
   <div class="space-y-8 fade-in">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Create Mapping Form Card -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between h-fit">
-        <div class="space-y-5">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">新增字段映射</h3>
-            <p class="text-xs text-slate-400">若第三方 Excel 模板调整或列名变更，可在此配置映射</p>
+      <Card class="h-fit shadow-sm border border-slate-200/80">
+        <CardHeader class="pb-4">
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <Plus class="h-4.5 w-4.5 text-blue-500" />
+            <span>新增字段映射</span>
+          </CardTitle>
+          <CardDescription>配置新的三方平台 Excel 列名头以适配标准字段</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <!-- Source Selector -->
+          <div class="flex flex-col gap-1.5">
+            <label for="new-source" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">数据来源通道</label>
+            <select 
+              id="new-source"
+              v-model="newMapping.data_source"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+            >
+              <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
           </div>
 
-          <div class="space-y-4">
-            <!-- Source Selector -->
-            <div class="flex flex-col gap-1.5">
-              <label for="new-source" class="text-xs font-bold text-slate-500 uppercase tracking-wider">数据来源</label>
-              <select 
-                id="new-source"
-                v-model="newMapping.data_source"
-                class="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
-              </select>
-            </div>
-
-            <!-- Target Field Selector -->
-            <div class="flex flex-col gap-1.5">
-              <label for="new-target" class="text-xs font-bold text-slate-500 uppercase tracking-wider">标准系统字段</label>
-              <select 
-                id="new-target"
-                v-model="newMapping.target_field"
-                class="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              >
-                <option value="trade_date">交易日期 (trade_date)</option>
-                <option value="store_name">门店名称 (store_name)</option>
-                <option value="amount">交易金额 (amount)</option>
-              </select>
-            </div>
-
-            <!-- Source Column Input -->
-            <div class="flex flex-col gap-1.5">
-              <label for="new-column" class="text-xs font-bold text-slate-500 uppercase tracking-wider">Excel列标题 (必须完全一致)</label>
-              <input 
-                id="new-column"
-                type="text" 
-                v-model="newMapping.source_column" 
-                placeholder="例如: 终端门店 / 交易净额(元)"
-                class="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+          <!-- Target Field Selector -->
+          <div class="flex flex-col gap-1.5">
+            <label for="new-target" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">目标标准系统字段</label>
+            <select 
+              id="new-target"
+              v-model="newMapping.target_field"
+              class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+            >
+              <option value="trade_date">交易日期 (trade_date)</option>
+              <option value="store_name">门店名称 (store_name)</option>
+              <option value="amount">交易金额 (amount)</option>
+            </select>
           </div>
-        </div>
 
-        <button 
-          @click="saveMapping"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 mt-6 text-sm font-semibold shadow-md shadow-blue-500/20 transition-all"
-        >
-          保存映射配置
-        </button>
-      </div>
+          <!-- Source Column Input -->
+          <div class="flex flex-col gap-1.5">
+            <label for="new-column" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Excel 原始列头 (必须精确一致)</label>
+            <Input 
+              id="new-column"
+              type="text" 
+              v-model="newMapping.source_column" 
+              placeholder="例如: 终端门店 / 交易金额(元)"
+              class="h-9 text-xs"
+            />
+          </div>
+
+          <Button 
+            @click="saveMapping"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 mt-4 text-xs font-semibold shadow-md shadow-blue-500/10 flex items-center justify-center gap-1.5 h-9"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span>保存映射配置</span>
+          </Button>
+        </CardContent>
+      </Card>
 
       <!-- Mappings List Card -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 space-y-6">
-        <div class="flex items-center justify-between">
+      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80">
+        <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
-            <h3 class="text-lg font-bold text-slate-800">已配置映射规则</h3>
-            <p class="text-xs text-slate-400">目前系统支持的所有来源 Excel 列头匹配规则</p>
+            <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+              <Sliders class="h-4.5 w-4.5 text-blue-500" />
+              <span>已配置映射规则</span>
+            </CardTitle>
+            <CardDescription>系统支持的所有来源 Excel 的列头转换匹配规则</CardDescription>
           </div>
           
           <select 
             id="filter-source"
             v-model="selectedFilterSource" 
             @change="fetchMappings"
-            class="border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
             <option value="">全部来源</option>
             <option v-for="s in sources" :key="s.value" :value="s.value">{{ s.label }}</option>
           </select>
-        </div>
-
-        <!-- Mappings Table -->
-        <div class="overflow-x-auto rounded-xl border border-slate-100">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
-                <th class="p-4">数据分类</th>
-                <th class="p-4">标准字段</th>
-                <th class="p-4">Excel 原始列标题</th>
-                <th class="p-4 text-center">状态</th>
-                <th class="p-4 text-center">操作</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-sm">
-              <tr v-if="filteredMappings.length === 0">
-                <td colspan="5" class="p-8 text-center text-slate-400 text-sm">暂无对应的列映射规则</td>
-              </tr>
-              <tr v-for="m in filteredMappings" :key="m.id" class="hover:bg-slate-50/50 transition-colors">
-                <td class="p-4">
-                  <span class="px-2.5 py-1 rounded-full text-xs font-medium" :class="getSourceBadgeClass(m.data_source)">
-                    {{ getSourceLabel(m.data_source) }}
-                  </span>
-                </td>
-                <td class="p-4 font-mono text-xs font-bold text-slate-700">
-                  {{ m.target_field }}
-                </td>
-                <td class="p-4 font-semibold text-slate-800">{{ m.source_column }}</td>
-                <td class="p-4 text-center">
-                  <button 
-                    @click="toggleActive(m)" 
-                    class="px-2 py-1 rounded text-xs font-semibold"
-                    :class="m.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'"
-                  >
-                    {{ m.is_active ? '启用中' : '已禁用' }}
-                  </button>
-                </td>
-                <td class="p-4 text-center">
-                  <button 
-                    @click="deleteMapping(m.id)" 
-                    class="text-xs font-semibold text-rose-600 hover:text-rose-800 transition-colors"
-                  >
-                    🗑 删除
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent>
+          <!-- Mappings Table -->
+          <div class="overflow-hidden rounded-xl border border-slate-200/80">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                  <th class="p-4">数据分类</th>
+                  <th class="p-4">目标标准字段</th>
+                  <th class="p-4">Excel 原始列标题</th>
+                  <th class="p-4 text-center">使用状态</th>
+                  <th class="p-4 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-xs">
+                <tr v-if="filteredMappings.length === 0">
+                  <td colspan="5" class="p-8 text-center text-slate-400 font-medium">
+                    <div class="flex flex-col items-center justify-center gap-2">
+                      <FolderOpen class="w-8 h-8 text-slate-300" />
+                      <span>暂无对应的数据源列映射规则</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-for="m in filteredMappings" :key="m.id" class="hover:bg-slate-50/40 transition-colors">
+                  <td class="p-4">
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(m.data_source)">
+                      {{ getSourceLabel(m.data_source) }}
+                    </span>
+                  </td>
+                  <td class="p-4">
+                    <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700">
+                      {{ m.target_field }}
+                    </code>
+                  </td>
+                  <td class="p-4 font-bold text-slate-800">{{ m.source_column }}</td>
+                  <td class="p-4 text-center">
+                    <Button 
+                      @click="toggleActive(m)" 
+                      variant="ghost"
+                      size="xs"
+                      class="px-2.5 py-1 rounded-full text-[10px] font-bold"
+                      :class="m.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full mr-1" :class="m.is_active ? 'bg-emerald-500' : 'bg-slate-400'"></span>
+                      <span>{{ m.is_active ? '已启用' : '已禁用' }}</span>
+                    </Button>
+                  </td>
+                  <td class="p-4 text-center">
+                    <Button 
+                      @click="deleteMapping(m.id)" 
+                      variant="ghost"
+                      size="xs"
+                      class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold"
+                    >
+                      🗑 删除
+                    </Button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   </div>
 </template>
@@ -133,6 +150,10 @@
 import { ref, onMounted, computed } from 'vue';
 import { api } from '../services/api';
 import type { FieldMapping } from '../services/api';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Sliders, Plus, Trash2, FolderOpen } from 'lucide-vue-next';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', badge: 'bg-violet-50 text-violet-600' },

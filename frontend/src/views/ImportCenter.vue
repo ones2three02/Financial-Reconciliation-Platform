@@ -3,155 +3,178 @@
     <!-- File Upload Section -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Upload Config Card -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between">
-        <div class="space-y-5">
-          <div>
-            <h3 class="text-lg font-bold text-slate-800">1. 选择数据来源</h3>
-            <p class="text-xs text-slate-400">请准确分类上传的文件，这将直接影响字段映射和清洗逻辑</p>
-          </div>
-          
-          <div class="space-y-3">
-            <label 
-              v-for="source in sources" 
-              :key="source.value"
-              class="flex items-center justify-between p-4 rounded-xl border border-slate-200 cursor-pointer transition-all duration-150 hover:bg-slate-50/50"
-              :class="{'border-blue-500 bg-blue-50/20 ring-1 ring-blue-500': selectedSource === source.value}"
-            >
-              <div class="flex items-center gap-3">
-                <input 
-                  type="radio" 
-                  name="source" 
-                  :value="source.value" 
-                  v-model="selectedSource"
-                  class="text-blue-600 focus:ring-blue-500"
-                />
-                <span class="font-semibold text-sm text-slate-800">{{ source.label }}</span>
-              </div>
-              <span class="text-xs text-slate-400">{{ source.desc }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
+      <Card class="shadow-sm border border-slate-200/80 flex flex-col justify-between">
+        <CardHeader class="pb-4">
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <Sliders class="h-4.5 w-4.5 text-blue-500" />
+            <span>1. 选择数据来源</span>
+          </CardTitle>
+          <CardDescription>选择您将要导入的 Excel 文件的账目渠道归属</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <label 
+            v-for="source in sources" 
+            :key="source.value"
+            class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 cursor-pointer transition-all duration-150 hover:bg-slate-50/50"
+            :class="{'border-blue-500 bg-blue-50/15 ring-1 ring-blue-500/20': selectedSource === source.value}"
+          >
+            <div class="flex items-center gap-3">
+              <input 
+                type="radio" 
+                name="source" 
+                :value="source.value" 
+                v-model="selectedSource"
+                class="text-blue-600 focus:ring-blue-500 h-4 w-4"
+              />
+              <span class="font-bold text-xs text-slate-800">{{ source.label }}</span>
+            </div>
+            <span class="text-[10px] font-semibold text-slate-400">{{ source.desc }}</span>
+          </label>
+        </CardContent>
+      </Card>
 
       <!-- Drag & Drop Upload Zone -->
-      <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2 flex flex-col justify-between min-h-[300px]">
-        <div>
-          <h3 class="text-lg font-bold text-slate-800">2. 拖入或选择 Excel 文件</h3>
-          <p class="text-xs text-slate-400">支持批量上传，系统会自动完成行列解析、清洗和门店配对</p>
-        </div>
-
-        <div 
-          @dragover.prevent="dragOver = true"
-          @dragleave.prevent="dragOver = false"
-          @drop.prevent="handleDrop"
-          @click="triggerFileSelect"
-          class="flex-1 border-2 border-dashed rounded-2xl my-5 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group text-slate-400 hover:text-slate-600"
-          :class="dragOver ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'"
-        >
-          <input 
-            type="file" 
-            ref="fileInputRef" 
-            multiple 
-            accept=".xlsx, .xls"
-            class="hidden" 
-            @change="handleFileSelect"
-          />
-          <span class="text-4xl mb-3 group-hover:scale-110 transition-transform">📂</span>
-          <span class="font-bold text-sm text-slate-700">点击选择或拖入 Excel 文件到这里</span>
-          <span class="text-xs text-slate-400 mt-1">支持扩展名: .xlsx, .xls</span>
-        </div>
-
-        <div v-if="uploadQueue.length > 0" class="space-y-2">
-          <div class="text-xs font-semibold text-slate-500 mb-1">正在上传 ({{ uploadQueue.length }}) :</div>
+      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col justify-between min-h-[300px]">
+        <CardHeader class="pb-2">
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <UploadCloud class="h-4.5 w-4.5 text-blue-500" />
+            <span>2. 拖入或选择 Excel 文件</span>
+          </CardTitle>
+          <CardDescription>支持批量拖拽多张 Excel 表，系统会自动提取记录并自动重对账</CardDescription>
+        </CardHeader>
+        <CardContent class="flex-1 flex flex-col justify-between mt-2">
           <div 
-            v-for="item in uploadQueue" 
-            :key="item.name"
-            class="flex items-center justify-between text-xs p-3 bg-slate-50 rounded-xl border border-slate-100"
+            @dragover.prevent="dragOver = true"
+            @dragleave.prevent="dragOver = false"
+            @drop.prevent="handleDrop"
+            @click="triggerFileSelect"
+            class="flex-1 border-2 border-dashed rounded-xl py-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group text-slate-400 hover:text-slate-600 min-h-[160px]"
+            :class="dragOver ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'"
           >
-            <div class="flex items-center gap-2 max-w-[70%] truncate">
-              <span>📄</span>
-              <span class="font-semibold text-slate-700 truncate">{{ item.name }}</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <span v-if="item.status === 'uploading'" class="text-blue-500 font-medium animate-pulse">正在上传...</span>
-              <span v-else-if="item.status === 'success'" class="text-emerald-500 font-medium">✓ 处理完成</span>
-              <span v-else class="text-rose-500 font-medium">✗ {{ item.error }}</span>
+            <input 
+              type="file" 
+              ref="fileInputRef" 
+              multiple 
+              accept=".xlsx, .xls"
+              class="hidden" 
+              @change="handleFileSelect"
+            />
+            <UploadCloud class="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform mb-2.5 group-hover:text-blue-500" />
+            <span class="font-bold text-xs text-slate-700">点击选择或拖入 Excel 文件到这里</span>
+            <span class="text-[10px] text-slate-400 mt-1">仅限扩展名: .xlsx, .xls</span>
+          </div>
+
+          <!-- Queue progress -->
+          <div v-if="uploadQueue.length > 0" class="mt-4 space-y-2">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">本次导入任务 ({{ uploadQueue.length }})</div>
+            <div 
+              v-for="item in uploadQueue" 
+              :key="item.name"
+              class="flex items-center justify-between text-xs p-3 bg-slate-50 border border-slate-200/60 rounded-xl"
+            >
+              <div class="flex items-center gap-2 max-w-[70%] truncate">
+                <FileSpreadsheet class="w-4 h-4 text-emerald-600 shrink-0" />
+                <span class="font-bold text-slate-700 truncate">{{ item.name }}</span>
+              </div>
+              <div class="flex items-center gap-3 shrink-0">
+                <span v-if="item.status === 'uploading'" class="text-blue-500 font-bold animate-pulse text-[11px]">⏳ 处理中...</span>
+                <span v-else-if="item.status === 'success'" class="text-emerald-500 font-bold text-[11px] inline-flex items-center gap-1">
+                  <CheckCircle2 class="w-3.5 h-3.5" /> 已导入
+                </span>
+                <span v-else class="text-rose-500 font-bold text-[11px]">✗ {{ item.error }}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- Import History Table -->
-    <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-      <div class="flex items-center justify-between">
+    <Card class="shadow-sm border border-slate-200/80">
+      <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
         <div>
-          <h3 class="text-lg font-bold text-slate-800">导入日志</h3>
-          <p class="text-xs text-slate-500">查看历史 Excel 导入记录及其数据清洗/对账状态</p>
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <History class="h-4.5 w-4.5 text-blue-500" />
+            <span>导入历史日志</span>
+          </CardTitle>
+          <CardDescription>追溯已上传文件的清洗历史、解析行数与对账状态日志</CardDescription>
         </div>
-        <button 
+        <Button 
           @click="fetchImportHistory" 
-          class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-medium hover:bg-slate-50 transition-colors"
+          variant="outline"
+          size="sm"
+          class="h-8 text-xs font-semibold"
         >
           🔄 刷新日志
-        </button>
-      </div>
-
-      <div class="overflow-x-auto rounded-xl border border-slate-100">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50 text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-100">
-              <th class="p-4">文件名称</th>
-              <th class="p-4">数据分类</th>
-              <th class="p-4">上传时间</th>
-              <th class="p-4 text-center">状态</th>
-              <th class="p-4 text-center">解析行数</th>
-              <th class="p-4">异常日志</th>
-              <th class="p-4 text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 text-sm">
-            <tr v-if="history.length === 0">
-              <td colspan="7" class="p-8 text-center text-slate-400 text-sm">暂无上传记录</td>
-            </tr>
-            <tr v-for="item in history" :key="item.id" class="hover:bg-slate-50/50 transition-colors">
-              <td class="p-4 font-semibold text-slate-700">{{ item.filename }}</td>
-              <td class="p-4">
-                <span class="px-2.5 py-1 rounded-full text-xs font-medium" :class="getSourceBadgeClass(item.data_source)">
-                  {{ getSourceLabel(item.data_source) }}
-                </span>
-              </td>
-              <td class="p-4 text-slate-500">{{ formatDate(item.uploaded_at) }}</td>
-              <td class="p-4 text-center">
-                <span 
-                  class="px-2.5 py-1 rounded-full text-xs font-semibold"
-                  :class="{
-                    'bg-emerald-50 text-emerald-600': item.upload_status === 'parsed',
-                    'bg-blue-50 text-blue-600': item.upload_status === 'pending',
-                    'bg-rose-50 text-rose-600': item.upload_status === 'failed',
-                  }"
-                >
-                  {{ getStatusLabel(item.upload_status) }}
-                </span>
-              </td>
-              <td class="p-4 text-center font-medium text-slate-600">{{ item.row_count }}</td>
-              <td class="p-4 text-slate-400 max-w-xs truncate" :title="item.error_message || ''">
-                {{ item.error_message || '—' }}
-              </td>
-              <td class="p-4 text-center">
-                <button 
-                  @click="reprocessFile(item.id)" 
-                  class="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors disabled:opacity-50"
-                  :disabled="reprocessingId === item.id"
-                >
-                  {{ reprocessingId === item.id ? '重新计算中...' : '🔄 重新清洗' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <div class="overflow-hidden rounded-xl border border-slate-200/80">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                <th class="p-4">文件名称</th>
+                <th class="p-4">数据分类</th>
+                <th class="p-4">上传时间</th>
+                <th class="p-4 text-center">状态</th>
+                <th class="p-4 text-center">解析记录数</th>
+                <th class="p-4">异常日志</th>
+                <th class="p-4 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-xs">
+              <tr v-if="history.length === 0">
+                <td colspan="7" class="p-8 text-center text-slate-400 font-medium">
+                  <div class="flex flex-col items-center justify-center gap-2">
+                    <FolderOpen class="w-8 h-8 text-slate-300" />
+                    <span>暂无上传记录</span>
+                  </div>
+                </td>
+              </tr>
+              <tr v-for="item in history" :key="item.id" class="hover:bg-slate-50/40 transition-colors">
+                <td class="p-4 font-bold text-slate-700 flex items-center gap-2">
+                  <FileSpreadsheet class="w-4 h-4 text-emerald-600" />
+                  <span>{{ item.filename }}</span>
+                </td>
+                <td class="p-4">
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(item.data_source)">
+                    {{ getSourceLabel(item.data_source) }}
+                  </span>
+                </td>
+                <td class="p-4 text-slate-500">{{ formatDate(item.uploaded_at) }}</td>
+                <td class="p-4 text-center">
+                  <span 
+                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+                    :class="{
+                      'bg-emerald-50 text-emerald-600 border border-emerald-200': item.upload_status === 'parsed',
+                      'bg-blue-50 text-blue-600 border border-blue-200': item.upload_status === 'pending',
+                      'bg-rose-50 text-rose-600 border border-rose-200': item.upload_status === 'failed',
+                    }"
+                  >
+                    {{ getStatusLabel(item.upload_status) }}
+                  </span>
+                </td>
+                <td class="p-4 text-center font-bold text-slate-600">{{ item.row_count }} 行</td>
+                <td class="p-4 text-slate-400 max-w-xs truncate" :title="item.error_message || ''">
+                  {{ item.error_message || '—' }}
+                </td>
+                <td class="p-4 text-center">
+                  <Button 
+                    @click="reprocessFile(item.id)" 
+                    variant="ghost"
+                    size="xs"
+                    class="text-xs font-bold text-blue-600 hover:text-blue-800"
+                    :disabled="reprocessingId === item.id"
+                  >
+                    {{ reprocessingId === item.id ? '重算中...' : '🔄 重新对账' }}
+                  </Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
@@ -159,13 +182,16 @@
 import { ref, onMounted } from 'vue';
 import { api } from '../services/api';
 import type { ImportFile } from '../services/api';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Sliders, UploadCloud, FileSpreadsheet, CheckCircle2, History, FolderOpen } from 'lucide-vue-next';
 
 const sources = [
-  { value: 'tonglian', label: '通联后台', desc: '第三方好老板系统流水', badge: 'bg-violet-50 text-violet-600' },
-  { value: 'meituan', label: '美团收入', desc: '美团团购核销对账数据', badge: 'bg-amber-50 text-amber-600' },
-  { value: 'douyin', label: '抖音收入', desc: '抖音本地生活核销流水', badge: 'bg-slate-100 text-slate-700' },
-  { value: 'cash', label: '现金收入', desc: '门店手工交班现金账', badge: 'bg-teal-50 text-teal-600' },
-  { value: 'sales', label: '销售收入', desc: '收银系统 ERP/POS 销售汇总', badge: 'bg-blue-50 text-blue-600' },
+  { value: 'tonglian', label: '通联后台', desc: '第三方好老板系统流水', badge: 'bg-violet-50 text-violet-600 border border-violet-100' },
+  { value: 'meituan', label: '美团收入', desc: '美团团购核销对账数据', badge: 'bg-amber-50 text-amber-600 border border-amber-100' },
+  { value: 'douyin', label: '抖音收入', desc: '抖音本地生活核销流水', badge: 'bg-slate-100 text-slate-700 border border-slate-200' },
+  { value: 'cash', label: '现金收入', desc: '门店手工交班现金账', badge: 'bg-teal-50 text-teal-600 border border-teal-100' },
+  { value: 'sales', label: '销售收入', desc: '收银系统 ERP/POS 销售汇总', badge: 'bg-blue-50 text-blue-600 border border-blue-100' },
 ];
 
 const selectedSource = ref('tonglian');
@@ -191,9 +217,9 @@ const getSourceBadgeClass = (val: string) => {
 
 const getStatusLabel = (val: string) => {
   switch (val) {
-    case 'parsed': return '✓ 已清洗';
-    case 'pending': return '⏳ 正在处理';
-    case 'failed': return '✗ 失败';
+    case 'parsed': return '已完成';
+    case 'pending': return '待处理';
+    case 'failed': return '处理失败';
     default: return val;
   }
 };
@@ -247,10 +273,8 @@ const uploadFiles = async (files: File[]) => {
     }
   }
   
-  // Refresh history after all uploads complete
   fetchImportHistory();
   
-  // Clear success items after 5 seconds
   setTimeout(() => {
     uploadQueue.value = uploadQueue.value.filter(item => item.status === 'failed');
   }, 5000);
