@@ -1,0 +1,53 @@
+from sqlalchemy.orm import Session
+from backend.app.models.field_mapping import FieldMapping
+from backend.app.schemas.field_mapping import FieldMappingCreate, FieldMappingUpdate
+from typing import List, Optional
+
+def get_field_mapping(db: Session, mapping_id: int) -> Optional[FieldMapping]:
+    return db.query(FieldMapping).filter(FieldMapping.id == mapping_id).first()
+
+def get_field_mappings(db: Session, skip: int = 0, limit: int = 100) -> List[FieldMapping]:
+    return db.query(FieldMapping).offset(skip).limit(limit).all()
+
+def get_mappings_by_source(db: Session, data_source: str, is_active_only: bool = True) -> List[FieldMapping]:
+    query = db.query(FieldMapping).filter(FieldMapping.data_source == data_source)
+    if is_active_only:
+        query = query.filter(FieldMapping.is_active == True)
+    return query.all()
+
+def create_field_mapping(db: Session, mapping: FieldMappingCreate) -> FieldMapping:
+    # Check if a mapping with the same source, target field and source column already exists
+    existing = db.query(FieldMapping).filter(
+        FieldMapping.data_source == mapping.data_source,
+        FieldMapping.target_field == mapping.target_field,
+        FieldMapping.source_column == mapping.source_column
+    ).first()
+    if existing:
+        existing.is_active = True
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    db_mapping = FieldMapping(**mapping.model_dump())
+    db.add(db_mapping)
+    db.commit()
+    db.refresh(db_mapping)
+    return db_mapping
+
+def update_field_mapping(db: Session, mapping_id: int, mapping_in: FieldMappingUpdate) -> Optional[FieldMapping]:
+    db_mapping = get_field_mapping(db, mapping_id)
+    if not db_mapping:
+        return None
+    for field, value in mapping_in.model_dump(exclude_unset=True).items():
+        setattr(db_mapping, field, value)
+    db.commit()
+    db.refresh(db_mapping)
+    return db_mapping
+
+def delete_field_mapping(db: Session, mapping_id: int) -> bool:
+    db_mapping = get_field_mapping(db, mapping_id)
+    if not db_mapping:
+        return False
+    db.delete(db_mapping)
+    db.commit()
+    return True

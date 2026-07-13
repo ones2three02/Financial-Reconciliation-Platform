@@ -1,0 +1,218 @@
+from sqlalchemy.orm import Session
+from backend.app.models.raw_data import RawData
+from backend.app.models.clean_data import CleanData
+from backend.app.models.store import Store, StoreAlias
+from backend.app.crud.field_mapping import get_mappings_by_source
+import re
+from datetime import datetime, date
+from decimal import Decimal
+import logging
+from typing import Dict, Any, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+def clean_amount(val: Any) -> Decimal:
+    """
+    Cleans amount strings: removes currency symbols, commas, spaces, etc.
+    Converts to Decimal.
+    """
+    if val is None:
+        return Decimal("0.00")
+    if isinstance(val, (int, float, Decimal)):
+        return Decimal(str(val))
+        
+    s = str(val).strip()
+    # Remove currency signs, commas, and percentage signs
+    s = re.sub(r"[¥$,\s]", "", s)
+    if not s:
+        return Decimal("0.00")
+        
+    # Handle negative values in accounting formats like (1,234.56)
+    if s.startswith("(") and s.endswith(")"):
+        s = "-" + s[1:-1]
+        
+    try:
+        return Decimal(s)
+    except Exception:
+        raise ValueError(f"Invalid amount format: {val}")
+
+def clean_date(val: Any) -> date:
+    """
+    Parses dates from various string formats or ISO formats.
+    """
+    if val is None:
+        raise ValueError("Date is null")
+    if isinstance(val, date):
+        return val
+    if isinstance(val, datetime):
+        return val.date()
+        
+    s = str(val).strip()
+    # If ISO timestamp (e.g. from Pandas Timestamp)
+    if "T" in s:
+        s = s.split("T")[0]
+        
+    # Remove time part if any (e.g. "2026-07-13 12:00:00")
+    if " " in s:
+        s = s.split(" ")[0]
+        
+    # Try various formats
+    formats = [
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%Y%m%d",
+        "%d/%m/%Y",
+        "%m/%d/%Y"
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+            
+    # Handle Excel float serial numbers if loaded as string float
+    try:
+        f = float(s)
+        # 1900-01-01 is serial 1 in Excel
+        # Python datetime/date from ordinal: serial 1 is 1900-01-01, but Excel treats 1900 as leap year (incorrectly).
+        # We can do a quick approximation for common dates:
+        # Excel date offset is 693594 days from Python's proleptic Gregorian calendar origin.
+        # Check if the float looks like a serial date (e.g. 40000 to 60000 range)
+        if 30000 < f < 70000:
+            import pandas as pd
+            return pd.to_datetime(f, unit='D', origin='1899-12-30').date()
+    except Exception:
+        pass
+        
+    raise ValueError(f"Invalid date format: {val}")
+
+def get_or_create_store_alias(db: Session, raw_name: str) -> Tuple[Optional[str], str]:
+    """
+    Looks up standard store name using raw store alias name.
+    If no alias exists, inserts a new one in 'pending' status.
+    Returns: (standard_store_name or None, clean_status)
+    """
+    name_clean = str(raw_name).strip()
+    if not name_clean:
+        return None, "error"
+        
+    # Find exact matching alias
+    alias = db.query(StoreAlias).filter(StoreAlias.alias_name == name_clean).first()
+    
+    if alias:
+        if alias.status == "mapped" and alias.store_id:
+            store = db.query(Store).filter(Store.id == alias.store_id).first()
+            if store and store.is_active:
+                return store.name, "cleaned"
+        return None, "pending_store_mapping"
+    else:
+        # Create a new pending alias
+        # Check if we have a Standard Store with the exact same name already
+        existing_store = db.query(Store).filter(Store.name == name_clean).first()
+        store_id = existing_store.id if existing_store else None
+        status = "mapped" if store_id else "pending"
+        
+        new_alias = StoreAlias(
+            alias_name=name_clean,
+            store_id=store_id,
+            status=status
+        )
+        db.add(new_alias)
+        db.commit()
+        
+        if existing_store:
+            return existing_store.name, "cleaned"
+            
+        return None, "pending_store_mapping"
+
+def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
+    """
+    Cleans all raw rows for a specific import file.
+    Deletes any pre-existing clean_data for this import_file_id first to allow re-runs.
+    """
+    # 1. Clear existing clean data
+    db.query(CleanData).filter(CleanData.import_file_id == import_file_id).delete()
+    db.commit()
+    
+    # 2. Get all raw rows
+    raw_rows = db.query(RawData).filter(RawData.import_file_id == import_file_id).all()
+    
+    # Get mapping definitions
+    # Since we saved _detected_mappings in the content dictionary of each raw row, we can use it.
+    
+    summary = {
+        "total": len(raw_rows),
+        "cleaned": 0,
+        "pending_store_mapping": 0,
+        "error": 0
+    }
+    
+    for row in raw_rows:
+        content = row.content or {}
+        detected_maps = content.get("_detected_mappings", {})
+        
+        col_date = detected_maps.get("trade_date")
+        col_store = detected_maps.get("store_name")
+        col_amount = detected_maps.get("amount")
+        
+        error_msgs = []
+        parsed_date = None
+        parsed_amount = Decimal("0.00")
+        raw_store_name = ""
+        standard_store_name = None
+        clean_status = "cleaned"
+        
+        # Parse Date
+        if col_date and col_date in content:
+            try:
+                parsed_date = clean_date(content[col_date])
+            except Exception as e:
+                error_msgs.append(f"Date error: {str(e)}")
+        else:
+            error_msgs.append("Missing date column mapping")
+            
+        # Parse Store Name
+        if col_store and col_store in content:
+            raw_store_name = str(content[col_store]).strip()
+            if raw_store_name:
+                standard_store_name, store_status = get_or_create_store_alias(db, raw_store_name)
+                if store_status == "pending_store_mapping":
+                    clean_status = "pending_store_mapping"
+            else:
+                error_msgs.append("Store name is empty")
+        else:
+            error_msgs.append("Missing store column mapping")
+            
+        # Parse Amount
+        if col_amount and col_amount in content:
+            try:
+                parsed_amount = clean_amount(content[col_amount])
+            except Exception as e:
+                error_msgs.append(f"Amount error: {str(e)}")
+        else:
+            # For amount, if missing we treat it as 0.00 or error
+            error_msgs.append("Missing amount column mapping")
+            
+        if error_msgs:
+            clean_status = "error"
+            
+        # Create CleanData record
+        db_clean = CleanData(
+            raw_data_id=row.id,
+            import_file_id=import_file_id,
+            trade_date=parsed_date or date(1970, 1, 1),
+            original_store_name=raw_store_name or "Unknown",
+            standard_store_name=standard_store_name,
+            amount=parsed_amount,
+            source=row.data_source,
+            is_valid=(clean_status != "error"),
+            clean_status=clean_status,
+            error_message="; ".join(error_msgs) if error_msgs else None
+        )
+        db.add(db_clean)
+        
+        # Track counts
+        summary[clean_status] += 1
+        
+    db.commit()
+    return summary
