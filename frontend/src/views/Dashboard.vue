@@ -9,7 +9,7 @@
         </div>
         <div class="flex items-center gap-3">
           <label class="text-xs font-semibold text-slate-500 uppercase tracking-wider">选择账期日期:</label>
-          <DatePicker v-model="globalDate" />
+          <DatePicker v-model="globalDate" align="right" />
         </div>
       </CardContent>
     </Card>
