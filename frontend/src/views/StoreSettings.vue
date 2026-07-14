@@ -51,7 +51,7 @@
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">门店编码</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">标准门店名称</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">所在区域</th>
@@ -71,15 +71,27 @@
                   </td>
                 </tr>
                 <tr v-for="s in paginatedStores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
-                  <td class="p-4 font-mono font-bold text-slate-500">{{ s.code || '—' }}</td>
+                  <td class="p-4 font-mono font-bold text-slate-500">
+                    <span v-if="s.code">{{ s.code }}</span>
+                    <span v-else class="select-none text-slate-300/80">—</span>
+                  </td>
                   <td class="p-4 font-extrabold text-slate-800">{{ s.name }}</td>
-                  <td class="p-4 font-medium text-slate-600">{{ s.region || '—' }}</td>
-                  <td class="p-4 font-medium text-slate-600">{{ s.manager || '—' }}</td>
-                  <td class="p-4 font-mono text-slate-500">{{ s.phone || '—' }}</td>
+                  <td class="p-4 font-medium text-slate-600">
+                    <span v-if="s.region">{{ s.region }}</span>
+                    <span v-else class="select-none text-slate-300/80">—</span>
+                  </td>
+                  <td class="p-4 font-medium text-slate-600">
+                    <span v-if="s.manager">{{ s.manager }}</span>
+                    <span v-else class="select-none text-slate-300/80">—</span>
+                  </td>
+                  <td class="p-4 font-mono text-slate-500">
+                    <span v-if="s.phone">{{ s.phone }}</span>
+                    <span v-else class="select-none text-slate-300/80">—</span>
+                  </td>
                   <td class="p-4 text-center">
                     <button 
                       @click="openStoreStatusModal(s)"
-                      class="px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 transition-all"
+                      class="px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 transition-all select-none"
                       :class="s.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'"
                       title="点击切换状态"
                     >
@@ -88,7 +100,7 @@
                     </button>
                   </td>
                   <td class="p-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
+                    <div class="flex items-center justify-center gap-2 select-none">
                       <Button 
                         @click="openEditModal(s)"
                         variant="ghost"
@@ -210,7 +222,7 @@
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 中的原始店名</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">对应标准门店</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">状态</th>
@@ -244,14 +256,14 @@
                   </td>
                   <td class="p-4 text-center">
                     <span 
-                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                      class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold select-none"
                       :class="a.status === 'mapped' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
                     >
                       <span class="w-1.5 h-1.5 rounded-full" :class="a.status === 'mapped' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
                       <span>{{ a.status === 'mapped' ? '已绑定' : '待财务核认' }}</span>
                     </span>
                   </td>
-                  <td class="p-4 text-center">
+                  <td class="p-4 text-center select-none">
                     <Button 
                       v-if="a.status === 'pending'"
                       @click="a.store_id && openAliasBinding(a, a.store_id)"

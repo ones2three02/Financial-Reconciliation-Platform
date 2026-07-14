@@ -77,7 +77,7 @@
           <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-slate-200/80">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">数据分类</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">目标标准字段</th>
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 原始列标题</th>
@@ -96,7 +96,7 @@
                 </tr>
                 <tr v-for="m in filteredMappings" :key="m.id" class="hover:bg-slate-50/40 transition-colors">
                   <td class="p-4">
-                    <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(m.data_source)">
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold select-none" :class="getSourceBadgeClass(m.data_source)">
                       {{ getSourceLabel(m.data_source) }}
                     </span>
                   </td>
@@ -111,14 +111,14 @@
                       @click="openStatusModal(m)"
                       variant="ghost"
                       size="xs"
-                      class="px-2.5 py-1 rounded-full text-[10px] font-bold"
+                      class="px-2.5 py-1 rounded-full text-[10px] font-bold select-none"
                       :class="m.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
                     >
                       <span class="w-1.5 h-1.5 rounded-full mr-1" :class="m.is_active ? 'bg-emerald-500' : 'bg-slate-400'"></span>
                       <span>{{ m.is_active ? '已启用' : '已禁用' }}</span>
                     </Button>
                   </td>
-                  <td class="p-4 text-center">
+                  <td class="p-4 text-center select-none">
                     <Button
                       @click="openStatusModal(m)"
                       variant="ghost"
