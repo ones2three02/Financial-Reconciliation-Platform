@@ -184,11 +184,11 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
             db.add(extraction_run)
             import_file.row_count = row_count
             db.flush()
-            extract_current_batch_rows(db, extraction_run.id)
+            summary = extract_current_batch_rows(db, extraction_run.id)
 
         db.commit()
         return ImportOutcome(
-            status="imported",
+            status="attention_required" if summary.issue_count else "imported",
             import_file_id=import_file.id,
             extraction_run_id=extraction_run.id,
         )

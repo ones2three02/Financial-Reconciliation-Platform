@@ -164,6 +164,10 @@ def confirm_alias(
         )
     )
     db.flush()
+    from backend.app.services.extraction_engine import extract_current_batch_rows
+
+    for run_id in affected_run_ids:
+        extract_current_batch_rows(db, run_id)
     return alias
 
 

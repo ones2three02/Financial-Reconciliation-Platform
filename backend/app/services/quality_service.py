@@ -6,6 +6,22 @@ from sqlalchemy.orm import Session
 from backend.app.models.quality_issue import DataQualityIssue
 
 
+def reset_open_run_issues(db: Session, extraction_run_id: int) -> None:
+    """重跑前重置未解决问题的聚合值，避免同一原始行被重复累计。"""
+    issues = (
+        db.query(DataQualityIssue)
+        .filter(
+            DataQualityIssue.extraction_run_id == extraction_run_id,
+            DataQualityIssue.status == "open",
+        )
+        .all()
+    )
+    for issue in issues:
+        issue.affected_row_count = 0
+        issue.affected_amount = Decimal("0.00")
+    db.flush()
+
+
 def record_unknown_store_issue(
     db: Session,
     *,

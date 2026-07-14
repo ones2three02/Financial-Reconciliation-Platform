@@ -11,8 +11,11 @@ from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.models.store import Store
+from backend.app.domain.extraction_profiles import ProfileDefinition, get_profile
 from backend.app.services.cleaner import clean_amount, clean_date
 from backend.app.services.coverage_service import upsert_coverage
+from backend.app.services.quality_service import reset_open_run_issues
+from backend.app.services.store_resolution import resolve_store
 
 
 @dataclass(frozen=True)
@@ -163,6 +166,143 @@ def _extract_finance_rows(
     )
 
 
+def _refresh_channel_coverage(
+    db: Session,
+    *,
+    batch: ReconciliationBatch,
+    store_id: int,
+    source_code: str,
+    extraction_run_id: int,
+) -> None:
+    amount, row_count, file_count = _scope_totals(
+        db,
+        batch_id=batch.id,
+        store_id=store_id,
+        source_code=source_code,
+    )
+    upsert_coverage(
+        db,
+        batch_id=batch.id,
+        business_date=batch.business_date,
+        store_id=store_id,
+        source_code=source_code,
+        status="present_data",
+        evidence_type="data_rows",
+        amount=amount,
+        file_count=file_count,
+        valid_row_count=row_count,
+        error_row_count=0,
+        extraction_run_id=extraction_run_id,
+    )
+
+
+def _extract_channel_rows(
+    db: Session,
+    *,
+    extraction_run: ExtractionRun,
+    import_file: ImportFile,
+    batch: ReconciliationBatch,
+    profile: ProfileDefinition,
+) -> ExtractionSummary:
+    source_code = profile.output_sources[0]
+    previous_rows = (
+        db.query(CleanData)
+        .filter(
+            CleanData.extraction_run_id == extraction_run.id,
+            CleanData.is_current.is_(True),
+        )
+        .all()
+    )
+    for previous in previous_rows:
+        previous.is_current = False
+    reset_open_run_issues(db, extraction_run.id)
+
+    source_amount = Decimal("0.00")
+    clean_row_count = 0
+    issue_count = 0
+    touched_store_ids: set[int] = set()
+    raw_rows = (
+        db.query(RawData)
+        .filter(RawData.import_file_id == import_file.id)
+        .order_by(RawData.row_index)
+        .all()
+    )
+    for raw_row in raw_rows:
+        content = raw_row.content or {}
+        if clean_date(content.get(profile.date_column)) != batch.business_date:
+            continue
+        raw_store_name = str(content.get(profile.store_column) or "").strip()
+        if not raw_store_name:
+            raise ValueError(
+                f"模板 {profile.code} 第 {raw_row.row_index} 行缺少门店名称"
+            )
+        amount = sum(
+            (clean_amount(content.get(column)) for column in profile.amount_columns),
+            Decimal("0.00"),
+        )
+        resolution = resolve_store(
+            db,
+            source_code,
+            raw_store_name,
+            batch_id=batch.id,
+            import_file_id=import_file.id,
+            extraction_run_id=extraction_run.id,
+            affected_amount=amount,
+        )
+        if resolution.status != "resolved" or resolution.store_id is None:
+            issue_count += 1
+            continue
+        store = db.get(Store, resolution.store_id)
+        if store is None:
+            raise ValueError(f"标准门店不存在: {resolution.store_id}")
+        db.add(
+            CleanData(
+                raw_data_id=raw_row.id,
+                import_file_id=import_file.id,
+                trade_date=batch.business_date,
+                original_store_name=raw_store_name,
+                standard_store_name=store.name,
+                amount=amount,
+                source=source_code,
+                is_valid=True,
+                clean_status="cleaned",
+                batch_id=batch.id,
+                store_id=store.id,
+                extraction_run_id=extraction_run.id,
+                profile_code=profile.code,
+                profile_version=profile.version,
+                is_current=True,
+            )
+        )
+        source_amount += amount
+        clean_row_count += 1
+        touched_store_ids.add(store.id)
+
+    db.flush()
+    for store_id in touched_store_ids:
+        _refresh_channel_coverage(
+            db,
+            batch=batch,
+            store_id=store_id,
+            source_code=source_code,
+            extraction_run_id=extraction_run.id,
+        )
+
+    requires_attention = issue_count > 0
+    extraction_run.status = "attention_required" if requires_attention else "completed"
+    extraction_run.output_row_count = clean_row_count
+    extraction_run.error_row_count = issue_count
+    extraction_run.finished_at = datetime.now(UTC)
+    import_file.upload_status = "attention_required" if requires_attention else "processed"
+    db.flush()
+    return ExtractionSummary(
+        extraction_run_id=extraction_run.id,
+        source_amounts={source_code: source_amount},
+        clean_row_count=clean_row_count,
+        issue_count=issue_count,
+    )
+
+
 def extract_current_batch_rows(
     db: Session,
     extraction_run_id: int,
@@ -189,6 +329,15 @@ def extract_current_batch_rows(
             import_file=import_file,
             batch=batch,
             store=store,
+        )
+
+    if extraction_run.profile_code in {"douyin_v1", "meituan_v1", "tonglian_v1"}:
+        return _extract_channel_rows(
+            db,
+            extraction_run=extraction_run,
+            import_file=import_file,
+            batch=batch,
+            profile=get_profile(extraction_run.profile_code),
         )
 
     raise ValueError(f"尚未实现的提取模板: {extraction_run.profile_code}")
