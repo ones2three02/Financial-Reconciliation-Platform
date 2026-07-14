@@ -3,11 +3,14 @@ from decimal import Decimal
 from io import BytesIO
 
 from openpyxl import Workbook
+import pytest
 from sqlalchemy import func
 
+from backend.app.services import extraction_engine
 from backend.app.models.clean_data import CleanData
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
+from backend.app.models.import_file import ImportFile
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.batch_service import get_or_create_batch
@@ -226,3 +229,58 @@ def test_confirmed_alias_remap_moves_current_amount_and_coverage(db_session):
     assert old_coverage.status == "missing"
     assert old_coverage.amount == Decimal("0.00")
     assert new_coverage.status == "present_data"
+
+
+def test_historical_run_cannot_be_extracted(db_session):
+    batch, store = setup_batch(db_session)
+    raw_store = "武汉 : 历史门店"
+    add_confirmed_alias(db_session, "meituan", raw_store, store.id)
+    content = workbook_bytes(
+        "收益明细表",
+        ["验券/退款/", "消费门店", "总收入（元）", "商家营销费用（元）"],
+        [[datetime(2026, 7, 10), raw_store, 10, -0.10]],
+    )
+    outcome = import_channel(db_session, batch.id, "meituan_v1", content)
+    run = db_session.get(ExtractionRun, outcome.extraction_run_id)
+    import_file = db_session.get(ImportFile, outcome.import_file_id)
+    run.is_current = False
+    import_file.is_current = False
+    db_session.commit()
+
+    with pytest.raises(extraction_engine.HistoricalExtractionError):
+        extraction_engine.extract_current_batch_rows(db_session, run.id)
+
+
+def test_alias_rebind_does_not_reprocess_historical_file(db_session, monkeypatch):
+    batch, first_store = setup_batch(db_session)
+    second_store = Store(name="民院二店", code="MD011")
+    db_session.add(second_store)
+    db_session.commit()
+    raw_store = "武汉 : 已作废门店"
+    alias = add_confirmed_alias(db_session, "meituan", raw_store, first_store.id)
+    content = workbook_bytes(
+        "收益明细表",
+        ["验券/退款/", "消费门店", "总收入（元）", "商家营销费用（元）"],
+        [[datetime(2026, 7, 10), raw_store, 10, -0.10]],
+    )
+    outcome = import_channel(db_session, batch.id, "meituan_v1", content)
+    run = db_session.get(ExtractionRun, outcome.extraction_run_id)
+    import_file = db_session.get(ImportFile, outcome.import_file_id)
+    run.is_current = False
+    import_file.is_current = False
+    db_session.commit()
+    called_run_ids: list[int] = []
+    monkeypatch.setattr(
+        extraction_engine,
+        "extract_current_batch_rows",
+        lambda _db, run_id: called_run_ids.append(run_id),
+    )
+
+    confirm_alias(
+        db_session,
+        alias_id=alias.id,
+        store_id=second_store.id,
+        actor="admin",
+    )
+
+    assert called_run_ids == []

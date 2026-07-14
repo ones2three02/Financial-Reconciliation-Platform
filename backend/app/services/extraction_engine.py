@@ -26,6 +26,10 @@ class ExtractionSummary:
     issue_count: int
 
 
+class HistoricalExtractionError(ValueError):
+    """历史文件或历史提取运行不能直接重新提取。"""
+
+
 def _scope_totals(
     db: Session,
     *,
@@ -317,6 +321,8 @@ def extract_current_batch_rows(
     import_file = db.get(ImportFile, extraction_run.import_file_id)
     if import_file is None or import_file.batch_id is None:
         raise ValueError("提取运行缺少有效导入文件或批次")
+    if not extraction_run.is_current or not import_file.is_current:
+        raise HistoricalExtractionError("历史文件或历史提取运行不能重新进入当前计算")
     batch = db.get(ReconciliationBatch, import_file.batch_id)
     if batch is None:
         raise ValueError("导入文件关联的批次不存在")

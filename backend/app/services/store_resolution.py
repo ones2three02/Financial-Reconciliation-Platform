@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.audit import AuditEvent
 from backend.app.models.clean_data import CleanData
+from backend.app.models.extraction import ExtractionRun
+from backend.app.models.import_file import ImportFile
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.quality_service import (
@@ -138,21 +140,18 @@ def confirm_alias(
     if store is None or not store.is_active:
         raise ValueError(f"标准门店不存在或已停用: {store_id}")
 
-    affected_run_ids = set(_affected_run_ids(db, alias))
     confirmed_at = datetime.now(UTC)
     alias.store_id = store.id
     alias.status = "mapped"
     alias.confirmed_by = clean_actor
     alias.confirmed_at = confirmed_at
-    affected_run_ids.update(
-        resolve_unknown_store_issues(
-            db,
-            source_code=alias.source_code,
-            raw_name=alias.alias_name,
-            actor=clean_actor,
-        )
+    resolve_unknown_store_issues(
+        db,
+        source_code=alias.source_code,
+        raw_name=alias.alias_name,
+        actor=clean_actor,
     )
-    sorted_run_ids = sorted(affected_run_ids)
+    sorted_run_ids = _affected_run_ids(db, alias)
     db.add(
         AuditEvent(
             batch_id=None,
@@ -181,11 +180,18 @@ def _affected_run_ids(db: Session, alias: StoreAlias) -> list[int]:
         run_id
         for (run_id,) in (
             db.query(DataQualityIssue.extraction_run_id)
+            .join(
+                ExtractionRun,
+                ExtractionRun.id == DataQualityIssue.extraction_run_id,
+            )
+            .join(ImportFile, ImportFile.id == ExtractionRun.import_file_id)
             .filter(
                 DataQualityIssue.issue_type == "unknown_store",
                 DataQualityIssue.source_code == alias.source_code,
                 DataQualityIssue.raw_value == alias.alias_name,
                 DataQualityIssue.extraction_run_id.is_not(None),
+                ExtractionRun.is_current.is_(True),
+                ImportFile.is_current.is_(True),
             )
             .distinct()
             .all()
@@ -195,10 +201,14 @@ def _affected_run_ids(db: Session, alias: StoreAlias) -> list[int]:
         run_id
         for (run_id,) in (
             db.query(CleanData.extraction_run_id)
+            .join(ExtractionRun, ExtractionRun.id == CleanData.extraction_run_id)
+            .join(ImportFile, ImportFile.id == ExtractionRun.import_file_id)
             .filter(
                 CleanData.source == alias.source_code,
                 CleanData.original_store_name == alias.alias_name,
                 CleanData.extraction_run_id.is_not(None),
+                ExtractionRun.is_current.is_(True),
+                ImportFile.is_current.is_(True),
             )
             .distinct()
             .all()
