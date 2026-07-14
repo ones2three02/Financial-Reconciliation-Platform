@@ -19,6 +19,7 @@ class ProfileDefinition:
     amount_columns: tuple[str, ...]
     output_sources: tuple[str, ...]
     requires_store_id: bool = False
+    summary_date_markers: tuple[str, ...] = ()
 
 
 class UnknownProfileError(ValueError):
@@ -83,6 +84,7 @@ PROFILES: dict[str, ProfileDefinition] = {
         store_column="门店名",
         amount_columns=("成功交易金额",),
         output_sources=("tonglian",),
+        summary_date_markers=("汇总",),
     ),
 }
 

@@ -25,6 +25,49 @@ def workbook_bytes(sheet_name: str, headers: list[str], rows: list[list[object]]
     return output.getvalue()
 
 
+def tonglian_workbook_bytes(rows: list[list[object]]) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "sheet1"
+    sheet.append(["交易统计汇总"])
+    sheet.append(["统计日期", "门店名", "成功交易金额"])
+    for row in rows:
+        sheet.append(row)
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def test_tonglian_profile_ignores_explicit_summary_footer():
+    result = preflight_workbook(
+        tonglian_workbook_bytes([
+            ["2026-07-10", "民院店原始名称", 100],
+            ["汇总", None, 100],
+        ]),
+        profile_code="tonglian_v1",
+        business_date=date(2026, 7, 10),
+        store_id=None,
+    )
+    assert result.total_data_rows == 1
+    assert result.matching_row_count == 1
+
+
+def test_tonglian_profile_reports_sheet_and_row_for_bad_business_date():
+    with pytest.raises(
+        PreflightValidationError,
+        match=r"模板 tonglian_v1 工作表 sheet1 第 4 行的统计日期无法解析",
+    ):
+        preflight_workbook(
+            tonglian_workbook_bytes([
+                ["2026-07-10", "正常门店", 100],
+                ["汇总", "不应被跳过的门店", 50],
+            ]),
+            profile_code="tonglian_v1",
+            business_date=date(2026, 7, 10),
+            store_id=None,
+        )
+
+
 def test_finance_profile_requires_exact_sheet_and_store():
     content = workbook_bytes(
         "收入流水表",

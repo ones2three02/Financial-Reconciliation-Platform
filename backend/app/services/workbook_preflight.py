@@ -7,6 +7,7 @@ from backend.app.domain.extraction_profiles import get_profile
 from backend.app.schemas.preflight import PreflightResult
 from backend.app.services.cleaner import clean_date
 from backend.app.services.workbook_io import WorkbookArchiveLimitError, load_data_workbook
+from backend.app.services.workbook_rows import is_summary_row
 
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -107,15 +108,25 @@ def preflight_workbook(
         parsed_dates: list[date] = []
         detected_stores: set[str] = set()
 
-        for row in sheet.iter_rows(min_row=profile.header_row + 1, values_only=True):
+        for excel_row_number, row in enumerate(
+            sheet.iter_rows(min_row=profile.header_row + 1, values_only=True),
+            start=profile.header_row + 1,
+        ):
             if not any(value not in (None, "") for value in row):
+                continue
+            content_row = {
+                header: row[index] if index < len(row) else None
+                for index, header in enumerate(headers)
+            }
+            if is_summary_row(profile, content_row):
                 continue
             total_data_rows += 1
             try:
                 row_date = _parse_date(row[date_index])
             except (ValueError, TypeError, IndexError) as exc:
                 raise PreflightValidationError(
-                    f"模板 {profile.code} 的日期列包含无法解析的数据"
+                    f"模板 {profile.code} 工作表 {sheet_name} 第 {excel_row_number} 行的"
+                    f"{profile.date_column}无法解析"
                 ) from exc
             parsed_dates.append(row_date)
             if row_date == business_date:
