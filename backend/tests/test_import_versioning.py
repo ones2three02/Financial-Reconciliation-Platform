@@ -20,6 +20,7 @@ from backend.app.schemas.import_command import (
 )
 from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.import_pipeline import ImportWorkbookCommand, import_workbook
+from backend.app.services import import_version_service
 from backend.app.services.import_version_service import (
     ImportVersionConflictError,
     invalidate_import_file,
@@ -337,3 +338,159 @@ def test_reset_batch_requires_matching_confirmation_date(db_session):
         )
 
     assert db_session.get(ImportFile, imported.import_file_id).is_current is True
+
+
+def test_invalidated_file_can_be_restored_from_raw_data(db_session):
+    batch, store = setup_batch(db_session)
+    imported = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    old_run = db_session.get(ExtractionRun, imported.extraction_run_id)
+    invalidate_import_file(
+        db_session,
+        file_id=imported.import_file_id,
+        reason="测试作废",
+        actor="finance-user",
+    )
+
+    outcome = import_version_service.restore_import_file(
+        db_session,
+        file_id=imported.import_file_id,
+        reason="误作废",
+        actor="finance-user",
+    )
+
+    restored_file = db_session.get(ImportFile, imported.import_file_id)
+    restored_run = db_session.get(ExtractionRun, outcome.extraction_run_id)
+    assert restored_file.is_current is True
+    assert restored_run.id != old_run.id
+    assert restored_run.is_current is True
+    assert old_run.is_current is False
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("100.00")
+    assert db_session.query(AuditEvent).filter_by(event_type="file_restored").one().event_data["reason"] == "误作废"
+
+
+def test_restoring_old_version_retires_current_descendant(db_session):
+    batch, store = setup_batch(db_session)
+    original = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    replacement = replace_import_file(
+        db_session,
+        file_id=original.import_file_id,
+        filename="正确文件.xlsx",
+        content=finance_workbook(("微信", 200)),
+        reason="替换测试",
+        actor="finance-user",
+    )
+
+    import_version_service.restore_import_file(
+        db_session,
+        file_id=original.import_file_id,
+        reason="恢复原版",
+        actor="finance-user",
+    )
+
+    assert db_session.get(ImportFile, original.import_file_id).is_current is True
+    assert db_session.get(ImportFile, replacement.import_file_id).is_current is False
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("100.00")
+
+
+def test_restore_rejects_duplicate_independent_current_file(db_session):
+    batch, store = setup_batch(db_session)
+    content = finance_workbook(("微信", 100))
+    original = import_finance(db_session, batch.id, store.id, content)
+    invalidate_import_file(
+        db_session,
+        file_id=original.import_file_id,
+        reason="先作废",
+        actor="finance-user",
+    )
+    independent = import_finance(db_session, batch.id, store.id, content)
+
+    with pytest.raises(ImportVersionConflictError, match="相同内容"):
+        import_version_service.restore_import_file(
+            db_session,
+            file_id=original.import_file_id,
+            reason="错误恢复",
+            actor="finance-user",
+        )
+
+    assert db_session.get(ImportFile, independent.import_file_id).is_current is True
+    assert db_session.get(ImportFile, original.import_file_id).is_current is False
+
+
+def test_failed_restore_rolls_back_to_current_descendant(db_session, monkeypatch):
+    batch, store = setup_batch(db_session)
+    original = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    replacement = replace_import_file(
+        db_session,
+        file_id=original.import_file_id,
+        filename="正确文件.xlsx",
+        content=finance_workbook(("微信", 200)),
+        reason="替换测试",
+        actor="finance-user",
+    )
+    monkeypatch.setattr(
+        import_version_service,
+        "extract_current_batch_rows",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("恢复提取失败")),
+        raising=False,
+    )
+
+    with pytest.raises(RuntimeError, match="恢复提取失败"):
+        import_version_service.restore_import_file(
+            db_session,
+            file_id=original.import_file_id,
+            reason="测试回滚",
+            actor="finance-user",
+        )
+
+    assert db_session.get(ImportFile, original.import_file_id).is_current is False
+    assert db_session.get(ImportFile, replacement.import_file_id).is_current is True
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("200.00")
+    assert db_session.query(AuditEvent).filter_by(event_type="file_restored").count() == 0
+
+
+def test_restore_rejects_current_file_and_closed_batch(db_session):
+    batch, store = setup_batch(db_session)
+    imported = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    with pytest.raises(ImportVersionConflictError, match="当前版本"):
+        import_version_service.restore_import_file(
+            db_session,
+            file_id=imported.import_file_id,
+            reason="无需恢复",
+            actor="finance-user",
+        )
+
+    invalidate_import_file(
+        db_session,
+        file_id=imported.import_file_id,
+        reason="测试作废",
+        actor="finance-user",
+    )
+    batch.status = "closed"
+    db_session.commit()
+    with pytest.raises(ImportVersionConflictError, match="已关账"):
+        import_version_service.restore_import_file(
+            db_session,
+            file_id=imported.import_file_id,
+            reason="关账后恢复",
+            actor="finance-user",
+        )

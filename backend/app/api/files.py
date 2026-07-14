@@ -9,6 +9,7 @@ from backend.app.schemas.import_command import (
     ImportOutcomeRead,
     ImportVersionActionRead,
     InvalidateImportRequest,
+    RestoreImportRequest,
 )
 from backend.app.schemas.import_file import ImportFile
 from backend.app.services.import_pipeline import (
@@ -23,6 +24,7 @@ from backend.app.services.import_version_service import (
     ImportVersionNotFoundError,
     invalidate_import_file,
     replace_import_file,
+    restore_import_file,
 )
 
 
@@ -129,6 +131,31 @@ def invalidate_file(
             status="invalidated",
             batch_id=import_file.batch_id,
             file_id=import_file.id,
+        )
+    except ImportVersionNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportVersionConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{file_id}/restore", response_model=ImportOutcomeRead)
+def restore_file(
+    file_id: int,
+    payload: RestoreImportRequest,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    try:
+        return restore_import_file(
+            db,
+            file_id=file_id,
+            reason=payload.reason,
+            actor=current_user.username,
         )
     except ImportVersionNotFoundError as exc:
         db.rollback()

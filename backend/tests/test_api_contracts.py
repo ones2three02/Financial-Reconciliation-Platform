@@ -18,6 +18,7 @@ from backend.app.api.batches import (
     reopen_reconciliation_batch,
     reset_reconciliation_batch_current_data,
 )
+from backend.app.api import files as files_api
 from backend.app.api.files import (
     delete_file,
     import_file,
@@ -37,6 +38,7 @@ from backend.app.schemas.import_command import (
     InvalidateImportRequest,
     ResetBatchCurrentDataRequest,
 )
+from backend.app.schemas import import_command as import_command_schemas
 
 
 ADMIN = AppUser(id=1, username="admin", role="admin", is_active=True)
@@ -264,3 +266,39 @@ def test_revoke_zero_request_rejects_blank_reason():
             source_code="meituan",
             reason="",
         )
+
+
+def test_restore_file_route_uses_authenticated_actor(db_session):
+    store = Store(name="民院店", code="MD010", is_active=True)
+    db_session.add(store)
+    db_session.commit()
+    batch = create_reconciliation_batch(
+        payload=BatchCreate(business_date=date(2026, 7, 10)),
+        current_user=ADMIN,
+        db=db_session,
+    )
+    imported = asyncio.run(import_file(
+        file=UploadFile(filename="原文件.xlsx", file=BytesIO(finance_workbook())),
+        batch_id=batch.id,
+        profile_code="store_finance_v1",
+        store_id=store.id,
+        current_user=ADMIN,
+        db=db_session,
+    ))
+    invalidate_file(
+        file_id=imported.import_file_id,
+        payload=InvalidateImportRequest(reason="误作废测试"),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    response = files_api.restore_file(
+        file_id=imported.import_file_id,
+        payload=import_command_schemas.RestoreImportRequest(reason="撤销误作废"),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    assert response.import_file_id == imported.import_file_id
+    audit = db_session.query(AuditEvent).filter_by(event_type="file_restored").one()
+    assert audit.actor == ADMIN.username

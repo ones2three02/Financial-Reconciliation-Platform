@@ -23,6 +23,10 @@ class InvalidateImportRequest(_ReasonRequest):
     pass
 
 
+class RestoreImportRequest(_ReasonRequest):
+    pass
+
+
 class ResetBatchCurrentDataRequest(_ReasonRequest):
     confirmation_date: date
 
