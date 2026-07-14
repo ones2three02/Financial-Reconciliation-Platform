@@ -2,10 +2,8 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from hashlib import sha256
-from io import BytesIO
 from typing import Literal
 
-from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
 from backend.app.domain.extraction_profiles import ProfileDefinition, get_profile
@@ -15,6 +13,7 @@ from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.services.workbook_preflight import preflight_workbook
 from backend.app.services.extraction_engine import extract_current_batch_rows
+from backend.app.services.workbook_io import load_data_workbook
 
 
 @dataclass(frozen=True)
@@ -68,7 +67,7 @@ def _persist_raw_rows(
     content: bytes,
     profile: ProfileDefinition,
 ) -> int:
-    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    workbook = load_data_workbook(content)
     try:
         sheet_name = next(name for name in profile.sheet_names if name in workbook.sheetnames)
         sheet = workbook[sheet_name]

@@ -1,13 +1,12 @@
 from datetime import date, datetime
-from io import BytesIO
 from zipfile import BadZipFile
 
-from openpyxl import load_workbook
 from openpyxl.utils.exceptions import InvalidFileException
 
 from backend.app.domain.extraction_profiles import get_profile
 from backend.app.schemas.preflight import PreflightResult
 from backend.app.services.cleaner import clean_date
+from backend.app.services.workbook_io import load_data_workbook
 
 
 MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -54,7 +53,7 @@ def preflight_workbook(
         raise PreflightValidationError("该模板必须指定归属标准门店")
 
     try:
-        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+        workbook = load_data_workbook(content)
     except (BadZipFile, InvalidFileException, OSError, ValueError) as exc:
         raise PreflightValidationError("无法读取工作簿，请确认文件格式有效") from exc
 
