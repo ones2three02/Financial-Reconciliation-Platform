@@ -382,39 +382,46 @@ const updateSpotlight = () => {
   const el = document.querySelector(selector) as HTMLElement;
   
   if (el) {
-    const rect = el.getBoundingClientRect();
-    const padding = 6;
+    // 平滑滚动定位元素到视口中央，解决元素在视口外遮罩全黑的问题
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
     
-    spotlightRect.value = {
-      x: rect.left - padding,
-      y: rect.top - padding,
-      w: rect.width + padding * 2,
-      h: rect.height + padding * 2
-    };
-    
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
-    
-    let top = rect.bottom + window.scrollY + 16;
-    let left = rect.left + window.scrollX;
-    
-    // 若气泡溢出视口底部，则置于高亮元素的正上方
-    if (rect.bottom + 180 > viewportHeight) {
-      top = rect.top + window.scrollY - 180;
-    }
-    // 横向边缘校验保护
-    if (left + 288 > viewportWidth) {
-      left = viewportWidth - 304;
-    }
-    if (left < 16) {
-      left = 16;
-    }
-    
-    tooltipStyle.value = {
-      top: `${top}px`,
-      left: `${left}px`,
-      transform: 'none'
-    };
+    // 延时等滚动完成后再精确计算位置
+    setTimeout(() => {
+      const rect = el.getBoundingClientRect();
+      const padding = 6;
+      
+      spotlightRect.value = {
+        x: rect.left - padding,
+        y: rect.top - padding,
+        w: rect.width + padding * 2,
+        h: rect.height + padding * 2
+      };
+      
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      // 气泡卡片也是 fixed 定位，直接使用 viewport 坐标（不用加 window.scrollY / scrollX）
+      let top = rect.bottom + 16;
+      let left = rect.left;
+      
+      // 若气泡溢出视口底部，则置于高亮元素的正上方
+      if (rect.bottom + 180 > viewportHeight) {
+        top = rect.top - 180;
+      }
+      // 横向边缘校验保护
+      if (left + 288 > viewportWidth) {
+        left = viewportWidth - 304;
+      }
+      if (left < 16) {
+        left = 16;
+      }
+      
+      tooltipStyle.value = {
+        top: `${top}px`,
+        left: `${left}px`,
+        transform: 'none'
+      };
+    }, 200);
   } else {
     spotlightRect.value = null;
     tooltipStyle.value = {
