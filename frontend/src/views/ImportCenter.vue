@@ -145,7 +145,7 @@
                 <td class="p-4 text-slate-500">{{ sourceLabel(file.data_source) }}</td>
                 <td class="p-4 text-slate-500">{{ file.row_count }}</td>
                 <td class="p-4"><span class="rounded-full px-2 py-1 font-bold" :class="file.is_current ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">{{ file.is_current ? '当前有效' : '历史版本' }}</span></td>
-                <td class="p-4"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-600">{{ file.upload_status }}</span></td>
+                <td class="p-4"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold" :class="uploadStatusClass(file.upload_status)">{{ uploadStatusLabel(file.upload_status) }}</span></td>
                 <td class="p-4 font-mono text-slate-500">{{ formatDateTime(file.uploaded_at) }}</td>
                 <td class="p-4 text-right">
                   <div v-if="file.is_current && activeBatch?.status !== 'closed' && canOperate" class="flex justify-end gap-2">
@@ -540,6 +540,8 @@ const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_requi
 const batchStatusClass = (status: string) => status === 'closed' ? 'bg-slate-200 text-slate-700' : status === 'ready_to_close' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
 const queueStatusLabel = (status: QueueItem['status']) => ({ ready: '待处理', preflighting: '预检中', importing: '导入中', imported: '已导入', duplicate: '内容重复', attention: '需确认门店', failed: '失败' }[status]);
 const queueStatusClass = (status: QueueItem['status']) => status === 'failed' ? 'bg-rose-50 text-rose-700' : status === 'imported' ? 'bg-emerald-50 text-emerald-700' : status === 'attention' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
+const uploadStatusLabel = (status: string) => ({ pending: '待处理', parsed: '已解析', failed: '解析失败', processed: '处理完成', attention_required: '待处理' }[status] ?? status);
+const uploadStatusClass = (status: string) => status === 'processed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : status === 'attention_required' ? 'bg-amber-50 text-amber-700 border border-amber-100' : status === 'failed' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-slate-100 text-slate-600 border border-transparent';
 const formatDateTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false });
 const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
 
