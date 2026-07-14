@@ -37,6 +37,36 @@ async def upload_file(
     try:
         content = await file.read()
         
+        # Check if a file with the same name and data source already exists
+        existing_query = db.query(ImportFile).filter(
+            ImportFile.filename == file.filename,
+            ImportFile.data_source == data_source
+        )
+        if store_id is not None:
+            existing_query = existing_query.filter(ImportFile.store_id == store_id)
+            
+        existing_file = existing_query.first()
+        overwritten = False
+        if existing_file:
+            logger.info(f"Duplicate upload detected for file '{file.filename}' under source '{data_source}'. Overwriting...")
+            from backend.app.models.clean_data import CleanData
+            from backend.app.services.reconciler import run_reconciliation_for_date
+            
+            # 1. Find all dates affected by this file's clean data
+            dates_query = db.query(CleanData.trade_date).filter(
+                CleanData.import_file_id == existing_file.id
+            ).distinct().all()
+            affected_dates = [d[0] for d in dates_query]
+            
+            # 2. Delete the old import file record (cascades raw_data and clean_data deletion)
+            db.delete(existing_file)
+            db.commit()
+            
+            # 3. Recalculate reconciliation for all affected dates
+            for t_date in affected_dates:
+                run_reconciliation_for_date(db, target_date=t_date)
+            overwritten = True
+            
         # 1. Parse Excel to raw tables
         import_file_record, raw_rows, detected_maps = parse_excel_file(
             db=db,
@@ -81,7 +111,8 @@ async def upload_file(
             "status": "success",
             "file": import_file_record,
             "cleaning_summary": clean_summary,
-            "reconciliation_count": len(reconciled_rows)
+            "reconciliation_count": len(reconciled_rows),
+            "overwritten": overwritten
         }
         
     except Exception as e:

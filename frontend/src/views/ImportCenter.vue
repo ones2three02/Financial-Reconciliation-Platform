@@ -522,6 +522,9 @@ const uploadFiles = async (files: File[]) => {
         showMappingModal.value = true;
       } else {
         queueItem.status = 'success';
+        if (res && res.overwritten) {
+          alert(`检测到同名文件 [${file.name}] 已存在，系统已自动覆盖历史数据并重算对账！`);
+        }
       }
     } catch (err: any) {
       queueItem.status = 'failed';
