@@ -9,6 +9,7 @@ ExtractorName = Literal["sum_column", "sum_filtered_column", "sum_columns"]
 class ProfileDefinition:
     code: str
     version: int
+    input_source: str
     sheet_names: tuple[str, ...]
     header_row: int
     required_columns: tuple[str, ...]
@@ -28,6 +29,7 @@ PROFILES: dict[str, ProfileDefinition] = {
     "store_finance_v1": ProfileDefinition(
         code="store_finance_v1",
         version=1,
+        input_source="store_finance",
         sheet_names=("收入流水表",),
         header_row=1,
         required_columns=("日期", "付款方式", "金额"),
@@ -41,6 +43,7 @@ PROFILES: dict[str, ProfileDefinition] = {
     "douyin_v1": ProfileDefinition(
         code="douyin_v1",
         version=1,
+        input_source="douyin",
         sheet_names=("核销明细",),
         header_row=1,
         required_columns=("核销时间", "核销门店", "订单实收"),
@@ -53,6 +56,7 @@ PROFILES: dict[str, ProfileDefinition] = {
     "meituan_v1": ProfileDefinition(
         code="meituan_v1",
         version=1,
+        input_source="meituan",
         sheet_names=("收益明细表",),
         header_row=1,
         required_columns=(
@@ -70,6 +74,7 @@ PROFILES: dict[str, ProfileDefinition] = {
     "tonglian_v1": ProfileDefinition(
         code="tonglian_v1",
         version=1,
+        input_source="tonglian",
         sheet_names=("sheet1",),
         header_row=2,
         required_columns=("统计日期", "门店名", "成功交易金额"),
