@@ -5,7 +5,11 @@ from backend.app.core.db import get_db
 from backend.app.api.auth import require_finance
 from backend.app.models.auth import AppUser
 from backend.app.crud import import_file as crud_import_file
-from backend.app.schemas.import_command import ImportOutcomeRead
+from backend.app.schemas.import_command import (
+    ImportOutcomeRead,
+    ImportVersionActionRead,
+    InvalidateImportRequest,
+)
 from backend.app.schemas.import_file import ImportFile
 from backend.app.services.import_pipeline import (
     BatchClosedError,
@@ -14,6 +18,12 @@ from backend.app.services.import_pipeline import (
 )
 from backend.app.services.workbook_preflight import PreflightValidationError
 from backend.app.api.upload_utils import read_upload_limited
+from backend.app.services.import_version_service import (
+    ImportVersionConflictError,
+    ImportVersionNotFoundError,
+    invalidate_import_file,
+    replace_import_file,
+)
 
 
 router = APIRouter()
@@ -67,6 +77,68 @@ async def import_file(
 @router.post("/upload")
 async def upload_file():
     raise HTTPException(status_code=409, detail=LEGACY_DISABLED_MESSAGE)
+
+
+@router.post("/{file_id}/replace", response_model=ImportOutcomeRead)
+async def replace_file(
+    file_id: int,
+    file: UploadFile = File(...),
+    reason: str = Form(..., min_length=1, max_length=500),
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    filename = (file.filename or "").strip()
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="当前仅支持 .xlsx 工作簿")
+    content = await read_upload_limited(file)
+    try:
+        return replace_import_file(
+            db,
+            file_id=file_id,
+            filename=filename,
+            content=content,
+            reason=reason,
+            actor=current_user.username,
+        )
+    except ImportVersionNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportVersionConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (PreflightValidationError, ValueError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{file_id}/invalidate", response_model=ImportVersionActionRead)
+def invalidate_file(
+    file_id: int,
+    payload: InvalidateImportRequest,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    try:
+        import_file = invalidate_import_file(
+            db,
+            file_id=file_id,
+            reason=payload.reason,
+            actor=current_user.username,
+        )
+        return ImportVersionActionRead(
+            status="invalidated",
+            batch_id=import_file.batch_id,
+            file_id=import_file.id,
+        )
+    except ImportVersionNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportVersionConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/confirm-mapping")

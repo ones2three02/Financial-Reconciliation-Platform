@@ -17,6 +17,7 @@ from backend.app.schemas.batch import (
     ConfirmZeroRequest,
 )
 from backend.app.schemas.reconciliation import ReconciliationResult
+from backend.app.schemas.import_command import ResetBatchCurrentDataRequest
 from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.closing_service import (
     BatchNotClosableError,
@@ -24,6 +25,11 @@ from backend.app.services.closing_service import (
     reopen_batch,
 )
 from backend.app.services.reconciliation_service import confirm_zero, reconcile_batch
+from backend.app.services.import_version_service import (
+    ImportVersionConflictError,
+    ImportVersionNotFoundError,
+    reset_batch_current_data,
+)
 
 
 router = APIRouter()
@@ -85,8 +91,8 @@ def get_reconciliation_batch_detail(
         raise HTTPException(status_code=404, detail="对账批次不存在")
     import_files = (
         db.query(ImportFile)
-        .filter(ImportFile.batch_id == batch_id, ImportFile.is_current.is_(True))
-        .order_by(ImportFile.id.desc())
+        .filter(ImportFile.batch_id == batch_id)
+        .order_by(ImportFile.is_current.desc(), ImportFile.id.desc())
         .all()
     )
     coverages = (
@@ -114,6 +120,32 @@ def get_reconciliation_batch_detail(
         quality_issues=quality_issues,
         results=results,
     )
+
+
+@router.post("/{batch_id}/reset-current-data", response_model=BatchRead)
+def reset_reconciliation_batch_current_data(
+    batch_id: int,
+    payload: ResetBatchCurrentDataRequest,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    try:
+        return reset_batch_current_data(
+            db,
+            batch_id=batch_id,
+            reason=payload.reason,
+            confirmation_date=payload.confirmation_date,
+            actor=current_user.username,
+        )
+    except ImportVersionNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportVersionConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/{batch_id}/confirm-zero")

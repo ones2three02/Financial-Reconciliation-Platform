@@ -18,3 +18,7 @@ class ImportFile(ImportFileBase):
 
     id: int
     uploaded_at: datetime
+    profile_code: Optional[str] = None
+    profile_version: Optional[int] = None
+    supersedes_file_id: Optional[int] = None
+    is_current: bool

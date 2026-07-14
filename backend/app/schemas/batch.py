@@ -48,6 +48,7 @@ class BatchImportFileRead(BaseModel):
     store_id: int | None = None
     profile_code: str | None = None
     profile_version: int | None = None
+    supersedes_file_id: int | None = None
     is_current: bool
 
 

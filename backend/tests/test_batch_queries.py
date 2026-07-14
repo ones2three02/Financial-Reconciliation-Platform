@@ -51,6 +51,19 @@ def test_batch_detail_returns_import_coverage_issue_and_result(db_session):
     )
     db_session.add(import_file)
     db_session.flush()
+    historical_file = ImportFile(
+        batch_id=batch.id,
+        filename="美团收入_历史.xlsx",
+        data_source="meituan",
+        upload_status="processed",
+        row_count=1,
+        profile_code="meituan_v1",
+        profile_version=1,
+        is_current=False,
+    )
+    db_session.add(historical_file)
+    db_session.flush()
+    import_file.supersedes_file_id = historical_file.id
     db_session.add_all(
         [
             SourceCoverage(
@@ -94,7 +107,12 @@ def test_batch_detail_returns_import_coverage_issue_and_result(db_session):
     detail = get_reconciliation_batch_detail(batch.id, db=db_session)
 
     assert detail.batch.id == batch.id
-    assert detail.import_files[0].filename == "美团收入.xlsx"
+    assert [item.filename for item in detail.import_files] == [
+        "美团收入.xlsx",
+        "美团收入_历史.xlsx",
+    ]
+    assert detail.import_files[0].supersedes_file_id == historical_file.id
+    assert detail.import_files[1].is_current is False
     assert detail.coverages[0].amount == Decimal("9.90")
     assert detail.quality_issues[0].raw_value == "示例未知门店"
     assert detail.results[0].standard_store_name == "民院店"

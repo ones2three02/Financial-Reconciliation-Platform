@@ -105,7 +105,13 @@ def _persist_raw_rows(
         workbook.close()
 
 
-def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcome:
+def import_workbook_in_transaction(
+    db: Session,
+    command: ImportWorkbookCommand,
+    *,
+    supersedes_file_id: int | None = None,
+    duplicate_exclude_file_id: int | None = None,
+) -> ImportOutcome:
     clean_filename = command.filename.strip()
     clean_actor = command.actor.strip()
     if not clean_filename:
@@ -114,24 +120,31 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
         raise ValueError("导入必须提供操作人")
 
     content_hash = calculate_content_hash(command.content)
-    batch = db.get(ReconciliationBatch, command.batch_id)
+    # 同一批次的导入串行化，避免并发请求绕过当前文件判重。
+    batch = (
+        db.query(ReconciliationBatch)
+        .filter(ReconciliationBatch.id == command.batch_id)
+        .with_for_update()
+        .one_or_none()
+    )
     if batch is None:
         raise ValueError(f"对账批次不存在: {command.batch_id}")
     if batch.status == "closed":
         raise BatchClosedError("已关账批次不允许导入文件")
 
     profile = get_profile(command.profile_code)
-    duplicate = (
-        db.query(ImportFile)
-        .filter(
+    duplicate_query = db.query(ImportFile).filter(
             ImportFile.batch_id == batch.id,
             ImportFile.content_hash == content_hash,
             ImportFile.profile_code == profile.code,
             ImportFile.store_id == command.store_id,
             ImportFile.is_current.is_(True),
         )
-        .first()
-    )
+    if duplicate_exclude_file_id is not None:
+        duplicate_query = duplicate_query.filter(
+            ImportFile.id != duplicate_exclude_file_id
+        )
+    duplicate = duplicate_query.first()
     if duplicate is not None:
         return ImportOutcome(
             status="duplicate",
@@ -159,6 +172,7 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
                 file_size=len(command.content),
                 profile_code=profile.code,
                 profile_version=profile.version,
+                supersedes_file_id=supersedes_file_id,
                 is_current=True,
             )
             db.add(import_file)
@@ -187,12 +201,20 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
             db.flush()
             summary = extract_current_batch_rows(db, extraction_run.id)
 
-        db.commit()
         return ImportOutcome(
             status="attention_required" if summary.issue_count else "imported",
             import_file_id=import_file.id,
             extraction_run_id=extraction_run.id,
         )
+    except Exception:
+        raise
+
+
+def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcome:
+    try:
+        outcome = import_workbook_in_transaction(db, command)
+        db.commit()
+        return outcome
     except Exception:
         db.rollback()
         raise
