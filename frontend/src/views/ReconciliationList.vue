@@ -47,7 +47,19 @@
                   <div class="inline-flex min-w-24 flex-col items-center gap-1 rounded-lg px-2 py-1.5" :class="coverageClass(coverageFor(store.id, source)?.status)">
                     <span class="font-bold">{{ coverageLabel(coverageFor(store.id, source)?.status) }}</span>
                     <span v-if="coverageFor(store.id, source)?.status === 'present_data'" class="font-mono text-[10px]">¥{{ money(coverageFor(store.id, source)?.amount ?? 0) }}</span>
-                    <button v-else-if="batch.status !== 'closed' && canOperate" class="text-[10px] font-bold text-blue-700 underline decoration-dotted" :disabled="working" @click="confirmSourceZero(store.id, source)">确认零收入</button>
+                    <button
+                      v-else-if="coverageFor(store.id, source)?.status === 'present_zero' && coverageFor(store.id, source)?.evidence_type === 'manual_zero_confirmation' && batch.status !== 'closed' && canOperate"
+                      class="text-[10px] font-bold text-amber-700 underline decoration-dotted"
+                      :disabled="working"
+                      @click="openZeroRevocation(store, source)"
+                    >撤销确认</button>
+                    <span v-else-if="coverageFor(store.id, source)?.status === 'present_zero'" class="text-[10px] text-blue-600">文件证明为零</span>
+                    <button
+                      v-else-if="(!coverageFor(store.id, source) || coverageFor(store.id, source)?.status === 'missing') && batch.status !== 'closed' && canOperate"
+                      class="text-[10px] font-bold text-blue-700 underline decoration-dotted"
+                      :disabled="working"
+                      @click="openZeroConfirmation(store, source)"
+                    >确认零收入</button>
                   </div>
                 </td>
               </tr>
@@ -106,6 +118,44 @@
       </CardContent>
     </Card>
 
+    <div v-if="zeroConfirmation" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="zeroConfirmation = null">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader>
+          <CardTitle class="text-base">确认该来源确实为零收入</CardTitle>
+          <CardDescription>这是业务确认，不是把缺失数据自动当成 0；确认后会记录当前登录人和时间。</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-3 text-sm">
+          <div class="grid grid-cols-[88px_1fr] gap-2 rounded-xl bg-slate-50 p-4">
+            <span class="text-slate-500">账期</span><strong>{{ globalDate }}</strong>
+            <span class="text-slate-500">门店</span><strong>{{ zeroConfirmation.storeName }}</strong>
+            <span class="text-slate-500">收入来源</span><strong>{{ sourceLabel(zeroConfirmation.source) }}</strong>
+          </div>
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">请再次核对：数据“缺失”不等于“零收入”。只有确认该门店当天此来源确实没有收入时才能继续。</div>
+        </CardContent>
+        <CardFooter class="justify-end gap-3">
+          <Button variant="outline" :disabled="working" @click="zeroConfirmation = null">取消</Button>
+          <Button class="bg-blue-600 text-white hover:bg-blue-700" :disabled="working" @click="confirmSourceZero">我已核对，确认零收入</Button>
+        </CardFooter>
+      </Card>
+    </div>
+
+    <div v-if="zeroRevocation" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeZeroRevocation">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader>
+          <CardTitle class="text-base">撤销零收入确认</CardTitle>
+          <CardDescription>撤销后，{{ zeroRevocation.storeName }}的{{ sourceLabel(zeroRevocation.source) }}将恢复为“缺失”，对账结果会立即变为不完整。</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-3">
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">账期：{{ globalDate }}。该操作不会删除历史记录，原确认和本次撤销都会保留在审计日志中。</div>
+          <textarea v-model="zeroRevokeReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" placeholder="请填写撤销原因，例如：刚才误触，实际文件尚未导出"></textarea>
+        </CardContent>
+        <CardFooter class="justify-end gap-3">
+          <Button variant="outline" :disabled="working" @click="closeZeroRevocation">取消</Button>
+          <Button class="bg-amber-600 text-white hover:bg-amber-700" :disabled="working || !zeroRevokeReason.trim()" @click="revokeSourceZero">确认撤销</Button>
+        </CardFooter>
+      </Card>
+    </div>
+
     <div v-if="activeResult" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="activeResult = null">
       <Card class="w-full max-w-lg bg-white shadow-2xl">
         <CardHeader><CardTitle class="text-base">处理 {{ activeResult.standard_store_name }} 差异</CardTitle><CardDescription>当前差异 {{ signedMoney(activeResult.difference) }}。请填写实际核实结论，不要只写“已处理”。</CardDescription></CardHeader>
@@ -161,6 +211,10 @@ const resolutionRemark = ref('');
 const resolutionDone = ref(false);
 const showReopen = ref(false);
 const reopenReason = ref('');
+type ZeroAction = { storeId: number; storeName: string; source: SourceCode };
+const zeroConfirmation = ref<ZeroAction | null>(null);
+const zeroRevocation = ref<ZeroAction | null>(null);
+const zeroRevokeReason = ref('');
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
@@ -188,13 +242,53 @@ const loadWorkspace = async () => {
 
 const coverageFor = (storeId: number, source: SourceCode) => detail.value?.coverages.find((item) => item.store_id === storeId && item.source_code === source);
 
-const confirmSourceZero = async (storeId: number, source: SourceCode) => {
-  if (!batch.value) return;
+const openZeroConfirmation = (store: Store, source: SourceCode) => {
+  zeroConfirmation.value = { storeId: store.id, storeName: store.name, source };
+};
+
+const confirmSourceZero = async () => {
+  if (!batch.value || !zeroConfirmation.value) return;
+  const action = zeroConfirmation.value;
   working.value = true;
   try {
-    await api.confirmZero(batch.value.id, storeId, source);
-    notice.value = { type: 'success', text: `已确认 ${sourceLabel(source)} 为零收入，操作已写入审计记录。` };
+    await api.confirmZero(batch.value.id, action.storeId, action.source);
+    zeroConfirmation.value = null;
+    notice.value = { type: 'success', text: `已确认 ${action.storeName}的${sourceLabel(action.source)}为零收入，操作已写入审计记录。` };
     detail.value = await api.getBatchDetail(batch.value.id);
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const openZeroRevocation = (store: Store, source: SourceCode) => {
+  zeroRevocation.value = { storeId: store.id, storeName: store.name, source };
+  zeroRevokeReason.value = '';
+};
+
+const closeZeroRevocation = () => {
+  if (working.value) return;
+  zeroRevocation.value = null;
+  zeroRevokeReason.value = '';
+};
+
+const revokeSourceZero = async () => {
+  if (!batch.value || !zeroRevocation.value || !zeroRevokeReason.value.trim()) return;
+  const action = zeroRevocation.value;
+  working.value = true;
+  try {
+    await api.revokeZero(
+      batch.value.id,
+      action.storeId,
+      action.source,
+      zeroRevokeReason.value.trim(),
+    );
+    zeroRevocation.value = null;
+    zeroRevokeReason.value = '';
+    detail.value = await api.getBatchDetail(batch.value.id);
+    batch.value = detail.value.batch;
+    notice.value = { type: 'success', text: `已撤销 ${action.storeName}的${sourceLabel(action.source)}零收入确认，当前恢复为数据缺失。` };
   } catch (error) {
     notice.value = { type: 'error', text: errorDetail(error) };
   } finally {

@@ -243,6 +243,12 @@ export const api = {
     client.get<BatchDetail>(`/batches/${batchId}/detail`).then((res) => res.data),
   confirmZero: (batchId: number, storeId: number, sourceCode: SourceCode) =>
     client.post(`/batches/${batchId}/confirm-zero`, { store_id: storeId, source_code: sourceCode }).then((res) => res.data),
+  revokeZero: (batchId: number, storeId: number, sourceCode: SourceCode, reason: string) =>
+    client.post(`/batches/${batchId}/revoke-zero`, {
+      store_id: storeId,
+      source_code: sourceCode,
+      reason,
+    }).then((res) => res.data),
   reconcileBatch: (batchId: number) =>
     client.post<ReconciliationResult[]>(`/batches/${batchId}/reconcile`).then((res) => res.data),
   closeBatch: (batchId: number) =>
