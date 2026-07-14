@@ -156,21 +156,52 @@
           </div>
 
           <!-- Filters -->
-          <div class="flex items-center gap-4 flex-wrap">
+          <div class="flex items-center gap-4 flex-wrap shrink-0">
+            <!-- Search Query Input -->
             <Input 
               v-model="aliasSearchQuery" 
-              placeholder="搜索渠道原始名..." 
-              class="h-9 w-48 text-xs font-semibold rounded-lg"
+              placeholder="搜索渠道原始店名..." 
+              class="h-9 w-44 text-xs font-semibold rounded-lg"
             />
-            <div class="flex items-center gap-3">
-              <label class="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 select-none">过滤状态</label>
-              <Select 
-                v-model="aliasFilter" 
-                :options="filterOptions"
-                @change="fetchAliases"
-                class="w-36 h-9"
-                align="right"
-              />
+            
+            <!-- Tab Filters -->
+            <div class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl">
+              <button 
+                @click="aliasFilter = 'pending'"
+                :class="[
+                  'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
+                  aliasFilter === 'pending' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/10' : 'text-slate-500 hover:text-slate-800'
+                ]"
+              >
+                待匹配
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono" :class="aliasFilter === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'">
+                  {{ aliasCounts.pending }}
+                </span>
+              </button>
+              <button 
+                @click="aliasFilter = 'mapped'"
+                :class="[
+                  'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
+                  aliasFilter === 'mapped' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/10' : 'text-slate-500 hover:text-slate-800'
+                ]"
+              >
+                已绑定映射
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono" :class="aliasFilter === 'mapped' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'">
+                  {{ aliasCounts.mapped }}
+                </span>
+              </button>
+              <button 
+                @click="aliasFilter = ''"
+                :class="[
+                  'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
+                  aliasFilter === '' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/10' : 'text-slate-500 hover:text-slate-800'
+                ]"
+              >
+                全部别名
+                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono" :class="aliasFilter === '' ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-500'">
+                  {{ aliasCounts.total }}
+                </span>
+              </button>
             </div>
           </div>
         </CardHeader>
@@ -472,11 +503,12 @@ const formStore = ref({
   is_active: true
 });
 
-const filterOptions = [
-  { value: '', label: '全部别名' },
-  { value: 'pending', label: '待核认 / 待匹配' },
-  { value: 'mapped', label: '已绑定映射' }
-];
+const aliasCounts = computed(() => {
+  const pending = aliases.value.filter(a => a.status === 'pending').length;
+  const mapped = aliases.value.filter(a => a.status === 'mapped').length;
+  const total = aliases.value.length;
+  return { pending, mapped, total };
+});
 
 const storeOptions = computed(() => {
   return [
@@ -518,9 +550,20 @@ watch(storeSearchQuery, () => {
 
 // Store Aliases computed filtered and paginated
 const filteredAliases = computed(() => {
-  if (!aliasSearchQuery.value.trim()) return aliases.value;
-  const q = aliasSearchQuery.value.toLowerCase().trim();
-  return aliases.value.filter(a => a.alias_name.toLowerCase().includes(q));
+  let list = aliases.value;
+  
+  if (aliasFilter.value === 'pending') {
+    list = list.filter(a => a.status === 'pending');
+  } else if (aliasFilter.value === 'mapped') {
+    list = list.filter(a => a.status === 'mapped');
+  }
+  
+  if (aliasSearchQuery.value.trim()) {
+    const q = aliasSearchQuery.value.toLowerCase().trim();
+    list = list.filter(a => a.alias_name.toLowerCase().includes(q));
+  }
+  
+  return list;
 });
 
 const aliasTotalPages = computed(() => Math.ceil(filteredAliases.value.length / aliasPageSize.value) || 1);
@@ -550,7 +593,7 @@ const fetchStores = async () => {
 
 const fetchAliases = async () => {
   try {
-    aliases.value = await api.getStoreAliases(aliasFilter.value || undefined);
+    aliases.value = await api.getStoreAliases(undefined);
   } catch (error) {
     console.error('Failed to load aliases:', error);
   }
