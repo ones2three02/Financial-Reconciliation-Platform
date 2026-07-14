@@ -186,9 +186,25 @@
     <!-- 全局新手指引操作向导遮罩与弹窗 -->
     <Teleport to="body">
       <div v-if="isTourActive && currentStep" class="fixed inset-0 z-[10000] pointer-events-none select-none">
-        <!-- 磨砂半透明暗色背景 -->
-        <div class="fixed inset-0 bg-zinc-950/50 backdrop-blur-[1px] pointer-events-auto" @click="closeTour"></div>
+        <!-- 拦截底层页面点击的透明垫片 -->
+        <div class="fixed inset-0 z-[9998] pointer-events-auto bg-transparent" @click="closeTour"></div>
         
+        <!-- SVG 聚光灯镂空遮罩，不带任何模糊，支持圆角裁剪，彻底解决 stacking context 问题 -->
+        <svg class="fixed inset-0 w-full h-full z-[9999] pointer-events-none">
+          <path 
+            fill="rgba(9, 9, 11, 0.45)" 
+            fill-rule="evenodd" 
+            :d="maskPath"
+          />
+        </svg>
+
+        <!-- 元素外围呼吸高亮框，置于遮罩上方 -->
+        <div 
+          v-if="spotlightRect"
+          class="fixed border-2 border-blue-500/80 rounded-xl shadow-2xl transition-all duration-200 pointer-events-none z-[10001]"
+          :style="borderStyle"
+        ></div>
+
         <!-- 悬浮说明气泡卡片 -->
         <div 
           class="fixed z-[10002] w-72 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xl flex flex-col gap-3 pointer-events-auto text-slate-800 transition-all duration-300"
@@ -242,7 +258,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { 
   isTourActive, 
@@ -331,53 +347,76 @@ const breadcrumbSection = computed(() => {
 // 新手指引向导流程控制器逻辑
 const currentStep = computed(() => tourSteps.value[currentStepIndex.value] ?? null);
 const tooltipStyle = ref<Record<string, string>>({});
-const activeElement = ref<HTMLElement | null>(null);
+const spotlightRect = ref<{ x: number; y: number; w: number; h: number } | null>(null);
+
+const maskPath = computed(() => {
+  if (!spotlightRect.value) return '';
+  const screenW = window.innerWidth;
+  const screenH = window.innerHeight;
+  const { x, y, w, h } = spotlightRect.value;
+  const r = 12; // spotlight hole rounded corner radius
+  
+  // Outer screen rectangle (clockwise)
+  const outer = `M 0 0 H ${screenW} V ${screenH} H 0 Z`;
+  
+  // Inner rounded rectangle cutout path
+  const inner = `M ${x + r} ${y} H ${x + w - r} A ${r} ${r} 0 0 1 ${x + w} ${y + r} V ${y + h - r} A ${r} ${r} 0 0 1 ${x + w - r} ${y + h} H ${x + r} A ${r} ${r} 0 0 1 ${x} ${y + h - r} V ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`;
+  
+  return `${outer} ${inner}`;
+});
+
+const borderStyle = computed(() => {
+  if (!spotlightRect.value) return {};
+  const { x, y, w, h } = spotlightRect.value;
+  return {
+    top: `${y}px`,
+    left: `${x}px`,
+    width: `${w}px`,
+    height: `${h}px`
+  };
+});
 
 const updateSpotlight = () => {
   if (!currentStep.value) return;
   const selector = currentStep.value.targetSelector;
   const el = document.querySelector(selector) as HTMLElement;
   
-  if (activeElement.value) {
-    activeElement.value.classList.remove('tour-highlighted');
-  }
-  
   if (el) {
-    activeElement.value = el;
-    el.classList.add('tour-highlighted');
+    const rect = el.getBoundingClientRect();
+    const padding = 6;
     
-    // 平滑滚动定位元素
-    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    spotlightRect.value = {
+      x: rect.left - padding,
+      y: rect.top - padding,
+      w: rect.width + padding * 2,
+      h: rect.height + padding * 2
+    };
     
-    // 延时等待滚动动画完成后进行定位框位置运算，规避闪烁
-    setTimeout(() => {
-      const rect = el.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      
-      let top = rect.bottom + window.scrollY + 12;
-      let left = rect.left + window.scrollX;
-      
-      // 若气泡溢出视口底部，则置于高亮元素的正上方
-      if (rect.bottom + 180 > viewportHeight) {
-        top = rect.top + window.scrollY - 180;
-      }
-      // 横向边缘校验保护
-      if (left + 288 > viewportWidth) {
-        left = viewportWidth - 304;
-      }
-      if (left < 16) {
-        left = 16;
-      }
-      
-      tooltipStyle.value = {
-        top: `${top}px`,
-        left: `${left}px`,
-        transform: 'none'
-      };
-    }, 250);
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    let top = rect.bottom + window.scrollY + 16;
+    let left = rect.left + window.scrollX;
+    
+    // 若气泡溢出视口底部，则置于高亮元素的正上方
+    if (rect.bottom + 180 > viewportHeight) {
+      top = rect.top + window.scrollY - 180;
+    }
+    // 横向边缘校验保护
+    if (left + 288 > viewportWidth) {
+      left = viewportWidth - 304;
+    }
+    if (left < 16) {
+      left = 16;
+    }
+    
+    tooltipStyle.value = {
+      top: `${top}px`,
+      left: `${left}px`,
+      transform: 'none'
+    };
   } else {
-    // 备用兜底方案：居中显示说明框
+    spotlightRect.value = null;
     tooltipStyle.value = {
       top: '50%',
       left: '50%',
@@ -392,16 +431,29 @@ watch([isTourActive, currentStepIndex], () => {
       updateSpotlight();
     });
   } else {
-    if (activeElement.value) {
-      activeElement.value.classList.remove('tour-highlighted');
-      activeElement.value = null;
-    }
+    spotlightRect.value = null;
   }
 });
 
 // 监听路由改变自动销毁未完成指引
 watch(() => route.path, () => {
   closeTour();
+});
+
+const handleResize = () => {
+  if (isTourActive.value) {
+    updateSpotlight();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('scroll', handleResize, true);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  window.removeEventListener('scroll', handleResize, true);
 });
 
 const nextStep = () => {

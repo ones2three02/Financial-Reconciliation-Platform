@@ -322,8 +322,8 @@ export const api = {
   getImportFiles: () => client.get<ImportFile[]>('/files/').then((res) => res.data),
   getDashboardSummary: (tradeDate?: string) =>
     client.get<DashboardSummary>('/dashboard/summary', { params: { trade_date: tradeDate } }).then((res) => res.data),
-  getDashboardTrends: (days = 7) =>
-    client.get<TrendData[]>('/dashboard/trends', { params: { days } }).then((res) => res.data),
+  getDashboardTrends: (params?: { days?: number; start_date?: string; end_date?: string }) =>
+    client.get<TrendData[]>('/dashboard/trends', { params }).then((res) => res.data),
   getReconciliationResults: (params: { trade_date?: string; status?: string; is_resolved?: boolean }) =>
     client.get<ReconciliationResult[]>('/reconciliation/', { params }).then((res) => res.data),
   updateReconciliationResult: (id: number, data: { remarks?: string | null; is_resolved?: boolean }) =>

@@ -103,9 +103,15 @@ def get_dashboard_summary(db: Session, target_date: date) -> DashboardSummary:
         total_difference=total_difference
     )
 
-def get_dashboard_trends(db: Session, days: int = 7) -> List[dict]:
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days - 1)
+def get_dashboard_trends(
+    db: Session,
+    days: int = 7,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None
+) -> List[dict]:
+    if not start_date or not end_date:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
     
     # Run a group-by query for dates
     db_trends = db.query(

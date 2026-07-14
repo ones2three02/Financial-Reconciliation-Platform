@@ -19,7 +19,14 @@ def read_dashboard_summary(
 
 @router.get("/trends")
 def read_dashboard_trends(
-    days: int = Query(7, ge=1, le=30),
+    days: int = Query(7, ge=1, le=180),
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
     db: Session = Depends(get_db)
 ):
-    return crud_recon.get_dashboard_trends(db, days=days)
+    return crud_recon.get_dashboard_trends(
+        db,
+        days=days,
+        start_date=start_date,
+        end_date=end_date
+    )
