@@ -6,7 +6,7 @@
     <!-- Sidebar -->
     <aside 
       :class="[
-        'bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800 z-20 transition-all duration-300 ease-in-out shrink-0',
+        'bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800 z-20 transition-all duration-300 ease-in-out shrink-0 select-none',
         isCollapsed ? 'w-16' : 'w-64'
       ]"
     >
@@ -113,7 +113,7 @@
     <!-- Main Content -->
     <main class="flex-1 flex flex-col overflow-hidden">
       <!-- Header -->
-      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0 select-none">
         <div class="flex items-center gap-4">
           <!-- Sidebar Toggle Button -->
           <button 

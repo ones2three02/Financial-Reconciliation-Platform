@@ -49,7 +49,7 @@
         </CardHeader>
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse select-none">
+            <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">门店编码</th>
@@ -245,7 +245,7 @@
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Alias Mapping Table -->
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse select-none">
+            <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 中的原始店名</th>

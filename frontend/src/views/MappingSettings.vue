@@ -75,7 +75,7 @@
         <CardContent class="p-4 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Mappings Table -->
           <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-slate-200/80">
-            <table class="w-full text-left border-collapse select-none">
+            <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">数据分类</th>
