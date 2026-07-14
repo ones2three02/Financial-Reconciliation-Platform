@@ -49,7 +49,7 @@
         </CardHeader>
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">门店编码</th>
@@ -71,20 +71,20 @@
                   </td>
                 </tr>
                 <tr v-for="s in paginatedStores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
-                  <td class="p-4 font-mono font-bold text-slate-500">
+                  <td class="p-4 font-mono font-bold text-slate-500 select-text">
                     <span v-if="s.code">{{ s.code }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
-                  <td class="p-4 font-extrabold text-slate-800">{{ s.name }}</td>
-                  <td class="p-4 font-medium text-slate-600">
+                  <td class="p-4 font-extrabold text-slate-800 select-text">{{ s.name }}</td>
+                  <td class="p-4 font-medium text-slate-600 select-text">
                     <span v-if="s.region">{{ s.region }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
-                  <td class="p-4 font-medium text-slate-600">
+                  <td class="p-4 font-medium text-slate-600 select-text">
                     <span v-if="s.manager">{{ s.manager }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
-                  <td class="p-4 font-mono text-slate-500">
+                  <td class="p-4 font-mono text-slate-500 select-text">
                     <span v-if="s.phone">{{ s.phone }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
@@ -220,7 +220,7 @@
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Alias Mapping Table -->
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 中的原始店名</th>
@@ -244,7 +244,7 @@
                   class="hover:bg-slate-50/40 transition-colors"
                   :class="{'bg-amber-50/10': a.status === 'pending'}"
                 >
-                  <td class="p-4 font-bold text-slate-700">{{ a.alias_name }}</td>
+                  <td class="p-4 font-bold text-slate-700 select-text">{{ a.alias_name }}</td>
                   <td class="p-4">
                     <!-- Custom Select component -->
                     <Select

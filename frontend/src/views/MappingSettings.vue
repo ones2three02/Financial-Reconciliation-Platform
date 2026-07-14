@@ -75,7 +75,7 @@
         <CardContent class="p-4 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Mappings Table -->
           <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-slate-200/80">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">数据分类</th>
@@ -100,12 +100,12 @@
                       {{ getSourceLabel(m.data_source) }}
                     </span>
                   </td>
-                  <td class="p-4">
+                  <td class="p-4 select-text">
                     <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700">
                       {{ m.target_field }}
                     </code>
                   </td>
-                  <td class="p-4 font-bold text-slate-800">{{ m.source_column }}</td>
+                  <td class="p-4 font-bold text-slate-800 select-text">{{ m.source_column }}</td>
                   <td class="p-4 text-center">
                     <Button 
                       @click="openStatusModal(m)"
