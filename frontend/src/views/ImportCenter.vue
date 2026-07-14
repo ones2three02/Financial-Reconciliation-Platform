@@ -185,15 +185,47 @@
                   {{ item.error_message || '—' }}
                 </td>
                 <td class="p-4 text-center">
-                  <Button 
-                    @click="reprocessFile(item.id)" 
-                    variant="ghost"
-                    size="xs"
-                    class="text-xs font-bold text-blue-600 hover:text-blue-800"
-                    :disabled="reprocessingId === item.id"
-                  >
-                    {{ reprocessingId === item.id ? '重算中...' : '🔄 重新对账' }}
-                  </Button>
+                  <div class="flex items-center justify-center gap-2">
+                    <template v-if="deletingId === item.id">
+                      <span class="text-rose-500 font-bold text-[11px] mr-1">确定删除该数据？</span>
+                      <Button 
+                        @click="deleteFile(item.id)" 
+                        variant="ghost"
+                        size="xs"
+                        class="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded"
+                      >
+                        确定
+                      </Button>
+                      <Button 
+                        @click="deletingId = null" 
+                        variant="ghost"
+                        size="xs"
+                        class="text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded"
+                      >
+                        取消
+                      </Button>
+                    </template>
+                    <template v-else>
+                      <Button 
+                        @click="reprocessFile(item.id)" 
+                        variant="ghost"
+                        size="xs"
+                        class="text-xs font-bold text-blue-600 hover:text-blue-800"
+                        :disabled="reprocessingId === item.id || deletingId !== null"
+                      >
+                        {{ reprocessingId === item.id ? '重算中...' : '🔄 重新对账' }}
+                      </Button>
+                      <Button 
+                        @click="deletingId = item.id" 
+                        variant="ghost"
+                        size="xs"
+                        class="text-xs font-bold text-rose-600 hover:text-rose-800"
+                        :disabled="reprocessingId !== null || deletingId !== null"
+                      >
+                        🗑 删除
+                      </Button>
+                    </template>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -340,6 +372,7 @@ const pageSize = ref(10);
 // Store states
 const selectedStoreId = ref<number | null>(null);
 const stores = ref<any[]>([]);
+const deletingId = ref<number | null>(null);
 
 // Column mapping modal states
 const showMappingModal = ref(false);
@@ -518,6 +551,17 @@ const submitColumnMapping = async () => {
     alert('确认映射失败: ' + (err.response?.data?.detail || '未知错误'));
   } finally {
     isSubmittingMapping.value = false;
+  }
+};
+
+const deleteFile = async (fileId: number) => {
+  try {
+    await api.deleteImportFile(fileId);
+    alert('文件数据及清洗对账结果已成功完全清除！');
+    deletingId.value = null;
+    fetchImportHistory();
+  } catch (err: any) {
+    alert('删除文件失败: ' + (err.response?.data?.detail || '未知错误'));
   }
 };
 

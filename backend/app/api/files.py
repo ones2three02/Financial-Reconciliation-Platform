@@ -186,3 +186,35 @@ def reprocess_file(file_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.exception(f"Reprocessing of file {file_id} failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{file_id}", status_code=status.HTTP_200_OK)
+def delete_file(file_id: int, db: Session = Depends(get_db)):
+    """
+    Deletes an imported file, all its raw/clean data, and recalculates affected trade dates.
+    """
+    import_file_record = crud_import_file.get_import_file(db, file_id=file_id)
+    if not import_file_record:
+        raise HTTPException(status_code=404, detail="Import record not found")
+        
+    try:
+        from backend.app.models.clean_data import CleanData
+        from backend.app.services.reconciler import run_reconciliation_for_date
+        
+        # 1. Find all dates affected by this file's clean data
+        dates_query = db.query(CleanData.trade_date).filter(
+            CleanData.import_file_id == file_id
+        ).distinct().all()
+        affected_dates = [d[0] for d in dates_query]
+        
+        # 2. Delete the import file (cascades raw_data and clean_data deletion)
+        db.delete(import_file_record)
+        db.commit()
+        
+        # 3. Recalculate reconciliation for all affected dates
+        for t_date in affected_dates:
+            run_reconciliation_for_date(db, target_date=t_date)
+            
+        return {"status": "success", "message": f"File {file_id} deleted and reconciliation recalculated."}
+    except Exception as e:
+        logger.exception(f"Deletion of file {file_id} failed")
+        raise HTTPException(status_code=500, detail=str(e))

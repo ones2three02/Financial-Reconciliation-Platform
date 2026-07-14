@@ -114,6 +114,13 @@ def run_reconciliation_for_date(db: Session, target_date: date) -> List[Reconcil
             db.refresh(new_res)
             results.append(new_res)
             
+    # Cleanup obsolete reconciliation records for stores that no longer have data on this date
+    existing_records = db.query(ReconciliationResult).filter(ReconciliationResult.trade_date == target_date).all()
+    for r in existing_records:
+        if r.standard_store_name not in standard_stores:
+            db.delete(r)
+    db.commit()
+            
     return results
 
 def run_reconciliation_for_import_file(db: Session, import_file_id: int) -> List[ReconciliationResult]:
