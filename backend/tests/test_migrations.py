@@ -57,6 +57,8 @@ def test_foundation_migration_can_downgrade_and_upgrade(tmp_path):
         "data_quality_issue",
         "audit_event",
         "store_source_requirement",
+        "app_user",
+        "user_session",
     } <= table_names(database_url)
 
     downgrade_database(database_url, "0001_existing_schema")

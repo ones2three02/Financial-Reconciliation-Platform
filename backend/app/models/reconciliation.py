@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, Numeric, Boolean, Text, DateTime, ForeignKey, UniqueConstraint
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class ReconciliationResult(Base):
     __tablename__ = "reconciliation_result"
@@ -34,8 +34,8 @@ class ReconciliationResult(Base):
     resolved_by = Column(String(50), nullable=True)
     resolved_at = Column(DateTime, nullable=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
     batch_id = Column(
         Integer,
         ForeignKey("reconciliation_batch.id", ondelete="RESTRICT"),

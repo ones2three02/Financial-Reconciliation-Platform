@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BatchCreate(BaseModel):
     business_date: date
-    actor: str = Field(min_length=1, max_length=50)
 
 
 class BatchRead(BaseModel):
@@ -27,12 +26,7 @@ class BatchRead(BaseModel):
 class ConfirmZeroRequest(BaseModel):
     store_id: int
     source_code: str = Field(min_length=1, max_length=50)
-    actor: str = Field(min_length=1, max_length=50)
 
 
-class BatchActorRequest(BaseModel):
-    actor: str = Field(min_length=1, max_length=50)
-
-
-class BatchReopenRequest(BatchActorRequest):
+class BatchReopenRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=500)

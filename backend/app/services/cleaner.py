@@ -103,10 +103,13 @@ from backend.app.models.import_file import ImportFile
 def clean_import_file_data(db: Session, import_file_id: int) -> Dict[str, int]:
     """
     Cleans all raw rows for a specific import file.
-    Deletes any pre-existing clean_data for this import_file_id first to allow re-runs.
+    重跑时保留旧标准数据，只将旧版本标记为非当前版本。
     """
-    # 1. Clear existing clean data
-    db.query(CleanData).filter(CleanData.import_file_id == import_file_id).delete()
+    # 1. Retire existing current data without destroying audit history.
+    db.query(CleanData).filter(
+        CleanData.import_file_id == import_file_id,
+        CleanData.is_current.is_(True),
+    ).update({CleanData.is_current: False}, synchronize_session=False)
     db.commit()
     
     # Get associated store_id from ImportFile to use as explicit fallback

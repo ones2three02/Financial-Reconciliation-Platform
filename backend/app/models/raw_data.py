@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class RawData(Base):
     __tablename__ = "raw_data"
@@ -11,7 +11,7 @@ class RawData(Base):
     row_index = Column(Integer, nullable=False)
     data_source = Column(String(50), nullable=False, index=True)
     content = Column(JSON, nullable=False)  # Raw key-values from Excel row
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
 
     # Relationships
     import_file = relationship("ImportFile", back_populates="raw_rows")

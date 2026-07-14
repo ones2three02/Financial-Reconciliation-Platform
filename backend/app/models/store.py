@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class Store(Base):
     __tablename__ = "store"
@@ -13,7 +13,7 @@ class Store(Base):
     manager = Column(String(50), nullable=True)
     phone = Column(String(50), nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
 
     # Relationships
     aliases = relationship("StoreAlias", back_populates="store", cascade="all, delete-orphan")
@@ -29,8 +29,8 @@ class StoreAlias(Base):
     alias_name = Column(String(100), nullable=False, index=True)
     store_id = Column(Integer, ForeignKey("store.id", ondelete="CASCADE"), nullable=True)
     status = Column(String(20), default="pending")  # "mapped", "pending"
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
     confirmed_by = Column(String(50), nullable=True)
     confirmed_at = Column(DateTime, nullable=True)
 

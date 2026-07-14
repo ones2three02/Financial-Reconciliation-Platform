@@ -1,67 +1,69 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.config import settings
-from backend.app.core.db import SessionLocal
-from backend.app.models.store import Store
+
 from backend.app.api import auth, batches, dashboard, files, mappings, preflight, reconciliation, stores
+from backend.app.api.auth import get_current_user
+from backend.app.core.config import settings
 
-# Seed the 22 standard stores if the table is empty
-def seed_stores():
-    db = SessionLocal()
-    try:
-        default_stores = [
-            "蚌埠吾悦店", "蚌埠银泰店", "淮北吾悦店", "淮南吾悦店", "宿州吾悦店",
-            "颍上店", "华农店", "荆州店", "荆州二店", "民院店",
-            "杨家湾", "财富中心店", "钟祥店", "高新吾悦店", "进贤吾悦店",
-            "新力店", "新余二店", "新余店", "旭辉店", "瑶湖店",
-            "宜春店", "阜阳宝龙店"
-        ]
-        
-        if db.query(Store).count() == 0:
-            for idx, name in enumerate(default_stores):
-                code = f"MD{str(idx + 1).zfill(3)}"
-                db.add(Store(name=name, code=code))
-            db.commit()
-            
-        # Backfill codes for any existing stores whose codes are null or empty
-        all_stores = db.query(Store).order_by(Store.id).all()
-        for idx, s in enumerate(all_stores):
-            if not s.code:
-                s.code = f"MD{str(idx + 1).zfill(3)}"
-        db.commit()
-            
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Failed to seed stores or aliases: {e}")
-    finally:
-        db.close()
-
-seed_stores()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
-
-# Set all CORS enabled origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development ease, allow all origins
-    allow_credentials=True,
-    allow_headers=["*"],
-    allow_methods=["*"],
+    allow_origins=settings.allowed_cors_origins,
+    allow_credentials=False,
+    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 
-# Include Routers
-app.include_router(stores.router, prefix=f"{settings.API_V1_STR}/stores", tags=["stores"])
-app.include_router(mappings.router, prefix=f"{settings.API_V1_STR}/mappings", tags=["mappings"])
-app.include_router(files.router, prefix=f"{settings.API_V1_STR}/files", tags=["files"])
-app.include_router(preflight.router, prefix=f"{settings.API_V1_STR}/files", tags=["files"])
-app.include_router(batches.router, prefix=f"{settings.API_V1_STR}/batches", tags=["batches"])
-app.include_router(reconciliation.router, prefix=f"{settings.API_V1_STR}/reconciliation", tags=["reconciliation"])
-app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", tags=["dashboard"])
+authenticated = [Depends(get_current_user)]
+app.include_router(
+    stores.router,
+    prefix=f"{settings.API_V1_STR}/stores",
+    tags=["stores"],
+    dependencies=authenticated,
+)
+app.include_router(
+    mappings.router,
+    prefix=f"{settings.API_V1_STR}/mappings",
+    tags=["mappings"],
+    dependencies=authenticated,
+)
+app.include_router(
+    files.router,
+    prefix=f"{settings.API_V1_STR}/files",
+    tags=["files"],
+    dependencies=authenticated,
+)
+app.include_router(
+    preflight.router,
+    prefix=f"{settings.API_V1_STR}/files",
+    tags=["files"],
+    dependencies=authenticated,
+)
+app.include_router(
+    batches.router,
+    prefix=f"{settings.API_V1_STR}/batches",
+    tags=["batches"],
+    dependencies=authenticated,
+)
+app.include_router(
+    reconciliation.router,
+    prefix=f"{settings.API_V1_STR}/reconciliation",
+    tags=["reconciliation"],
+    dependencies=authenticated,
+)
+app.include_router(
+    dashboard.router,
+    prefix=f"{settings.API_V1_STR}/dashboard",
+    tags=["dashboard"],
+    dependencies=authenticated,
+)
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
+
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to the Financial Reconciliation Platform API"}
+    return {"message": "Financial Reconciliation Platform API"}

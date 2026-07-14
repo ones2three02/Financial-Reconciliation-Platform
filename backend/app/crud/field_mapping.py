@@ -48,6 +48,6 @@ def delete_field_mapping(db: Session, mapping_id: int) -> bool:
     db_mapping = get_field_mapping(db, mapping_id)
     if not db_mapping:
         return False
-    db.delete(db_mapping)
+    db_mapping.is_active = False
     db.commit()
     return True

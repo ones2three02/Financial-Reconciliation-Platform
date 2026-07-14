@@ -1,7 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class ImportFile(Base):
     __tablename__ = "import_file"
@@ -12,7 +12,7 @@ class ImportFile(Base):
     upload_status = Column(String(20), default="pending")  # "pending", "parsed", "failed"
     error_message = Column(Text, nullable=True)
     row_count = Column(Integer, default=0)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=utc_now_naive)
     store_id = Column(
         Integer,
         ForeignKey("store.id", ondelete="RESTRICT"),

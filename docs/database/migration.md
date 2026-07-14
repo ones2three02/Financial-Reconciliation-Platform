@@ -19,7 +19,7 @@ alembic -c backend/alembic.ini current
 - `frp.db` 必须是旧程序已创建且结构与 `0001_existing_schema` 一致的数据库；
 - `stamp` 只登记版本，不执行建表，因此不能对空库或未知结构数据库使用；
 - 备份命令成功并确认备份文件可读取后，才能继续迁移；
-- 预期当前版本为 `0002_reconciliation_foundation (head)`。
+- 预期当前版本为 `0003_authentication_foundation (head)`。
 
 ## 新建空数据库
 
@@ -45,4 +45,4 @@ alembic -c backend/alembic.ini upgrade head
 alembic -c backend/alembic.ini downgrade 0001_existing_schema
 ```
 
-降级会移除新增的批次、完整性、提取运行和审计结构，不应用于已经产生新业务数据的正式数据库；正式回滚优先使用迁移前完整备份。
+降级会移除新增的认证、批次、完整性、提取运行和审计结构，不应用于已经产生新业务数据的正式数据库；正式回滚优先使用迁移前完整备份。

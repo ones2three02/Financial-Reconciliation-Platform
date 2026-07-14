@@ -61,7 +61,7 @@ def delete_store(db: Session, store_id: int) -> bool:
     db_store = get_store(db, store_id)
     if not db_store:
         return False
-    db.delete(db_store)
+    db_store.is_active = False
     db.commit()
     return True
 

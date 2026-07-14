@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Numeric, Boolean, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class CleanData(Base):
     __tablename__ = "clean_data"
@@ -17,7 +17,7 @@ class CleanData(Base):
     is_valid = Column(Boolean, default=True)
     clean_status = Column(String(20), default="cleaned")  # "cleaned", "pending_store_mapping", "error"
     error_message = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
     batch_id = Column(
         Integer,
         ForeignKey("reconciliation_batch.id", ondelete="RESTRICT"),

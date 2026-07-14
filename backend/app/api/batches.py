@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
+from backend.app.api.auth import require_finance
+from backend.app.models.auth import AppUser
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.schemas.batch import (
-    BatchActorRequest,
     BatchCreate,
     BatchRead,
     BatchReopenRequest,
@@ -26,13 +27,14 @@ router = APIRouter()
 @router.post("/", response_model=BatchRead)
 def create_reconciliation_batch(
     payload: BatchCreate,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
     try:
         batch = get_or_create_batch(
             db,
             business_date=payload.business_date,
-            actor=payload.actor,
+            actor=current_user.username,
         )
         db.commit()
         db.refresh(batch)
@@ -54,6 +56,7 @@ def get_reconciliation_batch(batch_id: int, db: Session = Depends(get_db)):
 def confirm_batch_source_zero(
     batch_id: int,
     payload: ConfirmZeroRequest,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
     try:
@@ -62,7 +65,7 @@ def confirm_batch_source_zero(
             batch_id=batch_id,
             store_id=payload.store_id,
             source_code=payload.source_code,
-            actor=payload.actor,
+            actor=current_user.username,
         )
         db.commit()
         return {
@@ -81,8 +84,10 @@ def confirm_batch_source_zero(
 @router.post("/{batch_id}/reconcile", response_model=list[ReconciliationResult])
 def reconcile_reconciliation_batch(
     batch_id: int,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
+    del current_user
     try:
         results = reconcile_batch(db, batch_id)
         db.commit()
@@ -96,11 +101,11 @@ def reconcile_reconciliation_batch(
 @router.post("/{batch_id}/close", response_model=BatchRead)
 def close_reconciliation_batch(
     batch_id: int,
-    payload: BatchActorRequest,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
     try:
-        batch = close_batch(db, batch_id, actor=payload.actor)
+        batch = close_batch(db, batch_id, actor=current_user.username)
         db.commit()
         db.refresh(batch)
         return batch
@@ -116,13 +121,14 @@ def close_reconciliation_batch(
 def reopen_reconciliation_batch(
     batch_id: int,
     payload: BatchReopenRequest,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
     try:
         batch = reopen_batch(
             db,
             batch_id,
-            actor=payload.actor,
+            actor=current_user.username,
             reason=payload.reason,
         )
         db.commit()

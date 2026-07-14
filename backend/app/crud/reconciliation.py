@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, Integer
 from backend.app.models.reconciliation import ReconciliationResult
 from backend.app.schemas.reconciliation import ReconciliationResultUpdate, DashboardSummary
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
+from backend.app.core.time import utc_now_naive
 from typing import List, Optional
 from decimal import Decimal
 
@@ -36,7 +37,8 @@ def list_reconciliation_results(
 def update_reconciliation_result(
     db: Session,
     result_id: int,
-    result_in: ReconciliationResultUpdate
+    result_in: ReconciliationResultUpdate,
+    actor: str,
 ) -> Optional[ReconciliationResult]:
     db_result = get_reconciliation_result(db, result_id)
     if not db_result:
@@ -46,7 +48,8 @@ def update_reconciliation_result(
     
     # If resolving, set timestamp
     if result_in.is_resolved is True:
-        db_result.resolved_at = datetime.utcnow()
+        db_result.resolved_at = utc_now_naive()
+        db_result.resolved_by = actor
     elif result_in.is_resolved is False:
         db_result.resolved_at = None
         db_result.resolved_by = None

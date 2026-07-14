@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from datetime import datetime
 from backend.app.core.db import Base
+from backend.app.core.time import utc_now_naive
 
 class FieldMapping(Base):
     __tablename__ = "field_mapping"
@@ -10,5 +10,5 @@ class FieldMapping(Base):
     target_field = Column(String(50), nullable=False)  # "trade_date", "store_name", "amount"
     source_column = Column(String(100), nullable=False)  # Excel column header name
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)

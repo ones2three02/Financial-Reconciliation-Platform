@@ -9,6 +9,7 @@ from backend.app.services.workbook_preflight import (
     PreflightValidationError,
     preflight_workbook,
 )
+from backend.app.api.upload_utils import read_upload_limited
 
 
 router = APIRouter()
@@ -26,7 +27,7 @@ async def preflight_file(
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="当前仅支持 .xlsx 工作簿")
-    content = await file.read()
+    content = await read_upload_limited(file)
     try:
         return preflight_workbook(
             content,

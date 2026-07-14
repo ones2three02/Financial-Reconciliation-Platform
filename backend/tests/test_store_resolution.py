@@ -4,12 +4,16 @@ from decimal import Decimal
 from backend.app.models.audit import AuditEvent
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.import_file import ImportFile
+from backend.app.models.auth import AppUser
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store, StoreAlias
 from backend.app.crud.store import create_store
 from backend.app.schemas.store import StoreAliasConfirm, StoreCreate
 from backend.app.api.stores import confirm_store_alias
 from backend.app.services.store_resolution import confirm_alias, resolve_store
+
+
+ADMIN = AppUser(id=1, username="admin", role="admin", is_active=True)
 
 
 RAW_MEITUAN_NAME = "武汉 : 山道健身游泳舞蹈(曙光店)"
@@ -125,6 +129,7 @@ def test_confirmation_endpoint_uses_server_side_actor(db_session):
     alias = confirm_store_alias(
         alias_id=pending.alias_id,
         confirmation=StoreAliasConfirm(store_id=store.id),
+        current_user=ADMIN,
         db=db_session,
     )
 

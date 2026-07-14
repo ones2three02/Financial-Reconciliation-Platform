@@ -11,6 +11,7 @@ from backend.app.models.coverage import SourceCoverage
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.audit import AuditEvent
 from backend.app.models.store_source_requirement import StoreSourceRequirement
+from backend.app.models.auth import AppUser, UserSession
 
 __all__ = [
     "Base",
@@ -28,4 +29,6 @@ __all__ = [
     "DataQualityIssue",
     "AuditEvent",
     "StoreSourceRequirement",
+    "AppUser",
+    "UserSession",
 ]

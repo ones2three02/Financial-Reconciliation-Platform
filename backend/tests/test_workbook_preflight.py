@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from io import BytesIO
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from openpyxl import Workbook
@@ -7,6 +8,7 @@ from openpyxl import Workbook
 from backend.app.services.workbook_preflight import (
     PreflightValidationError,
     TemplateMismatchError,
+    WorkbookLimitError,
     preflight_workbook,
 )
 
@@ -111,3 +113,17 @@ def test_template_error_does_not_include_data_rows():
         )
 
     assert "张三" not in str(exc_info.value)
+
+
+def test_high_compression_ratio_is_rejected_before_workbook_parse():
+    output = BytesIO()
+    with ZipFile(output, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", b"A" * 1_000_000)
+
+    with pytest.raises(WorkbookLimitError, match="压缩"):
+        preflight_workbook(
+            output.getvalue(),
+            profile_code="douyin_v1",
+            business_date=date(2026, 7, 10),
+            store_id=None,
+        )

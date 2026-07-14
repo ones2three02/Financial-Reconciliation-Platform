@@ -7,6 +7,28 @@ from openpyxl import load_workbook
 
 _AUTOFILTER_BLOCK = re.compile(rb"<autoFilter\b.*?</autoFilter>", re.DOTALL)
 _AUTOFILTER_EMPTY = re.compile(rb"<autoFilter\b[^>]*/>")
+MAX_ARCHIVE_ENTRIES = 10_000
+MAX_UNCOMPRESSED_SIZE = 200 * 1024 * 1024
+MAX_ENTRY_COMPRESSION_RATIO = 100
+
+
+class WorkbookArchiveLimitError(ValueError):
+    """工作簿压缩包超过安全资源边界。"""
+
+
+def _validate_archive(input_zip: ZipFile) -> None:
+    entries = input_zip.infolist()
+    if len(entries) > MAX_ARCHIVE_ENTRIES:
+        raise WorkbookArchiveLimitError("工作簿压缩条目数量超过安全限制")
+    total_uncompressed = sum(info.file_size for info in entries)
+    if total_uncompressed > MAX_UNCOMPRESSED_SIZE:
+        raise WorkbookArchiveLimitError("工作簿解压后大小超过安全限制")
+    for info in entries:
+        if info.file_size == 0:
+            continue
+        ratio = info.file_size / max(info.compress_size, 1)
+        if ratio > MAX_ENTRY_COMPRESSION_RATIO:
+            raise WorkbookArchiveLimitError("工作簿压缩比超过安全限制")
 
 
 def _without_worksheet_filters(content: bytes) -> bytes:
@@ -18,6 +40,7 @@ def _without_worksheet_filters(content: bytes) -> bytes:
         "w",
         compression=ZIP_DEFLATED,
     ) as output_zip:
+        _validate_archive(input_zip)
         for info in input_zip.infolist():
             payload = input_zip.read(info.filename)
             if info.filename.startswith("xl/worksheets/") and info.filename.endswith(".xml"):

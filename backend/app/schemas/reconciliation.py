@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date, datetime
 from typing import Optional, List
 from decimal import Decimal
@@ -23,9 +23,10 @@ class ReconciliationResultBase(BaseModel):
 class ReconciliationResultUpdate(BaseModel):
     remarks: Optional[str] = None
     is_resolved: Optional[bool] = None
-    resolved_by: Optional[str] = None
 
 class ReconciliationResult(ReconciliationResultBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     batch_id: Optional[int] = None
     store_id: Optional[int] = None
@@ -34,9 +35,6 @@ class ReconciliationResult(ReconciliationResultBase):
     calculated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 class DashboardSummary(BaseModel):
     total_stores: int

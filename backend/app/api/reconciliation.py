@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 from backend.app.core.db import get_db
+from backend.app.api.auth import require_finance
+from backend.app.models.auth import AppUser
 from backend.app.schemas.reconciliation import ReconciliationResult, ReconciliationResultUpdate
 from backend.app.crud import reconciliation as crud_recon
 from backend.app.services.reconciler import run_reconciliation_for_date
@@ -35,20 +37,31 @@ def list_reconciliation_results(
 def update_reconciliation_result(
     result_id: int,
     result_in: ReconciliationResultUpdate,
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db)
 ):
-    db_result = crud_recon.update_reconciliation_result(db, result_id=result_id, result_in=result_in)
+    db_result = crud_recon.update_reconciliation_result(
+        db,
+        result_id=result_id,
+        result_in=result_in,
+        actor=current_user.username,
+    )
     if not db_result:
         raise HTTPException(status_code=404, detail="Reconciliation result not found")
     return db_result
 
 @router.post("/recalculate")
-def recalculate_date(trade_date: date, db: Session = Depends(get_db)):
+def recalculate_date(
+    trade_date: date,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
     """
     Force run the reconciliation engine for a specific date.
     Useful if mapping configurations changed and we want to refresh calculations.
     """
     try:
+        del current_user
         results = run_reconciliation_for_date(db, target_date=trade_date)
         return {"status": "success", "count": len(results)}
     except Exception as e:

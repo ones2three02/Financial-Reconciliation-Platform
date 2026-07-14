@@ -16,13 +16,16 @@ from backend.app.api.batches import (
 )
 from backend.app.api.files import delete_file, import_file
 from backend.app.models.import_file import ImportFile
+from backend.app.models.auth import AppUser
 from backend.app.models.store import Store
 from backend.app.schemas.batch import (
-    BatchActorRequest,
     BatchCreate,
     BatchReopenRequest,
     ConfirmZeroRequest,
 )
+
+
+ADMIN = AppUser(id=1, username="admin", role="admin", is_active=True)
 
 
 def finance_workbook() -> bytes:
@@ -41,7 +44,8 @@ def test_batch_routes_cover_create_zero_reconcile_close_and_reopen(db_session):
     db_session.add(store)
     db_session.commit()
     batch = create_reconciliation_batch(
-        payload=BatchCreate(business_date=date(2026, 7, 10), actor="admin"),
+        payload=BatchCreate(business_date=date(2026, 7, 10)),
+        current_user=ADMIN,
         db=db_session,
     )
 
@@ -51,23 +55,28 @@ def test_batch_routes_cover_create_zero_reconcile_close_and_reopen(db_session):
             payload=ConfirmZeroRequest(
                 store_id=store.id,
                 source_code=source,
-                actor="admin",
             ),
+            current_user=ADMIN,
             db=db_session,
         )
-    response = reconcile_reconciliation_batch(batch_id=batch.id, db=db_session)
+    response = reconcile_reconciliation_batch(
+        batch_id=batch.id,
+        current_user=ADMIN,
+        db=db_session,
+    )
     assert response[0].status == "consistent"
     assert get_reconciliation_batch(batch.id, db=db_session).status == "ready_to_close"
 
     closed = close_reconciliation_batch(
         batch_id=batch.id,
-        payload=BatchActorRequest(actor="admin"),
+        current_user=ADMIN,
         db=db_session,
     )
     assert closed.status == "closed"
     reopened = reopen_reconciliation_batch(
         batch_id=batch.id,
-        payload=BatchReopenRequest(actor="admin", reason="补充文件"),
+        payload=BatchReopenRequest(reason="补充文件"),
+        current_user=ADMIN,
         db=db_session,
     )
     assert reopened.status == "attention_required"
@@ -77,7 +86,8 @@ def test_closed_batch_import_returns_conflict(db_session):
     store = Store(name="民院店", code="MD010", is_active=True)
     db_session.add(store)
     batch = create_reconciliation_batch(
-        payload=BatchCreate(business_date=date(2026, 7, 10), actor="admin"),
+        payload=BatchCreate(business_date=date(2026, 7, 10)),
+        current_user=ADMIN,
         db=db_session,
     )
     batch.status = "closed"
@@ -91,7 +101,7 @@ def test_closed_batch_import_returns_conflict(db_session):
                 batch_id=batch.id,
                 profile_code="store_finance_v1",
                 store_id=store.id,
-                actor="admin",
+                current_user=ADMIN,
                 db=db_session,
             )
         )

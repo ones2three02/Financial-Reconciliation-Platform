@@ -62,12 +62,6 @@
           </Button>
         </form>
 
-        <!-- Credentials Helper Info -->
-        <div class="mt-4 p-3 bg-zinc-900/40 border border-zinc-900 rounded-lg text-[10px] text-zinc-500 space-y-1">
-          <div class="font-bold uppercase tracking-wider text-zinc-400">💡 演示环境默认账户:</div>
-          <div>用户名 (Username): <code class="text-zinc-300 font-mono">admin</code></div>
-          <div>密　码 (Password): <code class="text-zinc-300 font-mono">admin123</code></div>
-        </div>
       </CardContent>
     </Card>
   </div>

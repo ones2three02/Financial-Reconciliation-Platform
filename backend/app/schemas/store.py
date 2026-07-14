@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -20,14 +20,14 @@ class StoreAliasConfirm(BaseModel):
     store_id: int
 
 class StoreAlias(StoreAliasBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: datetime
     updated_at: datetime
     confirmed_by: Optional[str] = None
     confirmed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
 
 # Store Schemas
 class StoreBase(BaseModel):
@@ -55,12 +55,12 @@ class StoreUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class Store(StoreBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     created_at: datetime
-    aliases: List[StoreAlias] = []
+    aliases: List[StoreAlias] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
 
 # Extended schema to show alias with parent store details
 class StoreAliasWithStore(StoreAlias):

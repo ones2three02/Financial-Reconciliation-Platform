@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from backend.app.core.db import get_db
+from backend.app.api.auth import require_admin
+from backend.app.models.auth import AppUser
 from backend.app.schemas.store import (
     Store,
     StoreAlias,
@@ -17,10 +19,6 @@ from backend.app.services.store_resolution import confirm_alias
 
 router = APIRouter()
 
-# 当前认证模块只提供固定的本地管理员会话，因此审计操作人由服务端确定，
-# 不接受客户端自行填写，避免伪造确认人。
-LOCAL_ADMIN_ACTOR = "admin"
-
 
 # --- Store Aliases (Mappings) ---
 
@@ -35,7 +33,11 @@ def list_store_aliases(
 
 
 @router.post("/aliases/create", response_model=StoreAlias, status_code=status.HTTP_201_CREATED)
-def create_store_alias(alias: StoreAliasCreate, db: Session = Depends(get_db)):
+def create_store_alias(
+    alias: StoreAliasCreate,
+    current_user: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     db_alias = crud_store.get_store_alias_by_name(
         db,
         alias_name=alias.alias_name,
@@ -49,7 +51,7 @@ def create_store_alias(alias: StoreAliasCreate, db: Session = Depends(get_db)):
                 db,
                 alias_id=db_alias.id,
                 store_id=alias.store_id,
-                actor=LOCAL_ADMIN_ACTOR,
+                actor=current_user.username,
             )
             db.commit()
             db.refresh(db_alias)
@@ -63,6 +65,7 @@ def create_store_alias(alias: StoreAliasCreate, db: Session = Depends(get_db)):
 def confirm_store_alias(
     alias_id: int,
     confirmation: StoreAliasConfirm,
+    current_user: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     try:
@@ -70,7 +73,7 @@ def confirm_store_alias(
             db,
             alias_id=alias_id,
             store_id=confirmation.store_id,
-            actor=LOCAL_ADMIN_ACTOR,
+            actor=current_user.username,
         )
         db.commit()
         db.refresh(alias)
@@ -84,11 +87,13 @@ def confirm_store_alias(
 def update_store_alias(
     alias_id: int,
     alias: StoreAliasUpdate,
+    current_user: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     return confirm_store_alias(
         alias_id=alias_id,
         confirmation=StoreAliasConfirm(store_id=alias.store_id),
+        current_user=current_user,
         db=db,
     )
 
@@ -100,7 +105,12 @@ def list_stores(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return crud_store.get_stores(db, skip=skip, limit=limit)
 
 @router.post("/", response_model=Store, status_code=status.HTTP_201_CREATED)
-def create_store(store: StoreCreate, db: Session = Depends(get_db)):
+def create_store(
+    store: StoreCreate,
+    current_user: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    del current_user
     db_store = crud_store.get_store_by_name(db, name=store.name)
     if db_store:
         raise HTTPException(
@@ -117,14 +127,25 @@ def read_store(store_id: int, db: Session = Depends(get_db)):
     return db_store
 
 @router.put("/{store_id}", response_model=Store)
-def update_store(store_id: int, store: StoreUpdate, db: Session = Depends(get_db)):
+def update_store(
+    store_id: int,
+    store: StoreUpdate,
+    current_user: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    del current_user
     db_store = crud_store.update_store(db, store_id=store_id, store_in=store)
     if not db_store:
         raise HTTPException(status_code=404, detail="Store not found")
     return db_store
 
 @router.delete("/{store_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_store(store_id: int, db: Session = Depends(get_db)):
+def delete_store(
+    store_id: int,
+    current_user: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    del current_user
     success = crud_store.delete_store(db, store_id=store_id)
     if not success:
         raise HTTPException(status_code=404, detail="Store not found")

@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
+from backend.app.api.auth import require_finance
+from backend.app.models.auth import AppUser
 from backend.app.crud import import_file as crud_import_file
 from backend.app.schemas.import_command import ImportOutcomeRead
 from backend.app.schemas.import_file import ImportFile
@@ -11,6 +13,7 @@ from backend.app.services.import_pipeline import (
     import_workbook,
 )
 from backend.app.services.workbook_preflight import PreflightValidationError
+from backend.app.api.upload_utils import read_upload_limited
 
 
 router = APIRouter()
@@ -34,13 +37,13 @@ async def import_file(
     batch_id: int = Form(...),
     profile_code: str = Form(...),
     store_id: int | None = Form(None),
-    actor: str = Form(...),
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="当前仅支持 .xlsx 工作簿")
-    content = await file.read()
+    content = await read_upload_limited(file)
     try:
         return import_workbook(
             db,
@@ -50,7 +53,7 @@ async def import_file(
                 content=content,
                 profile_code=profile_code,
                 store_id=store_id,
-                actor=actor,
+                actor=current_user.username,
             ),
         )
     except BatchClosedError as exc:
