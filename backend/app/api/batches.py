@@ -15,6 +15,7 @@ from backend.app.schemas.batch import (
     BatchRead,
     BatchReopenRequest,
     ConfirmZeroRequest,
+    RevokeZeroRequest,
 )
 from backend.app.schemas.reconciliation import ReconciliationResult
 from backend.app.schemas.import_command import ResetBatchCurrentDataRequest
@@ -24,7 +25,11 @@ from backend.app.services.closing_service import (
     close_batch,
     reopen_batch,
 )
-from backend.app.services.reconciliation_service import confirm_zero, reconcile_batch
+from backend.app.services.reconciliation_service import (
+    confirm_zero,
+    reconcile_batch,
+    revoke_zero,
+)
 from backend.app.services.import_version_service import (
     ImportVersionConflictError,
     ImportVersionNotFoundError,
@@ -175,6 +180,42 @@ def confirm_batch_source_zero(
         db.rollback()
         status_code = 409 if "已关账" in str(exc) else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{batch_id}/revoke-zero")
+def revoke_batch_source_zero(
+    batch_id: int,
+    payload: RevokeZeroRequest,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    try:
+        coverage = revoke_zero(
+            db,
+            batch_id=batch_id,
+            store_id=payload.store_id,
+            source_code=payload.source_code,
+            reason=payload.reason,
+            actor=current_user.username,
+        )
+        db.commit()
+        return {
+            "batch_id": coverage.batch_id,
+            "store_id": coverage.store_id,
+            "source_code": coverage.source_code,
+            "status": coverage.status,
+            "evidence_type": coverage.evidence_type,
+        }
+    except ValueError as exc:
+        db.rollback()
+        message = str(exc)
+        if "批次不存在" in message:
+            status_code = 404
+        elif "已关账" in message:
+            status_code = 409
+        else:
+            status_code = 400
+        raise HTTPException(status_code=status_code, detail=message) from exc
 
 
 @router.post("/{batch_id}/reconcile", response_model=list[ReconciliationResult])

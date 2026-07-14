@@ -5,7 +5,10 @@ from io import BytesIO
 import pytest
 from fastapi import HTTPException, UploadFile
 from openpyxl import Workbook
+from pydantic import ValidationError
 
+from backend.app.api import batches as batches_api
+from backend.app.schemas import batch as batch_schemas
 from backend.app.api.batches import (
     close_reconciliation_batch,
     confirm_batch_source_zero,
@@ -218,3 +221,46 @@ def test_replace_route_returns_bad_request_for_same_content(db_session):
         ))
 
     assert exc_info.value.status_code == 400
+
+
+def test_revoke_zero_route_uses_authenticated_actor(db_session):
+    store = Store(name="民院店", code="MD010", is_active=True)
+    db_session.add(store)
+    db_session.commit()
+    batch = create_reconciliation_batch(
+        payload=BatchCreate(business_date=date(2026, 7, 10)),
+        current_user=ADMIN,
+        db=db_session,
+    )
+    confirm_batch_source_zero(
+        batch_id=batch.id,
+        payload=ConfirmZeroRequest(store_id=store.id, source_code="meituan"),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    response = batches_api.revoke_batch_source_zero(
+        batch_id=batch.id,
+        payload=batch_schemas.RevokeZeroRequest(
+            store_id=store.id,
+            source_code="meituan",
+            reason="刚才点错了",
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    assert response["status"] == "missing"
+    audit = db_session.query(AuditEvent).filter_by(
+        event_type="source_zero_confirmation_revoked"
+    ).one()
+    assert audit.actor == ADMIN.username
+
+
+def test_revoke_zero_request_rejects_blank_reason():
+    with pytest.raises(ValidationError):
+        batch_schemas.RevokeZeroRequest(
+            store_id=1,
+            source_code="meituan",
+            reason="",
+        )

@@ -31,6 +31,12 @@ class ConfirmZeroRequest(BaseModel):
     source_code: str = Field(min_length=1, max_length=50)
 
 
+class RevokeZeroRequest(BaseModel):
+    store_id: int
+    source_code: str = Field(min_length=1, max_length=50)
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class BatchReopenRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=500)
 

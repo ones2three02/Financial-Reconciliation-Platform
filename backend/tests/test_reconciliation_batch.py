@@ -8,6 +8,7 @@ from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store
+from backend.app.services import reconciliation_service
 from backend.app.services.closing_service import (
     BatchNotClosableError,
     close_batch,
@@ -177,3 +178,63 @@ def test_single_user_close_and_audited_reopen(db_session):
         "batch_closed",
         "batch_reopened",
     ]
+
+
+def test_manual_zero_can_be_revoked_to_missing(db_session):
+    batch, store = setup_batch(db_session)
+    for source in SOURCES:
+        confirm_zero(
+            db_session,
+            batch_id=batch.id,
+            store_id=store.id,
+            source_code=source,
+            actor="finance",
+        )
+    reconcile_batch(db_session, batch.id)
+    assert db_session.query(SourceCoverage).filter_by(
+        batch_id=batch.id,
+        store_id=store.id,
+        source_code="meituan",
+    ).one().status == "present_zero"
+
+    coverage = reconciliation_service.revoke_zero(
+        db_session,
+        batch_id=batch.id,
+        store_id=store.id,
+        source_code="meituan",
+        reason="误确认",
+        actor="finance",
+    )
+
+    result = reconcile_batch(db_session, batch.id)[0]
+    assert coverage.status == "missing"
+    assert coverage.evidence_type is None
+    assert result.status == "incomplete"
+    audit = db_session.query(AuditEvent).filter_by(
+        event_type="source_zero_confirmation_revoked"
+    ).one()
+    assert audit.actor == "finance"
+    assert audit.event_data["reason"] == "误确认"
+
+
+def test_file_scope_zero_cannot_be_revoked(db_session):
+    batch, store = setup_batch(db_session)
+    add_coverage(
+        db_session,
+        batch,
+        store,
+        "cash",
+        Decimal("0.00"),
+        status="present_zero",
+    )
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="只能撤销人工确认"):
+        reconciliation_service.revoke_zero(
+            db_session,
+            batch_id=batch.id,
+            store_id=store.id,
+            source_code="cash",
+            reason="误操作",
+            actor="finance",
+        )
