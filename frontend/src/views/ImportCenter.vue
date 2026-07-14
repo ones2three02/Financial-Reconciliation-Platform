@@ -218,6 +218,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
 import type { BatchDetail, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import { loadExistingBatchForDate } from '../services/importBatchLoader';
 import {
   clearQueue,
   createQueueItems,
@@ -253,6 +254,7 @@ const activeBatch = ref<ReconciliationBatch | null>(null);
 const batchDetail = ref<BatchDetail | null>(null);
 const queues = ref<ImportQueueMap<File>>({});
 const loadingBatch = ref(false);
+let loadExistingBatchRequestId = 0;
 const processing = ref(false);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const showHistory = ref(false);
@@ -305,13 +307,23 @@ const ensureBatch = async () => {
 };
 
 const loadExistingBatch = async () => {
+  const requestId = ++loadExistingBatchRequestId;
+  const requestedBusinessDate = globalDate.value;
   loadingBatch.value = true;
   try {
-    const batch = (await api.getBatches()).find((item) => item.business_date === globalDate.value) ?? null;
-    activeBatch.value = batch;
-    batchDetail.value = batch ? await api.getBatchDetail(batch.id) : null;
+    const result = await loadExistingBatchForDate<ReconciliationBatch, BatchDetail>({
+      requestedBusinessDate,
+      getCurrentBusinessDate: () => globalDate.value,
+      getBatches: api.getBatches,
+      getBatchDetail: api.getBatchDetail,
+    });
+    if (!result || requestId !== loadExistingBatchRequestId) return;
+    activeBatch.value = result.batch;
+    batchDetail.value = result.detail;
   } finally {
-    loadingBatch.value = false;
+    if (requestId === loadExistingBatchRequestId) {
+      loadingBatch.value = false;
+    }
   }
 };
 
