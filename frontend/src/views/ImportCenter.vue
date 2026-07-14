@@ -51,16 +51,27 @@
         <CardContent class="space-y-3">
           <label v-for="profile in profiles" :key="profile.code" class="block cursor-pointer rounded-xl border p-3 transition-colors" :class="selectedProfile === profile.code ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200 hover:bg-slate-50'">
             <div class="flex items-start gap-3">
-              <input v-model="selectedProfile" type="radio" :value="profile.code" class="mt-1" />
+              <input v-model="selectedProfile" type="radio" :value="profile.code" class="mt-1" :disabled="processing" />
               <div>
                 <div class="text-xs font-bold text-slate-800">{{ profile.label }}</div>
                 <div class="mt-1 text-[11px] leading-5 text-slate-500">{{ profile.description }}</div>
+                <div class="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold">
+                  <span v-if="profileQueueSummary(profile.code).pending" class="text-blue-600">
+                    待导入 {{ profileQueueSummary(profile.code).pending }}
+                  </span>
+                  <span v-if="profileQueueSummary(profile.code).failed" class="text-rose-600">
+                    失败 {{ profileQueueSummary(profile.code).failed }}
+                  </span>
+                  <span v-if="profileQueueSummary(profile.code).completed" class="text-emerald-600">
+                    已完成 {{ profileQueueSummary(profile.code).completed }}
+                  </span>
+                </div>
               </div>
             </div>
           </label>
           <div v-if="selectedProfile === 'store_finance_v1'" class="border-t border-slate-100 pt-3">
             <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">财务表所属门店</label>
-            <Select v-model="selectedStoreId" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="必须选择标准门店" />
+            <Select v-model="selectedStoreId" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="必须选择标准门店" :disabled="processing" />
           </div>
         </CardContent>
       </Card>
@@ -75,7 +86,7 @@
             <FileSpreadsheet class="mb-2 h-9 w-9 text-emerald-600" />
             <span class="text-sm font-bold text-slate-700">选择一份或多份 Excel 工作簿</span>
             <span class="mt-1 text-xs text-slate-400">仅支持 .xlsx；单文件大小与解压规模均受安全限制</span>
-            <input type="file" accept=".xlsx" multiple class="hidden" @change="onFilesSelected" />
+            <input type="file" accept=".xlsx" multiple class="hidden" :disabled="!canSelectFiles || processing" @change="onFilesSelected" />
           </label>
 
           <div v-if="queue.length" class="space-y-2">
@@ -98,9 +109,9 @@
           </div>
 
           <div class="flex justify-end gap-3">
-            <Button variant="outline" :disabled="processing || !queue.length" @click="queue = []">清空列表</Button>
+            <Button variant="outline" :disabled="processing || !queue.length" @click="clearCurrentQueue">清空列表</Button>
             <Button class="bg-blue-600 text-white hover:bg-blue-700" :disabled="processing || !canImport" @click="processQueue">
-              {{ processing ? '正在逐份预检并导入...' : `开始导入 ${queue.length} 份文件` }}
+              {{ processing ? '正在逐份预检并导入...' : `开始导入 ${actionableQueue.length} 份文件` }}
             </Button>
           </div>
         </CardContent>
@@ -207,13 +218,26 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
 import type { BatchDetail, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import {
+  clearQueue,
+  createQueueItems,
+  getQueue,
+  isCurrentImportContext,
+  prepareQueueItemRetry,
+  replaceQueue,
+  runWithProcessing,
+  runnableItems,
+  summarizeProfileQueue,
+  type ImportQueueContext,
+  type ImportQueueItem,
+  type ImportQueueMap,
+} from '../services/importQueue';
 import { globalDate } from '../services/store';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Select } from '../components/ui/select';
 
-type QueueStatus = 'ready' | 'preflighting' | 'importing' | 'imported' | 'duplicate' | 'attention' | 'failed';
-interface QueueItem { key: string; file: File; status: QueueStatus; preflight?: PreflightResult; error?: string }
+type QueueItem = ImportQueueItem<File> & { preflight?: PreflightResult };
 
 const profiles: { code: ProfileCode; label: string; description: string }[] = [
   { code: 'store_finance_v1', label: '门店财务表', description: '一次导入，同时生成销售收入和现金收入；必须指定标准门店。' },
@@ -227,7 +251,7 @@ const selectedStoreId = ref<number | null>(null);
 const stores = ref<Store[]>([]);
 const activeBatch = ref<ReconciliationBatch | null>(null);
 const batchDetail = ref<BatchDetail | null>(null);
-const queue = ref<QueueItem[]>([]);
+const queues = ref<ImportQueueMap<File>>({});
 const loadingBatch = ref(false);
 const processing = ref(false);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -246,6 +270,14 @@ const restoreResetConfirmationDate = ref('');
 const restoreResetRiskAcknowledged = ref(false);
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
+const currentContext = computed<ImportQueueContext>(() => ({
+  businessDate: globalDate.value,
+  profileCode: selectedProfile.value,
+  storeId: selectedProfile.value === 'store_finance_v1' ? selectedStoreId.value : null,
+}));
+const queue = computed(() => getQueue(queues.value, currentContext.value) as QueueItem[]);
+const actionableQueue = computed(() => runnableItems(queue.value) as QueueItem[]);
+const canSelectFiles = computed(() => selectedProfile.value !== 'store_finance_v1' || selectedStoreId.value !== null);
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
 const openIssueCount = computed(() => batchDetail.value?.quality_issues.filter((issue) => issue.status === 'open').length ?? 0);
 const currentFileCount = computed(() => batchDetail.value?.import_files.filter((file) => file.is_current).length ?? 0);
@@ -255,8 +287,8 @@ const canImport = computed(() => Boolean(
   activeBatch.value
   && canOperate.value
   && activeBatch.value.status !== 'closed'
-  && queue.value.length
-  && (selectedProfile.value !== 'store_finance_v1' || selectedStoreId.value),
+  && actionableQueue.value.length
+  && canSelectFiles.value,
 ));
 
 const ensureBatch = async () => {
@@ -286,37 +318,80 @@ const loadExistingBatch = async () => {
 const onFilesSelected = (event: Event) => {
   const input = event.target as HTMLInputElement;
   const files = Array.from(input.files ?? []);
-  queue.value = files.map((file, index) => ({ key: `${file.name}-${file.size}-${index}`, file, status: 'ready' }));
+  const context = { ...currentContext.value };
+  if (!canSelectFiles.value) {
+    message.value = { type: 'error', text: '请先选择门店，再选择门店财务表文件。' };
+    return;
+  }
+  const items = createQueueItems(
+    files,
+    context,
+    (file, index) => `${file.name}-${file.size}-${index}`,
+  );
+  queues.value = replaceQueue(queues.value, context, items);
   input.value = '';
   message.value = null;
 };
 
 const processQueue = async () => {
-  if (!activeBatch.value || !canImport.value) return;
-  processing.value = true;
-  message.value = null;
-  let failed = 0;
-  for (const item of queue.value) {
-    item.error = undefined;
-    try {
-      item.status = 'preflighting';
-      item.preflight = await api.preflightWorkbook(item.file, selectedProfile.value, globalDate.value, selectedStoreId.value);
-      item.status = 'importing';
-      const outcome = await api.importWorkbook(item.file, activeBatch.value.id, selectedProfile.value, selectedStoreId.value);
-      item.status = outcome.status === 'duplicate' ? 'duplicate' : outcome.status === 'attention_required' ? 'attention' : 'imported';
-    } catch (error) {
-      item.status = 'failed';
-      item.error = errorDetail(error);
-      failed += 1;
+  const batch = activeBatch.value;
+  const context = { ...currentContext.value };
+  const items = [...actionableQueue.value];
+  if (!batch || !items.length || batch.business_date !== context.businessDate) return;
+  try {
+    await runWithProcessing(
+      (value) => { processing.value = value; },
+      async () => {
+        message.value = null;
+        let failed = 0;
+        for (const item of items) {
+          prepareQueueItemRetry(item);
+          try {
+            item.status = 'preflighting';
+            item.preflight = await api.preflightWorkbook(
+              item.file,
+              item.context.profileCode as ProfileCode,
+              item.context.businessDate,
+              item.context.storeId,
+            );
+            item.status = 'importing';
+            const outcome = await api.importWorkbook(
+              item.file,
+              batch.id,
+              item.context.profileCode as ProfileCode,
+              item.context.storeId,
+            );
+            item.status = outcome.status === 'duplicate' ? 'duplicate' : outcome.status === 'attention_required' ? 'attention' : 'imported';
+          } catch (error) {
+            item.status = 'failed';
+            item.error = errorDetail(error);
+            failed += 1;
+          }
+        }
+        if (isCurrentImportContext(context, globalDate.value)) {
+          const detail = await api.getBatchDetail(batch.id);
+          batchDetail.value = detail;
+          activeBatch.value = detail.batch;
+          message.value = failed
+            ? { type: 'error', text: `${items.length - failed} 份导入完成，${failed} 份失败，请查看逐文件原因。` }
+            : { type: 'success', text: '本次文件已完成预检和导入。若出现未知门店，请到“对账明细”人工确认。' };
+        }
+      },
+    );
+  } catch (error) {
+    if (isCurrentImportContext(context, globalDate.value)) {
+      message.value = { type: 'error', text: errorDetail(error) };
     }
   }
-  batchDetail.value = await api.getBatchDetail(activeBatch.value.id);
-  activeBatch.value = batchDetail.value.batch;
-  message.value = failed
-    ? { type: 'error', text: `${queue.value.length - failed} 份导入完成，${failed} 份失败，请查看逐文件原因。` }
-    : { type: 'success', text: '本次文件已完成预检和导入。若出现未知门店，请到“对账明细”人工确认。' };
-  processing.value = false;
 };
+
+const clearCurrentQueue = () => {
+  queues.value = clearQueue(queues.value, currentContext.value);
+  message.value = null;
+};
+
+const profileQueueSummary = (profileCode: ProfileCode) =>
+  summarizeProfileQueue(queues.value, globalDate.value, profileCode);
 
 const refreshBatch = async () => {
   if (!activeBatch.value) return;
@@ -445,11 +520,15 @@ const profileLabel = (code?: string | null) => profiles.find((item) => item.code
 const fileStoreName = (file: ImportFile) => file.store_id ? activeStores.value.find((store) => store.id === file.store_id)?.name ?? `门店 #${file.store_id}` : '工作簿内多门店';
 const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);
 const batchStatusClass = (status: string) => status === 'closed' ? 'bg-slate-200 text-slate-700' : status === 'ready_to_close' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
-const queueStatusLabel = (status: QueueStatus) => ({ ready: '待处理', preflighting: '预检中', importing: '导入中', imported: '已导入', duplicate: '内容重复', attention: '需确认门店', failed: '失败' }[status]);
-const queueStatusClass = (status: QueueStatus) => status === 'failed' ? 'bg-rose-50 text-rose-700' : status === 'imported' ? 'bg-emerald-50 text-emerald-700' : status === 'attention' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
+const queueStatusLabel = (status: QueueItem['status']) => ({ ready: '待处理', preflighting: '预检中', importing: '导入中', imported: '已导入', duplicate: '内容重复', attention: '需确认门店', failed: '失败' }[status]);
+const queueStatusClass = (status: QueueItem['status']) => status === 'failed' ? 'bg-rose-50 text-rose-700' : status === 'imported' ? 'bg-emerald-50 text-emerald-700' : status === 'attention' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
 const formatDateTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false });
 const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
 
-watch(globalDate, () => { queue.value = []; message.value = null; void loadExistingBatch(); });
+watch(globalDate, () => {
+  queues.value = {};
+  message.value = null;
+  void loadExistingBatch();
+});
 onMounted(async () => { stores.value = await api.getStores(); await loadExistingBatch(); });
 </script>

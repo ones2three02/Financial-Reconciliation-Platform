@@ -39,6 +39,39 @@ export const clearQueue = <TFile>(queues: ImportQueueMap<TFile>, context: Import
 export const runnableItems = <TFile>(items: ImportQueueItem<TFile>[]) =>
   items.filter((item) => item.status === 'ready' || item.status === 'failed');
 
+export const createQueueItems = <TFile>(
+  files: TFile[],
+  context: ImportQueueContext,
+  keyForFile: (file: TFile, index: number) => string,
+): ImportQueueItem<TFile>[] => files.map((file, index) => ({
+  key: keyForFile(file, index),
+  file,
+  status: 'ready',
+  context: { ...context },
+}));
+
+export const runWithProcessing = async <T>(
+  setProcessing: (processing: boolean) => void,
+  operation: () => Promise<T>,
+) => {
+  setProcessing(true);
+  try {
+    return await operation();
+  } finally {
+    setProcessing(false);
+  }
+};
+
+export const isCurrentImportContext = (context: ImportQueueContext, currentBusinessDate: string) =>
+  context.businessDate === currentBusinessDate;
+
+export const prepareQueueItemRetry = <TFile>(item: ImportQueueItem<TFile>) => {
+  item.status = 'ready';
+  item.error = undefined;
+  item.preflight = undefined;
+  return item;
+};
+
 export const summarizeProfileQueue = <TFile>(queues: ImportQueueMap<TFile>, businessDate: string, profileCode: string) => {
   const items = Object.values(queues).flat().filter(
     (item) => item.context.businessDate === businessDate && item.context.profileCode === profileCode,
