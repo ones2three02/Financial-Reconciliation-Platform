@@ -1,9 +1,6 @@
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from decimal import Decimal
 from datetime import date
-from backend.app.core.db import Base
 from backend.app.models.store import Store, StoreAlias
 from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
@@ -12,21 +9,6 @@ from backend.app.models.clean_data import CleanData
 from backend.app.models.reconciliation import ReconciliationResult
 from backend.app.services.cleaner import clean_amount, clean_date, get_or_create_store_alias, clean_import_file_data
 from backend.app.services.reconciler import run_reconciliation_for_date
-
-# --- Test DB Setup ---
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-@pytest.fixture(name="db_session")
-def fixture_db_session():
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
 
 # --- Cleaner Unit Tests ---
 
@@ -121,7 +103,13 @@ def test_reconciliation_calculation(db_session):
         import_file_id=cash_imp.id,
         row_index=1,
         data_source="cash",
-        content={"日期": "2026-07-13", "店名": "杨一店", "实收": "20.00", "_detected_mappings": detected_maps}
+        content={
+            "日期": "2026-07-13",
+            "店名": "杨一店",
+            "付款方式": "现金",
+            "实收": "20.00",
+            "_detected_mappings": detected_maps,
+        }
     )
     
     db_session.add_all([raw1, raw2, raw3])

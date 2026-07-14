@@ -1,43 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
-from backend.app.core.db import engine, Base, SessionLocal
+from backend.app.core.db import SessionLocal
 from backend.app.models.store import Store
 from backend.app.api import stores, mappings, files, reconciliation, dashboard, auth
-
-# Create tables automatically on startup for easy MVP setup
-# In production, Alembic migrations are used
-Base.metadata.create_all(bind=engine)
-
-# Safely run table columns check and migration for MVP
-def run_migrations():
-    from sqlalchemy import inspect, text
-    db = SessionLocal()
-    try:
-        inspector = inspect(engine)
-        columns = [c['name'] for c in inspector.get_columns('store')]
-        
-        # Check and add columns
-        if 'code' not in columns:
-            db.execute(text("ALTER TABLE store ADD COLUMN code VARCHAR(50) NULL;"))
-        if 'region' not in columns:
-            db.execute(text("ALTER TABLE store ADD COLUMN region VARCHAR(100) NULL;"))
-        if 'manager' not in columns:
-            db.execute(text("ALTER TABLE store ADD COLUMN manager VARCHAR(50) NULL;"))
-        if 'phone' not in columns:
-            db.execute(text("ALTER TABLE store ADD COLUMN phone VARCHAR(50) NULL;"))
-            
-        columns_import = [c['name'] for c in inspector.get_columns('import_file')]
-        if 'store_id' not in columns_import:
-            db.execute(text("ALTER TABLE import_file ADD COLUMN store_id INT NULL;"))
-        db.commit()
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning(f"Database migration failed: {e}")
-    finally:
-        db.close()
-
-run_migrations()
 
 from backend.app.models.store import Store, StoreAlias
 
