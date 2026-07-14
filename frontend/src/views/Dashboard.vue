@@ -78,17 +78,45 @@
       </Card>
     </div>
 
-    <!-- Recent 7 Days Backlog Catch-up Card -->
+    <!-- Recent 7 Days Backlog Catch-up / Full Month Calendar Card -->
     <Card class="shadow-sm border border-slate-200/80">
-      <CardHeader class="pb-2">
-        <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
-          <CalendarDays class="w-4.5 h-4.5 text-blue-500" />
-          <span>连续账期核验面板 (支持假期归来补账)</span>
-        </CardTitle>
-        <CardDescription>查阅最近 7 天的每日对账覆盖状态，点击即可快速切换到对应账期进行核实对账</CardDescription>
+      <CardHeader class="pb-2 flex flex-row items-center justify-between flex-wrap gap-4">
+        <div>
+          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
+            <CalendarDays class="w-4.5 h-4.5 text-blue-500 shrink-0" />
+            <span>{{ viewMode === 'trends' ? '连续账期核验面板 (最近7天)' : '连续账期核验面板 (整月日历)' }}</span>
+          </CardTitle>
+          <CardDescription>
+            {{ viewMode === 'trends' ? '查阅最近 7 天的每日对账覆盖状态，点击即可快速切换到对应账期进行核实对账' : '直观查看整月每天的对账结果与差异，随时补录历史数据' }}
+          </CardDescription>
+        </div>
+        
+        <!-- View Toggle Buttons -->
+        <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
+          <button 
+            @click="viewMode = 'trends'"
+            :class="[
+              'px-3 py-1 text-[11px] font-bold rounded-lg transition-all',
+              viewMode === 'trends' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            ]"
+          >
+            最近7天
+          </button>
+          <button 
+            @click="viewMode = 'calendar'"
+            :class="[
+              'px-3 py-1 text-[11px] font-bold rounded-lg transition-all',
+              viewMode === 'calendar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            ]"
+          >
+            整月日历
+          </button>
+        </div>
       </CardHeader>
+      
       <CardContent class="p-6 pt-2">
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <!-- 7-Day Trend Row View -->
+        <div v-if="viewMode === 'trends'" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
           <div 
             v-for="day in recentTrends" 
             :key="day.date"
@@ -133,6 +161,108 @@
             >
               <span>{{ day.date === globalDate ? '当前账期' : '切换核验' }}</span>
             </Button>
+          </div>
+        </div>
+
+        <!-- Full Month Calendar View -->
+        <div v-else class="space-y-4">
+          <!-- Calendar Navigator -->
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <Button variant="outline" size="sm" class="h-8 w-8 p-0" @click="prevMonth">
+                <ChevronLeft class="h-4 w-4 text-slate-600" />
+              </Button>
+              <span class="text-sm font-extrabold text-slate-800 tracking-wider font-mono">
+                {{ calendarYear }} 年 {{ String(calendarMonth).padStart(2, '0') }} 月
+              </span>
+              <Button variant="outline" size="sm" class="h-8 w-8 p-0" @click="nextMonth">
+                <ChevronRight class="h-4 w-4 text-slate-600" />
+              </Button>
+            </div>
+            <div class="flex items-center gap-3">
+              <!-- Indicators Legend -->
+              <div class="hidden sm:flex items-center gap-4 text-[10px] font-bold text-slate-500 mr-2">
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>全部一致</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span>有差异门店</span>
+                <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-300"></span>无比对数据</span>
+              </div>
+              <Button variant="outline" size="sm" class="h-8 text-xs font-bold" @click="goToToday">
+                回到今天
+              </Button>
+            </div>
+          </div>
+
+          <!-- Weekday Labels -->
+          <div class="grid grid-cols-7 gap-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 py-1">
+            <div>一</div>
+            <div>二</div>
+            <div>三</div>
+            <div>四</div>
+            <div>五</div>
+            <div class="text-slate-400/80">六</div>
+            <div class="text-slate-400/80">日</div>
+          </div>
+
+          <!-- Calendar Grid (42 Cells) -->
+          <div class="grid grid-cols-7 gap-2">
+            <template v-for="week in calendarWeeks">
+              <div 
+                v-for="cell in week" 
+                :key="cell.date"
+                @click="goToDate(cell.date)"
+                class="p-2 rounded-xl border flex flex-col justify-between h-[85px] cursor-pointer transition-all duration-150 relative bg-white select-none"
+                :class="[
+                  !cell.isCurrentMonth ? 'opacity-40 bg-slate-50/50 border-slate-100 hover:border-slate-200' : 'shadow-sm',
+                  cell.isCurrentMonth && globalDate === cell.date 
+                    ? 'border-blue-500 bg-blue-50/15 shadow-sm ring-1 ring-blue-500/25' 
+                    : cell.isCurrentMonth ? 'border-slate-100 hover:border-slate-300 hover:shadow-md' : '',
+                  isToday(cell.date) ? 'ring-2 ring-indigo-500/20' : ''
+                ]"
+              >
+                <!-- Day Number & Today indicator -->
+                <div class="flex items-center justify-between">
+                  <span 
+                    class="text-xs font-mono font-bold"
+                    :class="[
+                      globalDate === cell.date ? 'text-blue-600 font-extrabold' : 'text-slate-700',
+                      isToday(cell.date) ? 'text-indigo-600 font-extrabold underline decoration-2' : ''
+                    ]"
+                  >
+                    {{ cell.day }}
+                  </span>
+                  <span v-if="isToday(cell.date)" class="text-[8px] bg-indigo-50 text-indigo-600 px-1 rounded font-bold uppercase tracking-widest scale-90">今</span>
+                </div>
+
+                <!-- Status Badge -->
+                <div class="mt-1">
+                  <!-- Case 1: No data loaded yet -->
+                  <div v-if="!calendarDataMap[cell.date]" class="text-[9px] text-slate-400 font-medium inline-flex items-center gap-1 scale-90 origin-left">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
+                    <span>无数据</span>
+                  </div>
+                  <!-- Case 2: No stores / no data -->
+                  <div v-else-if="calendarDataMap[cell.date].total_stores === 0" class="text-[9px] text-slate-400 font-medium inline-flex items-center gap-1 scale-90 origin-left">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
+                    <span>无数据</span>
+                  </div>
+                  <!-- Case 3: Discrepancies present -->
+                  <div v-else-if="calendarDataMap[cell.date].discrepancies > 0" class="text-[9px] text-rose-600 font-extrabold inline-flex items-center gap-1 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 scale-90 origin-left">
+                    <span class="w-1 h-1 rounded-full bg-rose-500 animate-pulse"></span>
+                    <span>{{ calendarDataMap[cell.date].discrepancies }}家差异</span>
+                  </div>
+                  <!-- Case 4: Complete and Consistent -->
+                  <div v-else class="text-[9px] text-emerald-600 font-bold inline-flex items-center gap-1 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 scale-90 origin-left">
+                    <span class="w-1 h-1 rounded-full bg-emerald-500"></span>
+                    <span>全部一致</span>
+                  </div>
+                </div>
+
+                <!-- Hover action text / indicator -->
+                <div class="text-[8px] text-slate-400 flex items-center justify-end font-semibold scale-90 origin-right select-none opacity-0 hover:opacity-100 transition-opacity">
+                  {{ globalDate === cell.date ? '当前选中' : '点击切换' }}
+                </div>
+              </div>
+            </template>
           </div>
         </div>
       </CardContent>
@@ -200,12 +330,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { api } from '../services/api';
 import type { DashboardSummary, ReconciliationResult, TrendData } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays } from 'lucide-vue-next';
+import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { BarChart, LineChart as EChartsLineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import { init, use, type EChartsType } from 'echarts/core';
@@ -225,6 +355,147 @@ const summary = ref<DashboardSummary>({
 
 const discrepancyStores = ref<ReconciliationResult[]>([]);
 const recentTrends = ref<TrendData[]>([]);
+
+const viewMode = ref<'trends' | 'calendar'>('trends');
+const calendarYear = ref(new Date().getFullYear());
+const calendarMonth = ref(new Date().getMonth() + 1);
+const calendarDataMap = ref<Record<string, TrendData>>({});
+
+const isToday = (dateStr: string) => {
+  const today = new Date();
+  const d = new Date(dateStr);
+  return today.getFullYear() === d.getFullYear() &&
+         today.getMonth() === d.getMonth() &&
+         today.getDate() === d.getDate();
+};
+
+const calendarWeeks = computed(() => {
+  const year = calendarYear.value;
+  const month = calendarMonth.value;
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  
+  let startOffset = firstDay.getDay(); // 0 is Sunday
+  startOffset = startOffset === 0 ? 6 : startOffset - 1; // Align Sunday to index 6, Monday to index 0
+  
+  const totalDays = lastDay.getDate();
+  const prevLastDay = new Date(year, month - 1, 0).getDate();
+  
+  const cells = [];
+  
+  // Previous month padding
+  for (let i = startOffset - 1; i >= 0; i--) {
+    const dayNum = prevLastDay - i;
+    const m = month - 1 === 0 ? 12 : month - 1;
+    const y = month - 1 === 0 ? year - 1 : year;
+    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    cells.push({
+      day: dayNum,
+      date: dateStr,
+      isCurrentMonth: false,
+    });
+  }
+  
+  // Current month days
+  for (let i = 1; i <= totalDays; i++) {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    cells.push({
+      day: i,
+      date: dateStr,
+      isCurrentMonth: true,
+    });
+  }
+  
+  // Next month padding
+  const remaining = 42 - cells.length;
+  for (let i = 1; i <= remaining; i++) {
+    const m = month + 1 === 13 ? 1 : month + 1;
+    const y = month + 1 === 13 ? year + 1 : year;
+    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    cells.push({
+      day: i,
+      date: dateStr,
+      isCurrentMonth: false,
+    });
+  }
+  
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+  return weeks;
+});
+
+const loadCalendarTrends = async () => {
+  const weeks = calendarWeeks.value;
+  if (!weeks.length) return;
+  const startCellDate = weeks[0][0].date;
+  const endCellDate = weeks[weeks.length - 1][6].date;
+  
+  try {
+    const data = await api.getDashboardTrends({
+      start_date: startCellDate,
+      end_date: endCellDate
+    });
+    const map: Record<string, TrendData> = {};
+    data.forEach(item => {
+      map[item.date] = item;
+    });
+    calendarDataMap.value = map;
+  } catch (error) {
+    console.error('Failed to load calendar trends:', error);
+  }
+};
+
+const nextMonth = () => {
+  if (calendarMonth.value === 12) {
+    calendarMonth.value = 1;
+    calendarYear.value += 1;
+  } else {
+    calendarMonth.value += 1;
+  }
+};
+
+const prevMonth = () => {
+  if (calendarMonth.value === 1) {
+    calendarMonth.value = 12;
+    calendarYear.value -= 1;
+  } else {
+    calendarMonth.value -= 1;
+  }
+};
+
+const goToToday = () => {
+  const today = new Date();
+  calendarYear.value = today.getFullYear();
+  calendarMonth.value = today.getMonth() + 1;
+  setGlobalDate(today.toISOString().split('T')[0]);
+};
+
+// Sync calendar view month with globalDate when globalDate changes
+watch(globalDate, (newDate) => {
+  if (newDate) {
+    const d = new Date(newDate);
+    if (!isNaN(d.getTime())) {
+      calendarYear.value = d.getFullYear();
+      calendarMonth.value = d.getMonth() + 1;
+    }
+  }
+});
+
+// Watch calendar changes to trigger loadCalendarTrends
+watch([calendarYear, calendarMonth], () => {
+  if (viewMode.value === 'calendar') {
+    void loadCalendarTrends();
+  }
+}, { immediate: true });
+
+// Also watch viewMode to load if toggled
+watch(viewMode, (newMode) => {
+  if (newMode === 'calendar') {
+    void loadCalendarTrends();
+  }
+});
 
 use([BarChart, EChartsLineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
@@ -339,8 +610,12 @@ const fetchDashboardData = async () => {
     });
     discrepancyStores.value = reconData.filter(r => r.status !== 'consistent');
     
-    const trendData = await api.getDashboardTrends(7);
+    const trendData = await api.getDashboardTrends({ days: 7 });
     recentTrends.value = [...trendData].reverse(); // Copy and reverse to show newest first
+    
+    if (viewMode.value === 'calendar') {
+      void loadCalendarTrends();
+    }
     
     nextTick(() => {
       initChart(trendData);
