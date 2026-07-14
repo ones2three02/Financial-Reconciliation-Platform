@@ -273,148 +273,154 @@
     </div>
 
     <!-- Store Add/Edit Modal Dialog -->
-    <div 
-      v-if="showEditModal" 
-      class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
-      @click.self="showEditModal = false"
-    >
-      <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
-        <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <CardTitle class="text-base font-bold text-slate-800">
-                {{ formStore.id ? '编辑标准门店信息' : '新增标准门店' }}
-              </CardTitle>
-              <CardDescription class="text-xs text-slate-400">
-                {{ formStore.id ? '更新标准名录下的门店配置基本资料' : '在名录中录入一家全新的标准门店' }}
-              </CardDescription>
+    <Teleport to="body">
+      <div 
+        v-if="showEditModal" 
+        class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
+        @click.self="showEditModal = false"
+      >
+        <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
+          <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <CardTitle class="text-base font-bold text-slate-800">
+                  {{ formStore.id ? '编辑标准门店信息' : '新增标准门店' }}
+                </CardTitle>
+                <CardDescription class="text-xs text-slate-400">
+                  {{ formStore.id ? '更新标准名录下的门店配置基本资料' : '在名录中录入一家全新的标准门店' }}
+                </CardDescription>
+              </div>
+              <button @click="showEditModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
             </div>
-            <button @click="showEditModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
-          </div>
-        </CardHeader>
-        
-        <CardContent class="p-6 space-y-4">
-          <!-- Store Name -->
-          <div class="flex flex-col gap-1.5">
-            <label for="store-name" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">标准门店名称 (必填)</label>
-            <Input 
-              id="store-name"
-              v-model="formStore.name" 
-              placeholder="例如: 钟祥店"
-              class="h-9 text-xs"
-              required
-            />
-          </div>
-
-          <!-- Store Code -->
-          <div class="flex flex-col gap-1.5">
-            <label for="store-code" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">门店财务编码</label>
-            <Input 
-              id="store-code"
-              v-model="formStore.code" 
-              placeholder="例如: MD013"
-              class="h-9 text-xs"
-            />
-          </div>
-
-          <!-- Region -->
-          <div class="flex flex-col gap-1.5">
-            <label for="store-region" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">所在运营区域</label>
-            <Input 
-              id="store-region"
-              v-model="formStore.region" 
-              placeholder="例如: 荆州地区"
-              class="h-9 text-xs"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <!-- Manager -->
+          </CardHeader>
+          
+          <CardContent class="p-6 space-y-4">
+            <!-- Store Name -->
             <div class="flex flex-col gap-1.5">
-              <label for="store-manager" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">店长负责人</label>
+              <label for="store-name" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">标准门店名称 (必填)</label>
               <Input 
-                id="store-manager"
-                v-model="formStore.manager" 
-                placeholder="店长姓名"
+                id="store-name"
+                v-model="formStore.name" 
+                placeholder="例如: 钟祥店"
+                class="h-9 text-xs"
+                required
+              />
+            </div>
+
+            <!-- Store Code -->
+            <div class="flex flex-col gap-1.5">
+              <label for="store-code" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">门店财务编码</label>
+              <Input 
+                id="store-code"
+                v-model="formStore.code" 
+                placeholder="例如: MD013"
                 class="h-9 text-xs"
               />
             </div>
 
-            <!-- Phone -->
+            <!-- Region -->
             <div class="flex flex-col gap-1.5">
-              <label for="store-phone" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">联系电话</label>
+              <label for="store-region" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">所在运营区域</label>
               <Input 
-                id="store-phone"
-                v-model="formStore.phone" 
-                placeholder="手机号码"
+                id="store-region"
+                v-model="formStore.region" 
+                placeholder="例如: 荆州地区"
                 class="h-9 text-xs"
               />
             </div>
-          </div>
 
-          <!-- Active status toggle -->
-          <div v-if="formStore.id === null" class="flex items-center gap-2 pt-2">
-            <input 
-              id="store-active-cb"
-              type="checkbox" 
-              v-model="formStore.is_active" 
-              class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-            />
-            <label for="store-active-cb" class="text-xs font-bold text-slate-700 cursor-pointer">
-              启用此门店运营状态
-            </label>
-          </div>
-        </CardContent>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Manager -->
+              <div class="flex flex-col gap-1.5">
+                <label for="store-manager" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">店长负责人</label>
+                <Input 
+                  id="store-manager"
+                  v-model="formStore.manager" 
+                  placeholder="店长姓名"
+                  class="h-9 text-xs"
+                />
+              </div>
 
-        <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
-          <Button 
-            @click="showEditModal = false"
-            variant="outline"
-            size="sm"
-            class="h-8 text-xs font-semibold"
-          >
-            取消
-          </Button>
-          <Button 
-            @click="submitForm"
-            size="sm"
-            class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10 flex items-center gap-1.5"
-          >
-            <Save class="w-3.5 h-3.5" />
-            <span>保存门店</span>
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+              <!-- Phone -->
+              <div class="flex flex-col gap-1.5">
+                <label for="store-phone" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">联系电话</label>
+                <Input 
+                  id="store-phone"
+                  v-model="formStore.phone" 
+                  placeholder="手机号码"
+                  class="h-9 text-xs"
+                />
+              </div>
+            </div>
 
-    <div v-if="statusStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeStoreStatusModal">
-      <Card class="w-full max-w-md bg-white shadow-2xl">
-        <CardHeader>
-          <CardTitle class="text-base">{{ statusStore.is_active ? '停用标准门店' : '重新启用标准门店' }}</CardTitle>
-          <CardDescription v-if="statusStore.is_active">停用“{{ statusStore.name }}”后，该门店不会参加后续新对账；若当前未关账批次仍有数据，后端会拒绝停用。</CardDescription>
-          <CardDescription v-else>重新启用“{{ statusStore.name }}”后，该门店将重新参加后续对账。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <textarea v-model="storeStatusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusStore.is_active ? '请输入停用原因，例如：门店已停止营业' : '请输入重新启用原因'"></textarea>
-        </CardContent>
-        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStoreStatusModal">取消</Button><Button :class="statusStore.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!storeStatusReason.trim()" @click="submitStoreStatusChange">{{ statusStore.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
-      </Card>
-    </div>
+            <!-- Active status toggle -->
+            <div v-if="formStore.id === null" class="flex items-center gap-2 pt-2">
+              <input 
+                id="store-active-cb"
+                type="checkbox" 
+                v-model="formStore.is_active" 
+                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              />
+              <label for="store-active-cb" class="text-xs font-bold text-slate-700 cursor-pointer">
+                启用此门店运营状态
+              </label>
+            </div>
+          </CardContent>
 
-    <div v-if="bindingAlias && bindingStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeAliasBinding">
-      <Card class="w-full max-w-md bg-white shadow-2xl">
-        <CardHeader><CardTitle class="text-base">确认门店别名绑定</CardTitle><CardDescription>系统不会自行匹配门店，请核对来源原始名称和标准门店后确认。</CardDescription></CardHeader>
-        <CardContent class="space-y-4 text-sm">
-          <div class="grid grid-cols-[90px_1fr] gap-2 rounded-xl bg-slate-50 p-4">
-            <span class="text-slate-500">原始别名</span><strong>{{ bindingAlias.alias_name }}</strong>
-            <span class="text-slate-500">原绑定</span><strong>{{ bindingAlias.store?.name || '尚未绑定' }}</strong>
-            <span class="text-slate-500">新绑定</span><strong class="text-blue-700">{{ bindingStore.name }}</strong>
-          </div>
-          <textarea v-if="isAliasRebind" v-model="aliasBindingReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="重新绑定必须填写原因，例如：原门店选择错误"></textarea>
-        </CardContent>
-        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeAliasBinding">取消</Button><Button :disabled="isAliasRebind && !aliasBindingReason.trim()" @click="submitAliasBinding">确认绑定</Button></CardFooter>
-      </Card>
-    </div>
+          <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
+            <Button 
+              @click="showEditModal = false"
+              variant="outline"
+              size="sm"
+              class="h-8 text-xs font-semibold"
+            >
+              取消
+            </Button>
+            <Button 
+              @click="submitForm"
+              size="sm"
+              class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10 flex items-center gap-1.5"
+            >
+              <Save class="w-3.5 h-3.5" />
+              <span>保存门店</span>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="statusStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeStoreStatusModal">
+        <Card class="w-full max-w-md bg-white shadow-2xl">
+          <CardHeader>
+            <CardTitle class="text-base">{{ statusStore.is_active ? '停用标准门店' : '重新启用标准门店' }}</CardTitle>
+            <CardDescription v-if="statusStore.is_active">停用“{{ statusStore.name }}”后，该门店不会参加后续新对账；若当前未关账批次仍有数据，后端会拒绝停用。</CardDescription>
+            <CardDescription v-else>重新启用“{{ statusStore.name }}”后，该门店将重新参加后续对账。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <textarea v-model="storeStatusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusStore.is_active ? '请输入停用原因，例如：门店已停止营业' : '请输入重新启用原因'"></textarea>
+          </CardContent>
+          <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStoreStatusModal">取消</Button><Button :class="statusStore.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!storeStatusReason.trim()" @click="submitStoreStatusChange">{{ statusStore.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
+        </Card>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div v-if="bindingAlias && bindingStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeAliasBinding">
+        <Card class="w-full max-w-md bg-white shadow-2xl">
+          <CardHeader><CardTitle class="text-base">确认门店别名绑定</CardTitle><CardDescription>系统不会自行匹配门店，请核对来源原始名称和标准门店后确认。</CardDescription></CardHeader>
+          <CardContent class="space-y-4 text-sm">
+            <div class="grid grid-cols-[90px_1fr] gap-2 rounded-xl bg-slate-50 p-4">
+              <span class="text-slate-500">原始别名</span><strong>{{ bindingAlias.alias_name }}</strong>
+              <span class="text-slate-500">原绑定</span><strong>{{ bindingAlias.store?.name || '尚未绑定' }}</strong>
+              <span class="text-slate-500">新绑定</span><strong class="text-blue-700">{{ bindingStore.name }}</strong>
+            </div>
+            <textarea v-if="isAliasRebind" v-model="aliasBindingReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="重新绑定必须填写原因，例如：原门店选择错误"></textarea>
+          </CardContent>
+          <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeAliasBinding">取消</Button><Button :disabled="isAliasRebind && !aliasBindingReason.trim()" @click="submitAliasBinding">确认绑定</Button></CardFooter>
+        </Card>
+      </div>
+    </Teleport>
   </div>
 </template>
 

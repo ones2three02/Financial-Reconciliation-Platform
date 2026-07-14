@@ -136,16 +136,18 @@
       </Card>
     </div>
 
-    <div v-if="statusMapping" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeStatusModal">
-      <Card class="w-full max-w-md bg-white shadow-2xl">
-        <CardHeader><CardTitle class="text-base">{{ statusMapping.is_active ? '停用字段映射' : '重新启用字段映射' }}</CardTitle><CardDescription>{{ getSourceLabel(statusMapping.data_source) }} 的“{{ statusMapping.source_column }}”将{{ statusMapping.is_active ? '不再用于后续文件解析' : '重新用于后续文件解析' }}，历史导入数据不会被删除。</CardDescription></CardHeader>
-        <CardContent class="space-y-3">
-          <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">目标字段：{{ statusMapping.target_field }}</div>
-          <textarea v-model="statusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusMapping.is_active ? '请输入停用原因' : '请输入重新启用原因'"></textarea>
-        </CardContent>
-        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStatusModal">取消</Button><Button :class="statusMapping.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!statusReason.trim()" @click="submitStatusChange">{{ statusMapping.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
-      </Card>
-    </div>
+    <Teleport to="body">
+      <div v-if="statusMapping" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeStatusModal">
+        <Card class="w-full max-w-md bg-white shadow-2xl">
+          <CardHeader><CardTitle class="text-base">{{ statusMapping.is_active ? '停用字段映射' : '重新启用字段映射' }}</CardTitle><CardDescription>{{ getSourceLabel(statusMapping.data_source) }} 的“{{ statusMapping.source_column }}”将{{ statusMapping.is_active ? '不再用于后续文件解析' : '重新用于后续文件解析' }}，历史导入数据不会被删除。</CardDescription></CardHeader>
+          <CardContent class="space-y-3">
+            <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">目标字段：{{ statusMapping.target_field }}</div>
+            <textarea v-model="statusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusMapping.is_active ? '请输入停用原因' : '请输入重新启用原因'"></textarea>
+          </CardContent>
+          <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStatusModal">取消</Button><Button :class="statusMapping.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!statusReason.trim()" @click="submitStatusChange">{{ statusMapping.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
+        </Card>
+      </div>
+    </Teleport>
   </div>
 </template>
 
