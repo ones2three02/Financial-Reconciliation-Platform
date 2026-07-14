@@ -1,0 +1,141 @@
+from datetime import date, datetime
+from io import BytesIO
+from zipfile import BadZipFile
+
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
+
+from backend.app.domain.extraction_profiles import get_profile
+from backend.app.schemas.preflight import PreflightResult
+from backend.app.services.cleaner import clean_date
+
+
+MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_SHEETS = 50
+MAX_ROWS = 200_000
+MAX_COLUMNS = 200
+
+
+class PreflightValidationError(ValueError):
+    """文件不能安全进入提取流程。"""
+
+
+class TemplateMismatchError(PreflightValidationError):
+    """工作簿结构与声明模板不一致。"""
+
+
+class WorkbookLimitError(PreflightValidationError):
+    """工作簿超过允许的资源上限。"""
+
+
+def _parse_date(value: object) -> date:
+    if isinstance(value, datetime):
+        return value.date()
+    parsed = clean_date(value)
+    return parsed.date() if isinstance(parsed, datetime) else parsed
+
+
+def _clean_header(value: object) -> str:
+    return "" if value is None else str(value).strip()
+
+
+def preflight_workbook(
+    content: bytes,
+    profile_code: str,
+    business_date: date,
+    store_id: int | None,
+) -> PreflightResult:
+    profile = get_profile(profile_code)
+    if not content:
+        raise PreflightValidationError("工作簿内容为空")
+    if len(content) > MAX_FILE_SIZE:
+        raise WorkbookLimitError(f"工作簿超过 {MAX_FILE_SIZE // 1024 // 1024}MB 限制")
+    if profile.requires_store_id and store_id is None:
+        raise PreflightValidationError("该模板必须指定归属标准门店")
+
+    try:
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    except (BadZipFile, InvalidFileException, OSError, ValueError) as exc:
+        raise PreflightValidationError("无法读取工作簿，请确认文件格式有效") from exc
+
+    try:
+        if len(workbook.sheetnames) > MAX_SHEETS:
+            raise WorkbookLimitError(f"工作簿工作表数量超过 {MAX_SHEETS} 个限制")
+
+        sheet_name = next(
+            (name for name in profile.sheet_names if name in workbook.sheetnames),
+            None,
+        )
+        if sheet_name is None:
+            expected = "、".join(profile.sheet_names)
+            raise TemplateMismatchError(
+                f"模板 {profile.code} 需要工作表: {expected}"
+            )
+
+        sheet = workbook[sheet_name]
+        if sheet.max_row > MAX_ROWS or sheet.max_column > MAX_COLUMNS:
+            raise WorkbookLimitError(
+                f"工作表规模超过限制: 最大 {MAX_ROWS} 行、{MAX_COLUMNS} 列"
+            )
+
+        header_values = next(
+            sheet.iter_rows(
+                min_row=profile.header_row,
+                max_row=profile.header_row,
+                values_only=True,
+            ),
+            (),
+        )
+        headers = [_clean_header(value) for value in header_values]
+        missing_columns = [
+            column for column in profile.required_columns if column not in headers
+        ]
+        if missing_columns:
+            raise TemplateMismatchError(
+                f"模板 {profile.code} 缺少必需字段: {'、'.join(missing_columns)}"
+            )
+
+        date_index = headers.index(profile.date_column)
+        store_index = (
+            headers.index(profile.store_column)
+            if profile.store_column is not None
+            else None
+        )
+        total_data_rows = 0
+        matching_row_count = 0
+        parsed_dates: list[date] = []
+        detected_stores: set[str] = set()
+
+        for row in sheet.iter_rows(min_row=profile.header_row + 1, values_only=True):
+            if not any(value not in (None, "") for value in row):
+                continue
+            total_data_rows += 1
+            try:
+                row_date = _parse_date(row[date_index])
+            except (ValueError, TypeError, IndexError) as exc:
+                raise PreflightValidationError(
+                    f"模板 {profile.code} 的日期列包含无法解析的数据"
+                ) from exc
+            parsed_dates.append(row_date)
+            if row_date == business_date:
+                matching_row_count += 1
+            if store_index is not None and store_index < len(row):
+                raw_store = row[store_index]
+                if raw_store not in (None, ""):
+                    detected_stores.add(str(raw_store).strip())
+
+        return PreflightResult(
+            profile_code=profile.code,
+            profile_version=profile.version,
+            sheet_name=sheet_name,
+            business_date=business_date,
+            store_id=store_id,
+            output_sources=list(profile.output_sources),
+            total_data_rows=total_data_rows,
+            matching_row_count=matching_row_count,
+            date_range_start=min(parsed_dates) if parsed_dates else None,
+            date_range_end=max(parsed_dates) if parsed_dates else None,
+            detected_store_names=sorted(detected_stores),
+        )
+    finally:
+        workbook.close()
