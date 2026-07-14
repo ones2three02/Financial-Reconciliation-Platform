@@ -71,20 +71,45 @@
                   </td>
                 </tr>
                 <tr v-for="s in paginatedStores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
-                  <td class="p-4 font-mono font-bold text-slate-500 select-text">
-                    <span v-if="s.code">{{ s.code }}</span>
-                    <span v-else class="select-none text-slate-300/80">—</span>
+                  <td class="p-4 font-mono font-bold text-slate-500">
+                    <div class="flex items-center gap-1.5 group/copy">
+                      <span v-if="s.code">{{ s.code }}</span>
+                      <span v-else class="select-none text-slate-300/80">—</span>
+                      <button 
+                        v-if="s.code"
+                        @click="copyText(s.code, s.id + '-code')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === s.id + '-code'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === s.id + '-code'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
                   </td>
-                  <td class="p-4 font-extrabold text-slate-800 select-text">{{ s.name }}</td>
-                  <td class="p-4 font-medium text-slate-600 select-text">
+                  <td class="p-4 font-extrabold text-slate-800">
+                    <div class="flex items-center gap-1.5 group/copy">
+                      <span>{{ s.name }}</span>
+                      <button 
+                        @click="copyText(s.name, s.id + '-name')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === s.id + '-name'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === s.id + '-name'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="p-4 font-medium text-slate-600">
                     <span v-if="s.region">{{ s.region }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
-                  <td class="p-4 font-medium text-slate-600 select-text">
+                  <td class="p-4 font-medium text-slate-600">
                     <span v-if="s.manager">{{ s.manager }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
-                  <td class="p-4 font-mono text-slate-500 select-text">
+                  <td class="p-4 font-mono text-slate-500">
                     <span v-if="s.phone">{{ s.phone }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
@@ -244,7 +269,20 @@
                   class="hover:bg-slate-50/40 transition-colors"
                   :class="{'bg-amber-50/10': a.status === 'pending'}"
                 >
-                  <td class="p-4 font-bold text-slate-700 select-text">{{ a.alias_name }}</td>
+                  <td class="p-4 font-bold text-slate-700">
+                    <div class="flex items-center gap-1.5 group/copy">
+                      <span>{{ a.alias_name }}</span>
+                      <button 
+                        @click="copyText(a.alias_name, a.id + '-alias')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === a.id + '-alias'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === a.id + '-alias'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
+                  </td>
                   <td class="p-4">
                     <!-- Custom Select component -->
                     <Select
@@ -475,7 +513,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save } from 'lucide-vue-next';
+import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save, Copy, Check } from 'lucide-vue-next';
 
 // Tab state
 const activeTab = ref('stores'); // 'stores' or 'aliases'
@@ -514,6 +552,21 @@ const formStore = ref({
   phone: '',
   is_active: true
 });
+
+const copiedId = ref('');
+const copyText = async (text: string, id: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = '';
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
+};
 
 const aliasCounts = computed(() => {
   const pending = aliases.value.filter(a => a.status === 'pending').length;

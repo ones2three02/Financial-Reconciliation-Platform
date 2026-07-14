@@ -100,12 +100,36 @@
                       {{ getSourceLabel(m.data_source) }}
                     </span>
                   </td>
-                  <td class="p-4 select-text">
-                    <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700">
-                      {{ m.target_field }}
-                    </code>
+                  <td class="p-4">
+                    <div class="flex items-center gap-1.5 group/copy">
+                      <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700">
+                        {{ m.target_field }}
+                      </code>
+                      <button 
+                        @click="copyText(m.target_field, m.id + '-target')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === m.id + '-target'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === m.id + '-target'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
                   </td>
-                  <td class="p-4 font-bold text-slate-800 select-text">{{ m.source_column }}</td>
+                  <td class="p-4 font-bold text-slate-800">
+                    <div class="flex items-center gap-1.5 group/copy">
+                      <span>{{ m.source_column }}</span>
+                      <button 
+                        @click="copyText(m.source_column, m.id + '-source')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === m.id + '-source'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === m.id + '-source'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
+                  </td>
                   <td class="p-4 text-center">
                     <Button 
                       @click="openStatusModal(m)"
@@ -159,7 +183,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Sliders, Plus, FolderOpen } from 'lucide-vue-next';
+import { Sliders, Plus, FolderOpen, Copy, Check } from 'lucide-vue-next';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', badge: 'bg-violet-50 text-violet-600' },
@@ -187,6 +211,21 @@ const targetFieldOptions = [
   { value: 'store_name', label: '门店名称 (store_name)' },
   { value: 'amount', label: '交易金额 (amount)' }
 ];
+
+const copiedId = ref('');
+const copyText = async (text: string, id: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = '';
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
+};
 
 const selectedFilterSource = ref('');
 const mappings = ref<FieldMapping[]>([]);
