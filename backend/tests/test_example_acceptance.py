@@ -5,6 +5,7 @@ from pathlib import Path
 
 from openpyxl import Workbook
 
+from backend.app.models.raw_data import RawData
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.cleaner import clean_date
@@ -70,6 +71,29 @@ def scoped_channel_workbook(source: str) -> bytes:
     output = BytesIO()
     scoped_workbook.save(output)
     return output.getvalue()
+
+
+def test_full_tonglian_example_excludes_summary_footer(db_session):
+    batch = get_or_create_batch(db_session, BUSINESS_DATE, actor="admin")
+    outcome = import_workbook(
+        db_session,
+        ImportWorkbookCommand(
+            batch_id=batch.id,
+            filename="通联好老板.xlsx",
+            content=(EXAMPLE_DIR / "通联好老板.xlsx").read_bytes(),
+            profile_code="tonglian_v1",
+            store_id=None,
+            actor="admin",
+        ),
+    )
+    raw_rows = (
+        db_session.query(RawData)
+        .filter(RawData.import_file_id == outcome.import_file_id)
+        .all()
+    )
+    assert len(raw_rows) == 16
+    assert all(row.content.get("统计日期") != "汇总" for row in raw_rows)
+    assert outcome.status == "attention_required"
 
 
 def test_minyuan_2026_07_10_reconciles_to_zero(db_session):

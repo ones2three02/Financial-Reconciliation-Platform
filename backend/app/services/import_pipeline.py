@@ -11,9 +11,10 @@ from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
-from backend.app.services.workbook_preflight import preflight_workbook
 from backend.app.services.extraction_engine import extract_current_batch_rows
 from backend.app.services.workbook_io import load_data_workbook
+from backend.app.services.workbook_preflight import preflight_workbook
+from backend.app.services.workbook_rows import is_summary_row
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,8 @@ def _persist_raw_rows(
                 header: _json_safe(values[index] if index < len(values) else None)
                 for index, header in enumerate(headers)
             }
+            if is_summary_row(profile, content_row):
+                continue
             db.add(
                 RawData(
                     import_file_id=import_file_id,

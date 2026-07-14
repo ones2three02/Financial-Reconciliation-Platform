@@ -16,6 +16,7 @@ from backend.app.services.cleaner import clean_amount, clean_date
 from backend.app.services.coverage_service import upsert_coverage
 from backend.app.services.quality_service import reset_open_run_issues
 from backend.app.services.store_resolution import resolve_store
+from backend.app.services.workbook_rows import is_summary_row
 
 
 @dataclass(frozen=True)
@@ -237,6 +238,8 @@ def _extract_channel_rows(
     )
     for raw_row in raw_rows:
         content = raw_row.content or {}
+        if is_summary_row(profile, content):
+            continue
         if clean_date(content.get(profile.date_column)) != batch.business_date:
             continue
         raw_store_name = str(content.get(profile.store_column) or "").strip()
