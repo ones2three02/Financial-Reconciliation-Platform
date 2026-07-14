@@ -52,20 +52,21 @@ def test_tonglian_profile_ignores_explicit_summary_footer():
     assert result.matching_row_count == 1
 
 
-def test_tonglian_profile_reports_sheet_and_row_for_bad_business_date():
-    with pytest.raises(
-        PreflightValidationError,
-        match=r"模板 tonglian_v1 工作表 sheet1 第 4 行的统计日期无法解析",
-    ):
+@pytest.mark.parametrize("store_value", [0, False], ids=["zero", "false"])
+def test_tonglian_profile_reports_sheet_and_row_for_bad_business_date(store_value):
+    with pytest.raises(PreflightValidationError) as exc_info:
         preflight_workbook(
             tonglian_workbook_bytes([
                 ["2026-07-10", "正常门店", 100],
-                ["汇总", "不应被跳过的门店", 50],
+                ["汇总", store_value, 50],
             ]),
             profile_code="tonglian_v1",
             business_date=date(2026, 7, 10),
             store_id=None,
         )
+    message = str(exc_info.value)
+    assert message == "模板 tonglian_v1 工作表 sheet1 第 4 行的统计日期无法解析"
+    assert "汇总" not in message
 
 
 def test_finance_profile_requires_exact_sheet_and_store():

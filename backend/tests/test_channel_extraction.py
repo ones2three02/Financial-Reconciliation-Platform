@@ -12,6 +12,7 @@ from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.quality_issue import DataQualityIssue
+from backend.app.models.raw_data import RawData
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.import_pipeline import ImportWorkbookCommand, import_workbook
@@ -157,6 +158,40 @@ def test_tonglian_aggregates_multiple_confirmed_aliases(db_session):
     )
     assert coverage.status == "present_data"
     assert coverage.valid_row_count == 2
+
+
+def test_tonglian_reextract_skips_historical_summary_raw_data(db_session):
+    batch, store = setup_batch(db_session)
+    raw_store = "山道健身－民院健身房"
+    add_confirmed_alias(db_session, "tonglian", raw_store, store.id)
+    content = workbook_bytes(
+        "sheet1",
+        ["统计日期", "门店名", "成功交易金额"],
+        [[datetime(2026, 7, 10), raw_store, 100]],
+        header_row=2,
+    )
+    outcome = import_channel(db_session, batch.id, "tonglian_v1", content)
+    summary_raw = RawData(
+        import_file_id=outcome.import_file_id,
+        row_index=4,
+        data_source="tonglian",
+        content={"统计日期": "汇总", "门店名": None, "成功交易金额": 100},
+    )
+    db_session.add(summary_raw)
+    db_session.commit()
+
+    extraction_engine.extract_current_batch_rows(db_session, outcome.extraction_run_id)
+
+    current_rows = (
+        db_session.query(CleanData)
+        .filter(
+            CleanData.import_file_id == outcome.import_file_id,
+            CleanData.is_current.is_(True),
+        )
+        .all()
+    )
+    assert len(current_rows) == 1
+    assert all(row.raw_data_id != summary_raw.id for row in current_rows)
 
 
 def test_unknown_store_blocks_rows_until_manual_confirmation(db_session):
