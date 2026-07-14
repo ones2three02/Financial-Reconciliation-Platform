@@ -29,6 +29,12 @@ class RestoreImportRequest(_ReasonRequest):
 
 class ResetBatchCurrentDataRequest(_ReasonRequest):
     confirmation_date: date
+    risk_acknowledged: bool
+
+
+class RestoreLastResetRequest(_ReasonRequest):
+    confirmation_date: date
+    risk_acknowledged: bool
 
 
 class ImportVersionActionRead(BaseModel):

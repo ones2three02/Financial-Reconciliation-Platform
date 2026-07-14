@@ -14,6 +14,7 @@ from backend.app.api.batches import (
     confirm_batch_source_zero,
     create_reconciliation_batch,
     get_reconciliation_batch,
+    get_reconciliation_batch_detail,
     reconcile_reconciliation_batch,
     reopen_reconciliation_batch,
     reset_reconciliation_batch_current_data,
@@ -187,6 +188,7 @@ def test_reset_route_returns_conflict_for_closed_batch(db_session):
             payload=ResetBatchCurrentDataRequest(
                 reason="整日导出错误",
                 confirmation_date=date(2026, 7, 10),
+                risk_acknowledged=True,
             ),
             current_user=ADMIN,
             db=db_session,
@@ -301,4 +303,51 @@ def test_restore_file_route_uses_authenticated_actor(db_session):
 
     assert response.import_file_id == imported.import_file_id
     audit = db_session.query(AuditEvent).filter_by(event_type="file_restored").one()
+    assert audit.actor == ADMIN.username
+
+
+def test_restore_last_reset_route_exposes_eligibility_and_actor(db_session):
+    store = Store(name="民院店", code="MD010", is_active=True)
+    db_session.add(store)
+    db_session.commit()
+    batch = create_reconciliation_batch(
+        payload=BatchCreate(business_date=date(2026, 7, 10)),
+        current_user=ADMIN,
+        db=db_session,
+    )
+    asyncio.run(import_file(
+        file=UploadFile(filename="原文件.xlsx", file=BytesIO(finance_workbook())),
+        batch_id=batch.id,
+        profile_code="store_finance_v1",
+        store_id=store.id,
+        current_user=ADMIN,
+        db=db_session,
+    ))
+    reset_reconciliation_batch_current_data(
+        batch_id=batch.id,
+        payload=ResetBatchCurrentDataRequest(
+            reason="误导入整批数据",
+            confirmation_date=date(2026, 7, 10),
+            risk_acknowledged=True,
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+    detail = get_reconciliation_batch_detail(batch.id, db=db_session)
+    assert detail.can_restore_last_reset is True
+    assert detail.last_reset_event_id is not None
+
+    restored = batches_api.restore_reconciliation_batch_last_reset(
+        batch_id=batch.id,
+        payload=import_command_schemas.RestoreLastResetRequest(
+            reason="刚才误重置",
+            confirmation_date=date(2026, 7, 10),
+            risk_acknowledged=True,
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    assert restored.version == 3
+    audit = db_session.query(AuditEvent).filter_by(event_type="batch_reset_restored").one()
     assert audit.actor == ADMIN.username

@@ -93,3 +93,5 @@ class BatchDetailRead(BaseModel):
     coverages: list[SourceCoverageRead]
     quality_issues: list[DataQualityIssueRead]
     results: list[ReconciliationResult]
+    can_restore_last_reset: bool = False
+    last_reset_event_id: int | None = None

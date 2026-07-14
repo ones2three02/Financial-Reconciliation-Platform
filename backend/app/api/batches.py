@@ -18,7 +18,10 @@ from backend.app.schemas.batch import (
     RevokeZeroRequest,
 )
 from backend.app.schemas.reconciliation import ReconciliationResult
-from backend.app.schemas.import_command import ResetBatchCurrentDataRequest
+from backend.app.schemas.import_command import (
+    ResetBatchCurrentDataRequest,
+    RestoreLastResetRequest,
+)
 from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.closing_service import (
     BatchNotClosableError,
@@ -33,7 +36,9 @@ from backend.app.services.reconciliation_service import (
 from backend.app.services.import_version_service import (
     ImportVersionConflictError,
     ImportVersionNotFoundError,
+    get_last_reset_restore_eligibility,
     reset_batch_current_data,
+    restore_last_reset,
 )
 
 
@@ -118,12 +123,18 @@ def get_reconciliation_batch_detail(
         .order_by(ReconciliationResultModel.store_id)
         .all()
     )
+    can_restore_last_reset, last_reset_event_id = get_last_reset_restore_eligibility(
+        db,
+        batch_id,
+    )
     return BatchDetailRead(
         batch=batch,
         import_files=import_files,
         coverages=coverages,
         quality_issues=quality_issues,
         results=results,
+        can_restore_last_reset=can_restore_last_reset,
+        last_reset_event_id=last_reset_event_id,
     )
 
 
@@ -140,6 +151,34 @@ def reset_reconciliation_batch_current_data(
             batch_id=batch_id,
             reason=payload.reason,
             confirmation_date=payload.confirmation_date,
+            risk_acknowledged=payload.risk_acknowledged,
+            actor=current_user.username,
+        )
+    except ImportVersionNotFoundError as exc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ImportVersionConflictError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{batch_id}/restore-last-reset", response_model=BatchRead)
+def restore_reconciliation_batch_last_reset(
+    batch_id: int,
+    payload: RestoreLastResetRequest,
+    current_user: AppUser = Depends(require_finance),
+    db: Session = Depends(get_db),
+):
+    try:
+        return restore_last_reset(
+            db,
+            batch_id=batch_id,
+            reason=payload.reason,
+            confirmation_date=payload.confirmation_date,
+            risk_acknowledged=payload.risk_acknowledged,
             actor=current_user.username,
         )
     except ImportVersionNotFoundError as exc:

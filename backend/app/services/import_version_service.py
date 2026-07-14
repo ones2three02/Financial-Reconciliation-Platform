@@ -11,7 +11,7 @@ from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.raw_data import RawData
-from backend.app.services.coverage_service import rebuild_scope_coverage
+from backend.app.services.coverage_service import rebuild_scope_coverage, upsert_coverage
 from backend.app.services.extraction_engine import extract_current_batch_rows
 from backend.app.services.import_pipeline import (
     ImportOutcome,
@@ -389,10 +389,13 @@ def reset_batch_current_data(
     batch_id: int,
     reason: str,
     confirmation_date: date,
+    risk_acknowledged: bool,
     actor: str,
 ) -> ReconciliationBatch:
     clean_reason = _clean_reason(reason, "重置原因不能为空")
     clean_actor = _clean_required(actor, "重置操作人不能为空")
+    if not risk_acknowledged:
+        raise ValueError("必须确认已了解整批重置风险")
     batch = (
         db.query(ReconciliationBatch)
         .filter(ReconciliationBatch.id == batch_id)
@@ -409,10 +412,31 @@ def reset_batch_current_data(
 
     try:
         with db.begin_nested():
-            current_files = db.query(ImportFile).filter(
-                ImportFile.batch_id == batch.id,
-                ImportFile.is_current.is_(True),
-            ).all()
+            current_files = (
+                db.query(ImportFile)
+                .filter(
+                    ImportFile.batch_id == batch.id,
+                    ImportFile.is_current.is_(True),
+                )
+                .order_by(ImportFile.id)
+                .all()
+            )
+            current_file_ids = [row.id for row in current_files]
+            manual_zero_scopes = [
+                {"store_id": row.store_id, "source_code": row.source_code}
+                for row in (
+                    db.query(SourceCoverage)
+                    .filter(
+                        SourceCoverage.batch_id == batch.id,
+                        SourceCoverage.status == "present_zero",
+                        SourceCoverage.evidence_type == "manual_zero_confirmation",
+                    )
+                    .order_by(SourceCoverage.store_id, SourceCoverage.source_code)
+                    .all()
+                )
+            ]
+            previous_status = batch.status
+            previous_version = batch.version
             for import_file in current_files:
                 _retire_file(db, import_file, clean_actor)
 
@@ -452,7 +476,6 @@ def reset_batch_current_data(
                 coverage.error_row_count = 0
                 coverage.extraction_run_id = None
 
-            old_version = batch.version
             batch.version += 1
             batch.status = "attention_required"
             reconcile_batch(db, batch.id)
@@ -467,7 +490,223 @@ def reset_batch_current_data(
                     event_data={
                         "reason": clean_reason,
                         "reset_file_count": len(current_files),
-                        "old_version": old_version,
+                        "current_file_ids": current_file_ids,
+                        "manual_zero_scopes": manual_zero_scopes,
+                        "previous_status": previous_status,
+                        "previous_version": previous_version,
+                        "old_version": previous_version,
+                        "new_version": batch.version,
+                    },
+                )
+            )
+            db.flush()
+        db.commit()
+        return batch
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _locked_open_batch(db: Session, batch_id: int) -> ReconciliationBatch:
+    batch = (
+        db.query(ReconciliationBatch)
+        .filter(ReconciliationBatch.id == batch_id)
+        .populate_existing()
+        .with_for_update()
+        .one_or_none()
+    )
+    if batch is None:
+        raise ImportVersionNotFoundError("对账批次不存在")
+    if batch.status == "closed":
+        raise ImportVersionConflictError("已关账批次必须先重开才能恢复整批重置")
+    return batch
+
+
+def _latest_unrestored_reset_event(db: Session, batch_id: int) -> AuditEvent:
+    reset_event = (
+        db.query(AuditEvent)
+        .filter(
+            AuditEvent.batch_id == batch_id,
+            AuditEvent.event_type == "batch_current_data_reset",
+        )
+        .order_by(AuditEvent.id.desc())
+        .first()
+    )
+    if reset_event is None:
+        raise ImportVersionConflictError("没有可恢复的整批重置")
+    restored_events = db.query(AuditEvent).filter(
+        AuditEvent.batch_id == batch_id,
+        AuditEvent.event_type == "batch_reset_restored",
+    ).all()
+    if any(
+        (event.event_data or {}).get("reset_event_id") == reset_event.id
+        for event in restored_events
+    ):
+        raise ImportVersionConflictError("上一次整批重置已经恢复，不能重复恢复")
+    return reset_event
+
+
+def _validate_reset_restore_state(
+    db: Session,
+    batch: ReconciliationBatch,
+    reset_event: AuditEvent,
+) -> None:
+    snapshot = reset_event.event_data or {}
+    if batch.version != snapshot.get("new_version"):
+        raise ImportVersionConflictError("批次版本在重置后已变化，不能自动恢复")
+    if db.query(ImportFile).filter(
+        ImportFile.batch_id == batch.id,
+        ImportFile.is_current.is_(True),
+    ).count():
+        raise ImportVersionConflictError("重置后已有新增导入，不能自动恢复")
+    non_missing_coverages = db.query(SourceCoverage).filter(
+        SourceCoverage.batch_id == batch.id,
+        SourceCoverage.status != "missing",
+    ).all()
+    if any(
+        row.evidence_type == "manual_zero_confirmation"
+        for row in non_missing_coverages
+    ):
+        raise ImportVersionConflictError("重置后已有新的业务确认，不能自动恢复")
+    if non_missing_coverages:
+        raise ImportVersionConflictError("重置后已有新的当前数据，不能自动恢复")
+
+    file_ids = snapshot.get("current_file_ids")
+    if not isinstance(file_ids, list):
+        raise ImportVersionConflictError("重置快照不完整，不能自动恢复")
+    for file_id in file_ids:
+        import_file = db.get(ImportFile, file_id)
+        if (
+            import_file is None
+            or import_file.batch_id != batch.id
+            or import_file.is_current
+        ):
+            raise ImportVersionConflictError("重置快照中的历史文件状态已变化")
+
+
+def get_last_reset_restore_eligibility(
+    db: Session,
+    batch_id: int,
+) -> tuple[bool, int | None]:
+    batch = db.get(ReconciliationBatch, batch_id)
+    if batch is None or batch.status == "closed":
+        return False, None
+    try:
+        reset_event = _latest_unrestored_reset_event(db, batch_id)
+        _validate_reset_restore_state(db, batch, reset_event)
+    except (ImportVersionConflictError, ImportVersionNotFoundError):
+        return False, None
+    return True, reset_event.id
+
+
+def _restore_snapshot_file(
+    db: Session,
+    batch: ReconciliationBatch,
+    file_id: int,
+) -> ExtractionRun:
+    import_file = (
+        db.query(ImportFile)
+        .filter(ImportFile.id == file_id)
+        .populate_existing()
+        .with_for_update()
+        .one_or_none()
+    )
+    if (
+        import_file is None
+        or import_file.batch_id != batch.id
+        or import_file.is_current
+    ):
+        raise ImportVersionConflictError("重置快照中的历史文件状态已变化")
+    import_file.is_current = True
+    import_file.error_message = None
+    run = _new_extraction_run(db, import_file)
+    extract_current_batch_rows(db, run.id)
+    return run
+
+
+def _restore_manual_zero(
+    db: Session,
+    batch: ReconciliationBatch,
+    scope: dict[str, object],
+) -> None:
+    store_id = scope.get("store_id")
+    source_code = scope.get("source_code")
+    if not isinstance(store_id, int) or not isinstance(source_code, str):
+        raise ImportVersionConflictError("重置快照中的零收入范围无效")
+    existing = db.query(SourceCoverage).filter(
+        SourceCoverage.batch_id == batch.id,
+        SourceCoverage.store_id == store_id,
+        SourceCoverage.source_code == source_code,
+    ).one_or_none()
+    if existing is not None and existing.status != "missing":
+        raise ImportVersionConflictError("零收入范围已有新数据，不能覆盖恢复")
+    upsert_coverage(
+        db,
+        batch_id=batch.id,
+        business_date=batch.business_date,
+        store_id=store_id,
+        source_code=source_code,
+        status="present_zero",
+        evidence_type="manual_zero_confirmation",
+        amount=Decimal("0.00"),
+        file_count=0,
+        valid_row_count=0,
+        error_row_count=0,
+        extraction_run_id=None,
+    )
+
+
+def restore_last_reset(
+    db: Session,
+    *,
+    batch_id: int,
+    reason: str,
+    confirmation_date: date,
+    risk_acknowledged: bool,
+    actor: str,
+) -> ReconciliationBatch:
+    clean_reason = _clean_reason(reason, "恢复原因不能为空")
+    clean_actor = _clean_required(actor, "恢复操作人不能为空")
+    if not risk_acknowledged:
+        raise ValueError("必须确认已了解整批恢复风险")
+    batch = _locked_open_batch(db, batch_id)
+    if confirmation_date != batch.business_date:
+        raise ValueError("确认日期必须与批次业务日期完全一致")
+    reset_event = _latest_unrestored_reset_event(db, batch.id)
+    _validate_reset_restore_state(db, batch, reset_event)
+    snapshot = reset_event.event_data or {}
+
+    try:
+        with db.begin_nested():
+            restored_run_ids = [
+                _restore_snapshot_file(db, batch, int(file_id)).id
+                for file_id in snapshot.get("current_file_ids", [])
+            ]
+            manual_zero_scopes = snapshot.get("manual_zero_scopes", [])
+            if not isinstance(manual_zero_scopes, list):
+                raise ImportVersionConflictError("重置快照中的零收入范围无效")
+            for scope in manual_zero_scopes:
+                if not isinstance(scope, dict):
+                    raise ImportVersionConflictError("重置快照中的零收入范围无效")
+                _restore_manual_zero(db, batch, scope)
+
+            reconcile_batch(db, batch.id)
+            previous_version = batch.version
+            batch.version += 1
+            db.add(
+                AuditEvent(
+                    batch_id=batch.id,
+                    event_type="batch_reset_restored",
+                    actor=clean_actor,
+                    entity_type="reconciliation_batch",
+                    entity_id=str(batch.id),
+                    event_data={
+                        "reset_event_id": reset_event.id,
+                        "reason": clean_reason,
+                        "restored_file_ids": snapshot.get("current_file_ids", []),
+                        "restored_extraction_run_ids": restored_run_ids,
+                        "restored_manual_zero_scopes": manual_zero_scopes,
+                        "old_version": previous_version,
                         "new_version": batch.version,
                     },
                 )

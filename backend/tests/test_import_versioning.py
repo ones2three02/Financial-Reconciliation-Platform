@@ -121,6 +121,7 @@ def test_reason_requests_strip_and_validate_input():
     assert ResetBatchCurrentDataRequest(
         reason="  整日导错  ",
         confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
     ).reason == "整日导错"
 
     with pytest.raises(ValidationError):
@@ -306,6 +307,7 @@ def test_reset_batch_retires_current_data_and_manual_zero(db_session):
         batch_id=batch.id,
         reason="当日导出范围全部错误",
         confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
         actor="finance-user",
     )
 
@@ -334,6 +336,7 @@ def test_reset_batch_requires_matching_confirmation_date(db_session):
             batch_id=batch.id,
             reason="错误日期确认",
             confirmation_date=date(2026, 7, 11),
+            risk_acknowledged=True,
             actor="finance-user",
         )
 
@@ -492,5 +495,188 @@ def test_restore_rejects_current_file_and_closed_batch(db_session):
             db_session,
             file_id=imported.import_file_id,
             reason="关账后恢复",
+            actor="finance-user",
+        )
+
+
+def test_reset_audit_contains_small_restore_snapshot(db_session):
+    batch, store = setup_batch(db_session)
+    imported = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    confirm_zero(
+        db_session,
+        batch_id=batch.id,
+        store_id=store.id,
+        source_code="tonglian",
+        actor="finance-user",
+    )
+    db_session.commit()
+
+    reset_batch_current_data(
+        db_session,
+        batch_id=batch.id,
+        reason="测试重置",
+        confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
+        actor="finance-user",
+    )
+
+    audit = db_session.query(AuditEvent).filter_by(
+        event_type="batch_current_data_reset"
+    ).one()
+    assert audit.event_data["current_file_ids"] == [imported.import_file_id]
+    assert audit.event_data["manual_zero_scopes"] == [
+        {"store_id": store.id, "source_code": "tonglian"}
+    ]
+    assert audit.event_data["previous_status"] in {"draft", "attention_required"}
+    assert audit.event_data["previous_version"] == 1
+    assert "clean_data_ids" not in audit.event_data
+
+
+def test_last_reset_can_be_restored_once(db_session):
+    batch, store = setup_batch(db_session)
+    imported = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    confirm_zero(
+        db_session,
+        batch_id=batch.id,
+        store_id=store.id,
+        source_code="tonglian",
+        actor="finance-user",
+    )
+    db_session.commit()
+    reset_batch_current_data(
+        db_session,
+        batch_id=batch.id,
+        reason="测试重置",
+        confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
+        actor="finance-user",
+    )
+
+    restored = import_version_service.restore_last_reset(
+        db_session,
+        batch_id=batch.id,
+        reason="误重置",
+        confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
+        actor="finance-user",
+    )
+
+    assert db_session.get(ImportFile, imported.import_file_id).is_current is True
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("100.00")
+    assert coverage(db_session, batch.id, store.id, "tonglian").status == "present_zero"
+    assert coverage(db_session, batch.id, store.id, "tonglian").evidence_type == "manual_zero_confirmation"
+    assert restored.version == 3
+    with pytest.raises(ImportVersionConflictError, match="已经恢复"):
+        import_version_service.restore_last_reset(
+            db_session,
+            batch_id=batch.id,
+            reason="重复恢复",
+            confirmation_date=BUSINESS_DATE,
+            risk_acknowledged=True,
+            actor="finance-user",
+        )
+
+
+def test_restore_last_reset_rejects_new_data_or_manual_zero(db_session):
+    batch, store = setup_batch(db_session)
+    import_finance(db_session, batch.id, store.id, finance_workbook(("微信", 100)))
+    reset_batch_current_data(
+        db_session,
+        batch_id=batch.id,
+        reason="测试重置",
+        confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
+        actor="finance-user",
+    )
+    new_import = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 200)),
+    )
+
+    with pytest.raises(ImportVersionConflictError, match="新增导入"):
+        import_version_service.restore_last_reset(
+            db_session,
+            batch_id=batch.id,
+            reason="尝试恢复",
+            confirmation_date=BUSINESS_DATE,
+            risk_acknowledged=True,
+            actor="finance-user",
+        )
+
+    invalidate_import_file(
+        db_session,
+        file_id=new_import.import_file_id,
+        reason="清理测试数据",
+        actor="finance-user",
+    )
+    confirm_zero(
+        db_session,
+        batch_id=batch.id,
+        store_id=store.id,
+        source_code="meituan",
+        actor="finance-user",
+    )
+    db_session.commit()
+    with pytest.raises(ImportVersionConflictError, match="新的业务确认"):
+        import_version_service.restore_last_reset(
+            db_session,
+            batch_id=batch.id,
+            reason="尝试恢复",
+            confirmation_date=BUSINESS_DATE,
+            risk_acknowledged=True,
+            actor="finance-user",
+        )
+
+
+def test_reset_and_restore_require_matching_date_and_risk_acknowledgement(db_session):
+    batch, store = setup_batch(db_session)
+    import_finance(db_session, batch.id, store.id, finance_workbook(("微信", 100)))
+
+    with pytest.raises(ValueError, match="风险"):
+        reset_batch_current_data(
+            db_session,
+            batch_id=batch.id,
+            reason="测试重置",
+            confirmation_date=BUSINESS_DATE,
+            risk_acknowledged=False,
+            actor="finance-user",
+        )
+
+    reset_batch_current_data(
+        db_session,
+        batch_id=batch.id,
+        reason="测试重置",
+        confirmation_date=BUSINESS_DATE,
+        risk_acknowledged=True,
+        actor="finance-user",
+    )
+    with pytest.raises(ValueError, match="确认日期"):
+        import_version_service.restore_last_reset(
+            db_session,
+            batch_id=batch.id,
+            reason="误重置",
+            confirmation_date=date(2026, 7, 11),
+            risk_acknowledged=True,
+            actor="finance-user",
+        )
+    with pytest.raises(ValueError, match="风险"):
+        import_version_service.restore_last_reset(
+            db_session,
+            batch_id=batch.id,
+            reason="误重置",
+            confirmation_date=BUSINESS_DATE,
+            risk_acknowledged=False,
             actor="finance-user",
         )
