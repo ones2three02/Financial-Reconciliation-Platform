@@ -361,12 +361,15 @@ const calendarYear = ref(new Date().getFullYear());
 const calendarMonth = ref(new Date().getMonth() + 1);
 const calendarDataMap = ref<Record<string, TrendData>>({});
 
+const getLocalDateString = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const date = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${date}`;
+};
+
 const isToday = (dateStr: string) => {
-  const today = new Date();
-  const d = new Date(dateStr);
-  return today.getFullYear() === d.getFullYear() &&
-         today.getMonth() === d.getMonth() &&
-         today.getDate() === d.getDate();
+  return getLocalDateString(new Date()) === dateStr;
 };
 
 const calendarWeeks = computed(() => {
@@ -469,7 +472,7 @@ const goToToday = () => {
   const today = new Date();
   calendarYear.value = today.getFullYear();
   calendarMonth.value = today.getMonth() + 1;
-  setGlobalDate(today.toISOString().split('T')[0]);
+  setGlobalDate(getLocalDateString(today));
 };
 
 // Sync calendar view month with globalDate when globalDate changes
