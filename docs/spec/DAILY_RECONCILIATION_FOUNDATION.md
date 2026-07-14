@@ -164,7 +164,7 @@ ReconciliationResult
 - `confirmed_at`
 - `created_at`、`updated_at`
 
-权威唯一键为 `source_code + alias_name`。旧的全局映射迁移为兼容映射，后续通过实际来源重处理逐步补齐。
+权威唯一键为 `source_code + alias_name`。旧的全局映射记录继续保留，但由于现有结构无法证明其经过人工确认，迁移后统一处于待确认状态；用户按实际来源确认后再成为权威映射。
 
 匹配规则：
 
