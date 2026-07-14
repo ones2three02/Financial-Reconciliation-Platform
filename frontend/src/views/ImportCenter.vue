@@ -49,13 +49,20 @@
           <CardDescription>模板是有版本的白名单规则，不会根据相似表头随意猜测。</CardDescription>
         </CardHeader>
         <CardContent class="space-y-3">
-          <label v-for="profile in profiles" :key="profile.code" class="block cursor-pointer rounded-xl border p-3 transition-colors" :class="selectedProfile === profile.code ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200 hover:bg-slate-50'">
+          <label 
+            v-for="profile in profiles" 
+            :key="profile.code" 
+            class="block cursor-pointer rounded-xl border p-3.5 transition-all duration-150" 
+            :class="selectedProfile === profile.code ? 'border-blue-500 bg-blue-50/40 shadow-sm ring-1 ring-blue-500/10' : 'border-slate-200 hover:bg-slate-50'"
+          >
             <div class="flex items-start gap-3">
-              <input v-model="selectedProfile" type="radio" :value="profile.code" class="mt-1" :disabled="processing" />
-              <div>
+              <input v-model="selectedProfile" type="radio" :value="profile.code" class="mt-1.5" :disabled="processing" />
+              <div class="flex-1 min-w-0">
                 <div class="text-xs font-bold text-slate-800">{{ profile.label }}</div>
                 <div class="mt-1 text-[11px] leading-5 text-slate-500">{{ profile.description }}</div>
-                <div class="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold">
+                
+                <!-- Queue Stats Indicator -->
+                <div class="mt-1.5 flex flex-wrap gap-2 text-[11px] font-semibold">
                   <span v-if="profileQueueSummary(profile.code).pending" class="text-blue-600">
                     待导入 {{ profileQueueSummary(profile.code).pending }}
                   </span>
@@ -66,13 +73,26 @@
                     已完成 {{ profileQueueSummary(profile.code).completed }}
                   </span>
                 </div>
+
+                <!-- Inline Store Selection -->
+                <div 
+                  v-if="profile.code === 'store_finance_v1' && selectedProfile === 'store_finance_v1'" 
+                  class="mt-3 pt-3 border-t border-blue-100/50"
+                  @click.stop
+                >
+                  <label class="mb-2 block text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
+                    选择该财务表所对应的门店
+                  </label>
+                  <Select 
+                    v-model="selectedStoreId" 
+                    :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" 
+                    placeholder="必须选择标准门店" 
+                    :disabled="processing"
+                  />
+                </div>
               </div>
             </div>
           </label>
-          <div v-if="selectedProfile === 'store_finance_v1'" class="border-t border-slate-100 pt-3">
-            <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">财务表所属门店</label>
-            <Select v-model="selectedStoreId" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="必须选择标准门店" :disabled="processing" />
-          </div>
         </CardContent>
       </Card>
 
