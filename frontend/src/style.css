@@ -74,6 +74,14 @@
     @apply bg-slate-50 text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+  ::selection {
+    background-color: rgba(37, 99, 235, 0.12); /* Very soft blue background matching blue-600 */
+    color: #1d4ed8; /* Darker blue text */
+  }
+  ::-moz-selection {
+    background-color: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+  }
 }
 
 /* Beautiful custom scrollbar */
