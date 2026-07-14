@@ -26,6 +26,7 @@ const emit = defineEmits<{
 
 const isOpen = ref(false);
 const triggerRef = ref<HTMLElement | null>(null);
+const dropdownRef = ref<HTMLElement | null>(null);
 const dropdownStyle = ref<Record<string, string>>({});
 
 const selectedOption = computed(() => {
@@ -60,7 +61,13 @@ const updatePosition = () => {
   };
 };
 
-const onScrollOrResize = () => {
+const onScrollOrResize = (event: Event) => {
+  if (event.type === 'scroll') {
+    const target = event.target as HTMLElement;
+    if (dropdownRef.value && (dropdownRef.value === target || dropdownRef.value.contains(target))) {
+      return;
+    }
+  }
   isOpen.value = false;
 };
 
@@ -111,6 +118,7 @@ onUnmounted(() => {
       <transition name="popover-fade">
         <div
           v-if="isOpen"
+          ref="dropdownRef"
           :style="dropdownStyle"
           :class="
             cn(
