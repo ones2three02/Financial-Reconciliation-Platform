@@ -211,6 +211,7 @@ def test_confirmed_alias_remap_moves_current_amount_and_coverage(db_session):
         alias_id=alias.id,
         store_id=second_store.id,
         actor="admin",
+        reason="测试改绑门店",
     )
     db_session.commit()
 
@@ -281,6 +282,7 @@ def test_alias_rebind_does_not_reprocess_historical_file(db_session, monkeypatch
         alias_id=alias.id,
         store_id=second_store.id,
         actor="admin",
+        reason="测试历史文件隔离",
     )
 
     assert called_run_ids == []

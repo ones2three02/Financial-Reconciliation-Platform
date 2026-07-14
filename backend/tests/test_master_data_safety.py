@@ -10,6 +10,7 @@ from backend.app.crud.store import delete_store
 from backend.app.models.audit import AuditEvent
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.clean_data import CleanData
+from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
 from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
@@ -130,6 +131,43 @@ def test_store_with_current_open_batch_data_cannot_be_disabled(db_session):
             profile_code="store_finance_v1",
             profile_version=1,
             is_current=True,
+        )
+    )
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="当前未关账批次仍有数据"):
+        master_data_service().set_store_active(
+            db_session,
+            store_id=store.id,
+            is_active=False,
+            actor="admin",
+            reason="暂停营业",
+        )
+
+    assert db_session.get(Store, store.id).is_active is True
+
+
+def test_store_with_manual_zero_in_open_batch_cannot_be_disabled(db_session):
+    store = Store(name="民院店", code="MD010", is_active=True)
+    batch = ReconciliationBatch(
+        business_date=date(2026, 7, 10),
+        status="attention_required",
+        created_by="admin",
+    )
+    db_session.add_all([store, batch])
+    db_session.flush()
+    db_session.add(
+        SourceCoverage(
+            batch_id=batch.id,
+            business_date=batch.business_date,
+            store_id=store.id,
+            source_code="meituan",
+            status="present_zero",
+            evidence_type="manual_zero_confirmation",
+            amount=Decimal("0.00"),
+            file_count=0,
+            valid_row_count=0,
+            error_row_count=0,
         )
     )
     db_session.commit()

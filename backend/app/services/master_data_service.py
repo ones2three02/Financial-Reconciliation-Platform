@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend.app.models.audit import AuditEvent
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.clean_data import CleanData
+from backend.app.models.coverage import SourceCoverage
 from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
 from backend.app.models.store import Store
@@ -34,7 +35,7 @@ def set_store_active(
         return store
 
     if not is_active:
-        has_current_open_data = (
+        has_current_clean_data = (
             db.query(CleanData.id)
             .join(
                 ReconciliationBatch,
@@ -51,7 +52,21 @@ def set_store_active(
             .first()
             is not None
         )
-        if has_current_open_data:
+        has_current_coverage = (
+            db.query(SourceCoverage.id)
+            .join(
+                ReconciliationBatch,
+                ReconciliationBatch.id == SourceCoverage.batch_id,
+            )
+            .filter(
+                SourceCoverage.store_id == store.id,
+                SourceCoverage.status != "missing",
+                ReconciliationBatch.status != "closed",
+            )
+            .first()
+            is not None
+        )
+        if has_current_clean_data or has_current_coverage:
             raise ValueError("该门店在当前未关账批次仍有数据，不能停用")
 
     previous_is_active = bool(store.is_active)
