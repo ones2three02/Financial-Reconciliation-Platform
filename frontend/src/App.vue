@@ -400,49 +400,57 @@ const updateSpotlight = () => {
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       
-      let top = 0;
-      let left = 0;
+
       
-      // 对于高度非常大（超过半屏）的表格等大型组件（如门店名录、映射配置表），直接将气泡卡片停靠在右下角，避免遮挡和出界
+      // 对于高度非常大（超过半屏）的表格等大型组件（如门店名录、映射配置表），直接将气泡卡片停靠在右下角，使用 bottom/right 定位，彻底解决被裁切问题
       if (rect.height > viewportHeight * 0.5) {
-        top = viewportHeight - 160;
-        left = viewportWidth - 304;
+        tooltipStyle.value = {
+          bottom: '24px',
+          right: '24px',
+          top: 'auto',
+          left: 'auto',
+          transform: 'none'
+        };
       } else {
         // 默认布局：气泡在元素下方
-        top = rect.bottom + 16;
-        left = rect.left;
+        let top = rect.bottom + 16;
+        let left = rect.left;
         
         // 若下方空间不足，则将气泡置于上方
         if (rect.bottom + 180 > viewportHeight) {
           top = rect.top - 180;
         }
+        
+        // 视口安全边界保护（彻底解决气泡超出屏幕上方或左右边缘被裁切的问题）
+        if (top < 16) {
+          top = 16;
+        }
+        if (top + 160 > viewportHeight) {
+          top = viewportHeight - 176;
+        }
+        if (left < 16) {
+          left = 16;
+        }
+        if (left + 288 > viewportWidth) {
+          left = viewportWidth - 304;
+        }
+        
+        tooltipStyle.value = {
+          top: `${top}px`,
+          left: `${left}px`,
+          bottom: 'auto',
+          right: 'auto',
+          transform: 'none'
+        };
       }
-      
-      // 视口安全边界保护（彻底解决气泡超出屏幕上方或左右边缘被裁切的问题）
-      if (top < 16) {
-        top = 16;
-      }
-      if (top + 160 > viewportHeight) {
-        top = viewportHeight - 176;
-      }
-      if (left < 16) {
-        left = 16;
-      }
-      if (left + 288 > viewportWidth) {
-        left = viewportWidth - 304;
-      }
-      
-      tooltipStyle.value = {
-        top: `${top}px`,
-        left: `${left}px`,
-        transform: 'none'
-      };
     });
   } else {
     spotlightRect.value = null;
     tooltipStyle.value = {
       top: '50%',
       left: '50%',
+      bottom: 'auto',
+      right: 'auto',
       transform: 'translate(-50%, -50%)'
     };
   }
