@@ -43,7 +43,7 @@
     </Card>
 
     <div class="grid gap-6 lg:grid-cols-3">
-      <Card class="border-slate-200/80 shadow-sm">
+      <Card id="import-template-card" class="border-slate-200/80 shadow-sm">
         <CardHeader>
           <CardTitle class="flex items-center gap-2 text-base"><Sliders class="h-4 w-4 text-blue-600" />1. 选择工作簿模板</CardTitle>
           <CardDescription>模板是有版本的白名单规则，不会根据相似表头随意猜测。</CardDescription>
@@ -96,7 +96,7 @@
         </CardContent>
       </Card>
 
-      <Card class="border-slate-200/80 shadow-sm lg:col-span-2">
+      <Card id="import-file-card" class="border-slate-200/80 shadow-sm lg:col-span-2">
         <CardHeader>
           <CardTitle class="flex items-center gap-2 text-base"><UploadCloud class="h-4 w-4 text-blue-600" />2. 选择并导入文件</CardTitle>
           <CardDescription>支持一次选择多份 .xlsx。每个文件都会先预检，预检通过后才写入批次。</CardDescription>

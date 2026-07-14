@@ -64,14 +64,19 @@ export const startTour = (page: 'dashboard' | 'reconciliation' | 'import' | 'sto
   } else if (page === 'import') {
     tourSteps.value = [
       {
-        targetSelector: '#import-upload-card',
-        title: '导入渠道账单文件',
-        content: '在此处选择或创建今日的对账批次。将通联、美团、抖音等渠道账单以及系统销售报表拖拽上传至此开始分析。'
+        targetSelector: '#import-template-card',
+        title: '1. 选择工作簿模板',
+        content: '第一步：在此处选择需要导入的账单模板（如门店财务表、通联、美团、抖音等）。系统会根据所选模板的版本规则精确读取表头，拒绝猜测。'
+      },
+      {
+        targetSelector: '#import-file-card',
+        title: '2. 选择并导入文件',
+        content: '第二步：选择好对应模板后，将交易 Excel 账单拖入此虚线框内或点击上传。系统会自动预检，确保表头和格式正确无误后，即可批量导入。'
       },
       {
         targetSelector: '#import-history-card',
-        title: '已上传账单管理',
-        content: '展示当前已导入的各个渠道文件。如果有文件上传错误，可在此处删除文件并重新上传。'
+        title: '当前批次导入记录',
+        content: '第三步：这里展示当日批次下所有已导入的各渠道数据源文件。如果发现上传错误，支持点击“替换文件”或“作废文件”来进行冲正。'
       }
     ];
   } else if (page === 'stores') {
