@@ -308,7 +308,20 @@
                 {{ index + 1 }}
               </span>
               <div>
-                <div class="font-bold text-slate-700 text-xs">{{ store.standard_store_name }}</div>
+                <div class="font-bold text-slate-700 text-xs">
+                  <div class="flex items-center gap-1.5 group/copy inline-flex">
+                    <span>{{ store.standard_store_name }}</span>
+                    <button 
+                      @click="copyText(store.standard_store_name, store.id + '-dashboard-store')"
+                      class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                      title="点击复制"
+                    >
+                      <Check v-if="copiedId === store.id + '-dashboard-store'" class="w-3.5 h-3.5 text-emerald-500" />
+                      <Copy v-else class="w-3.5 h-3.5" />
+                      <span v-if="copiedId === store.id + '-dashboard-store'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                    </button>
+                  </div>
+                </div>
                 <div class="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
                   {{ store.status === 'missing_data' ? '缺少渠道数据' : '账面存在差异' }}
                 </div>
@@ -335,7 +348,7 @@ import { api } from '../services/api';
 import type { DashboardSummary, ReconciliationResult, TrendData } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays, ChevronLeft, ChevronRight, Copy, Check } from 'lucide-vue-next';
 import { BarChart, LineChart as EChartsLineChart } from 'echarts/charts';
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
 import { init, use, type EChartsType } from 'echarts/core';
@@ -355,6 +368,21 @@ const summary = ref<DashboardSummary>({
 
 const discrepancyStores = ref<ReconciliationResult[]>([]);
 const recentTrends = ref<TrendData[]>([]);
+
+const copiedId = ref('');
+const copyText = async (text: string, id: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = '';
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
+};
 
 const viewMode = ref<'trends' | 'calendar'>('trends');
 const calendarYear = ref(new Date().getFullYear());

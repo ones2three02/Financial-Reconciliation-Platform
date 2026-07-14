@@ -160,7 +160,20 @@
               </thead>
               <tbody class="divide-y divide-slate-100">
                 <tr v-for="store in activeStores" :key="store.id" class="group hover:bg-slate-50/50">
-                  <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">{{ store.name }}</td>
+                  <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                     <div class="flex items-center gap-1.5 group/copy">
+                       <span>{{ store.name }}</span>
+                       <button 
+                         @click="copyText(store.name, store.id + '-overview-store')"
+                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                         title="点击复制"
+                       >
+                         <Check v-if="copiedId === store.id + '-overview-store'" class="w-3 h-3 text-emerald-500" />
+                         <Copy v-else class="w-3 h-3" />
+                         <span v-if="copiedId === store.id + '-overview-store'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                       </button>
+                     </div>
+                  </td>
                   <td v-for="source in sourceCodes" :key="source" class="p-2 text-center">
                     <div class="inline-flex min-w-24 flex-col items-center gap-1 rounded-lg px-2 py-1.5" :class="coverageClass(coverageFor(store.id, source)?.status)">
                       <span class="font-bold">{{ coverageLabel(coverageFor(store.id, source)?.status) }}</span>
@@ -240,7 +253,21 @@
                   <div class="inline-block text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md mb-2" :class="issueTagClass(issue.source_code)">
                     {{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}
                   </div>
-                  <div class="text-sm font-extrabold text-slate-800">{{ issue.raw_value || '空门店名称' }}</div>
+                  <div class="text-sm font-extrabold text-slate-800">
+                    <div class="flex items-center gap-1.5 group/copy inline-flex">
+                      <span>{{ issue.raw_value || '空门店名称' }}</span>
+                      <button 
+                        v-if="issue.raw_value"
+                        @click="copyText(issue.raw_value, issue.id + '-issue-raw')"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        title="点击复制"
+                      >
+                        <Check v-if="copiedId === issue.id + '-issue-raw'" class="w-3 h-3 text-emerald-500" />
+                        <Copy v-else class="w-3 h-3" />
+                        <span v-if="copiedId === issue.id + '-issue-raw'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                      </button>
+                    </div>
+                  </div>
                   <div class="mt-1 text-[11px] text-slate-500">影响 {{ issue.affected_row_count }} 行，金额 ¥{{ money(issue.affected_amount) }}</div>
                 </div>
                 <Select v-model="issueStoreSelections[issue.id]" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="选择确认归属的标准门店" />
@@ -275,7 +302,20 @@
               <tbody class="divide-y divide-slate-100">
                 <tr v-if="!detail?.results.length"><td colspan="10" class="p-10 text-center text-slate-400 bg-white">尚未执行对账</td></tr>
                 <tr v-for="result in detail?.results ?? []" :key="result.id" class="group hover:bg-slate-50/50">
-                  <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">{{ result.standard_store_name }}</td>
+                  <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
+                     <div class="flex items-center gap-1.5 group/copy">
+                       <span>{{ result.standard_store_name }}</span>
+                       <button 
+                         @click="copyText(result.standard_store_name, result.id + '-result-store')"
+                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                         title="点击复制"
+                       >
+                         <Check v-if="copiedId === result.id + '-result-store'" class="w-3 h-3 text-emerald-500" />
+                         <Copy v-else class="w-3 h-3" />
+                         <span v-if="copiedId === result.id + '-result-store'" class="text-[9px] text-emerald-500 font-bold">已复制</span>
+                       </button>
+                     </div>
+                  </td>
                   <td class="p-3 text-right font-mono">{{ money(result.tonglian_amount) }}</td>
                   <td class="p-3 text-right font-mono">{{ money(result.meituan_amount) }}</td>
                   <td class="p-3 text-right font-mono">{{ money(result.douyin_amount) }}</td>
@@ -373,7 +413,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties } from 'lucide-vue-next';
+import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties, Copy, Check } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
 import type { BatchDetail, DataQualityIssue, ReconciliationBatch, ReconciliationResult, SourceCode, Store, StoreAlias } from '../services/api';
 import { globalDate } from '../services/store';
@@ -401,6 +441,21 @@ type ZeroAction = { storeId: number; storeName: string; source: SourceCode };
 const zeroConfirmation = ref<ZeroAction | null>(null);
 const zeroRevocation = ref<ZeroAction | null>(null);
 const zeroRevokeReason = ref('');
+
+const copiedId = ref('');
+const copyText = async (text: string, id: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = '';
+      }
+    }, 1500);
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
+};
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
