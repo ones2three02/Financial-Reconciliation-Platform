@@ -533,7 +533,7 @@ const submitRestoreReset = async () => {
   }
 };
 
-const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入', finance: '财务表' }[source] ?? source);
+const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入', finance: '财务表', store_finance: '门店财务表' }[source] ?? source);
 const profileLabel = (code?: string | null) => profiles.find((item) => item.code === code)?.label ?? code ?? '—';
 const fileStoreName = (file: ImportFile) => file.store_id ? activeStores.value.find((store) => store.id === file.store_id)?.name ?? `门店 #${file.store_id}` : '工作簿内多门店';
 const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);

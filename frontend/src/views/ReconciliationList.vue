@@ -556,7 +556,7 @@ const downloadReport = async () => {
   }
 };
 
-const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入' }[source] ?? source);
+const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入', finance: '财务表', store_finance: '门店财务表' }[source] ?? source);
 const coverageLabel = (status?: string) => ({ present_data: '有数据', present_zero: '已确认零', missing: '缺失', attention_required: '待处理' }[status ?? 'missing'] ?? '缺失');
 const coverageClass = (status?: string) => status === 'present_data' ? 'bg-emerald-50 text-emerald-700' : status === 'present_zero' ? 'bg-blue-50 text-blue-700' : status === 'attention_required' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700';
 const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);
