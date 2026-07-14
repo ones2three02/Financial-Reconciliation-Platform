@@ -49,7 +49,7 @@
         </CardHeader>
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">门店编码</th>
@@ -73,12 +73,12 @@
                 <tr v-for="s in paginatedStores" :key="s.id" class="hover:bg-slate-50/40 transition-colors">
                   <td class="p-4 font-mono font-bold text-slate-500">
                     <div class="flex items-center gap-1.5 group/copy">
-                      <span v-if="s.code">{{ s.code }}</span>
+                      <span v-if="s.code" class="select-text">{{ s.code }}</span>
                       <span v-else class="select-none text-slate-300/80">—</span>
                       <button 
                         v-if="s.code"
                         @click="copyText(s.code, s.id + '-code')"
-                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
+                        class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100/80 shrink-0 flex items-center gap-1 scale-95"
                         title="点击复制"
                       >
                         <Check v-if="copiedId === s.id + '-code'" class="w-3 h-3 text-emerald-500" />
@@ -89,7 +89,7 @@
                   </td>
                   <td class="p-4 font-extrabold text-slate-800">
                     <div class="flex items-center gap-1.5 group/copy">
-                      <span>{{ s.name }}</span>
+                      <span class="select-text">{{ s.name }}</span>
                       <button 
                         @click="copyText(s.name, s.id + '-name')"
                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
@@ -102,15 +102,15 @@
                     </div>
                   </td>
                   <td class="p-4 font-medium text-slate-600">
-                    <span v-if="s.region">{{ s.region }}</span>
+                    <span v-if="s.region" class="select-text">{{ s.region }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
                   <td class="p-4 font-medium text-slate-600">
-                    <span v-if="s.manager">{{ s.manager }}</span>
+                    <span v-if="s.manager" class="select-text">{{ s.manager }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
                   <td class="p-4 font-mono text-slate-500">
-                    <span v-if="s.phone">{{ s.phone }}</span>
+                    <span v-if="s.phone" class="select-text">{{ s.phone }}</span>
                     <span v-else class="select-none text-slate-300/80">—</span>
                   </td>
                   <td class="p-4 text-center">
@@ -245,7 +245,7 @@
         <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Alias Mapping Table -->
           <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 中的原始店名</th>
@@ -271,7 +271,7 @@
                 >
                   <td class="p-4 font-bold text-slate-700">
                     <div class="flex items-center gap-1.5 group/copy">
-                      <span>{{ a.alias_name }}</span>
+                      <span class="select-text">{{ a.alias_name }}</span>
                       <button 
                         @click="copyText(a.alias_name, a.id + '-alias')"
                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"

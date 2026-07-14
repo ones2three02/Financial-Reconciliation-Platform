@@ -75,7 +75,7 @@
         <CardContent class="p-4 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Mappings Table -->
           <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-slate-200/80">
-            <table class="w-full text-left border-collapse">
+            <table class="w-full text-left border-collapse select-none">
               <thead>
                 <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80 select-none">
                   <th class="sticky top-0 z-10 bg-slate-50 p-4">数据分类</th>
@@ -102,7 +102,7 @@
                   </td>
                   <td class="p-4">
                     <div class="flex items-center gap-1.5 group/copy">
-                      <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700">
+                      <code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700 select-text">
                         {{ m.target_field }}
                       </code>
                       <button 
@@ -118,7 +118,7 @@
                   </td>
                   <td class="p-4 font-bold text-slate-800">
                     <div class="flex items-center gap-1.5 group/copy">
-                      <span>{{ m.source_column }}</span>
+                      <span class="select-text">{{ m.source_column }}</span>
                       <button 
                         @click="copyText(m.source_column, m.id + '-source')"
                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
