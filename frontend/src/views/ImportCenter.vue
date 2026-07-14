@@ -15,6 +15,9 @@
           <Button variant="outline" size="sm" :disabled="loadingBatch || !canOperate" @click="ensureBatch">
             {{ loadingBatch ? '载入中...' : activeBatch ? '刷新批次' : '创建该账期批次' }}
           </Button>
+          <Button v-if="activeBatch && activeBatch.status !== 'closed' && canOperate" variant="outline" size="sm" class="border-rose-200 text-rose-700" :disabled="processing" @click="openReset">
+            <RotateCcw class="mr-1 h-3.5 w-3.5" />重置当日数据
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -25,7 +28,8 @@
           </div>
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">已导入文件</div>
-            <div class="mt-1 text-lg font-extrabold text-slate-800">{{ batchDetail?.import_files.length ?? 0 }} 份</div>
+            <div class="mt-1 text-lg font-extrabold text-slate-800">{{ currentFileCount }} 份</div>
+            <div v-if="historicalFileCount" class="mt-1 text-[10px] text-slate-400">另有 {{ historicalFileCount }} 个历史版本</div>
           </div>
           <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">待处理质量问题</div>
@@ -101,42 +105,88 @@
     </div>
 
     <Card class="border-slate-200/80 shadow-sm">
-      <CardHeader>
-        <CardTitle class="flex items-center gap-2 text-base"><History class="h-4 w-4 text-blue-600" />当前批次导入记录</CardTitle>
-        <CardDescription>原始导入不可物理删除；需要修正时重新导入新版本，历史记录继续用于审计追溯。</CardDescription>
+      <CardHeader class="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle class="flex items-center gap-2 text-base"><History class="h-4 w-4 text-blue-600" />当前批次导入记录</CardTitle>
+          <CardDescription>“追加”使用上方普通导入；导错时请选择原文件进行替换或作废，系统不会物理删除历史。</CardDescription>
+        </div>
+        <Button v-if="historicalFileCount" variant="outline" size="sm" @click="showHistory = !showHistory">
+          {{ showHistory ? '隐藏历史版本' : `显示历史版本（${historicalFileCount}）` }}
+        </Button>
       </CardHeader>
       <CardContent class="p-0">
         <div class="overflow-x-auto border-t border-slate-100">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400">
-              <tr><th class="p-4">文件</th><th class="p-4">模板</th><th class="p-4">来源</th><th class="p-4">行数</th><th class="p-4">状态</th><th class="p-4">导入时间</th></tr>
+              <tr><th class="p-4">文件</th><th class="p-4">模板</th><th class="p-4">来源</th><th class="p-4">行数</th><th class="p-4">版本</th><th class="p-4">处理状态</th><th class="p-4">导入时间</th><th class="p-4 text-right">操作</th></tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-              <tr v-if="!batchDetail?.import_files.length"><td colspan="6" class="p-8 text-center text-slate-400">该账期尚未导入文件</td></tr>
-              <tr v-for="file in batchDetail?.import_files ?? []" :key="file.id">
-                <td class="p-4 font-bold text-slate-700">{{ file.filename }}</td>
+              <tr v-if="!visibleImportFiles.length"><td colspan="8" class="p-8 text-center text-slate-400">该账期尚未导入文件</td></tr>
+              <tr v-for="file in visibleImportFiles" :key="file.id" :class="file.is_current ? '' : 'bg-slate-50/70 opacity-75'">
+                <td class="p-4">
+                  <div class="font-bold text-slate-700">{{ file.filename }}</div>
+                  <div class="mt-1 font-mono text-[10px] text-slate-400">文件 #{{ file.id }}<span v-if="file.supersedes_file_id"> · 替换 #{{ file.supersedes_file_id }}</span></div>
+                </td>
                 <td class="p-4 text-slate-500">{{ profileLabel(file.profile_code) }}</td>
                 <td class="p-4 text-slate-500">{{ sourceLabel(file.data_source) }}</td>
                 <td class="p-4 text-slate-500">{{ file.row_count }}</td>
+                <td class="p-4"><span class="rounded-full px-2 py-1 font-bold" :class="file.is_current ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">{{ file.is_current ? '当前有效' : '历史版本' }}</span></td>
                 <td class="p-4"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-600">{{ file.upload_status }}</span></td>
                 <td class="p-4 font-mono text-slate-500">{{ formatDateTime(file.uploaded_at) }}</td>
+                <td class="p-4 text-right">
+                  <div v-if="file.is_current && activeBatch?.status !== 'closed' && canOperate" class="flex justify-end gap-2">
+                    <Button variant="outline" size="xs" :disabled="processing" @click="openFileAction('replace', file)"><RefreshCw class="mr-1 h-3 w-3" />替换</Button>
+                    <Button variant="outline" size="xs" class="border-rose-200 text-rose-700" :disabled="processing" @click="openFileAction('invalidate', file)"><Ban class="mr-1 h-3 w-3" />作废</Button>
+                  </div>
+                  <span v-else class="text-slate-300">—</span>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </CardContent>
     </Card>
+
+    <div v-if="actionFile" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeFileAction">
+      <Card class="w-full max-w-lg bg-white shadow-2xl">
+        <CardHeader>
+          <CardTitle class="text-base">{{ fileAction === 'replace' ? '替换导入文件' : '作废导入文件' }}</CardTitle>
+          <CardDescription v-if="fileAction === 'replace'">将以新文件替换“{{ actionFile.filename }}”，沿用原账期、模板和文件级门店。渠道表按整份文件替换。</CardDescription>
+          <CardDescription v-else>“{{ actionFile.filename }}”将退出当前对账，但原文件、原始数据和历史版本仍永久保留。</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <label v-if="fileAction === 'replace'" class="block rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-bold text-slate-600">
+            {{ replacementFile?.name ?? '选择正确的 .xlsx 文件' }}
+            <input type="file" accept=".xlsx" class="hidden" @change="onReplacementSelected" />
+          </label>
+          <textarea v-model="actionReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" :placeholder="fileAction === 'replace' ? '请输入替换原因，例如：原文件导出日期范围错误' : '请输入作废原因，例如：误传了其他账期文件'"></textarea>
+          <div class="rounded-lg bg-amber-50 p-3 text-[11px] leading-5 text-amber-800">操作完成后会立即重算覆盖状态和对账结果。已关账批次必须先重开。</div>
+        </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeFileAction">取消</Button><Button :class="fileAction === 'invalidate' ? 'bg-rose-600 text-white hover:bg-rose-700' : ''" :disabled="processing || !actionReason.trim() || (fileAction === 'replace' && !replacementFile)" @click="submitFileAction">{{ processing ? '处理中...' : '确认执行' }}</Button></CardFooter>
+      </Card>
+    </div>
+
+    <div v-if="showReset" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeReset">
+      <Card class="w-full max-w-lg bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base text-rose-700">重置 {{ globalDate }} 当日当前数据</CardTitle><CardDescription>所有当前文件和人工确认零收入将退出当前计算，历史数据不会删除。完成后需要重新导入。</CardDescription></CardHeader>
+        <CardContent class="space-y-4">
+          <textarea v-model="resetReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-rose-500" placeholder="请输入整批重置原因"></textarea>
+          <div><label class="mb-1.5 block text-xs font-bold text-slate-700">再次输入账期日期确认</label><input v-model="resetConfirmationDate" type="text" class="w-full rounded-xl border border-slate-200 p-3 font-mono text-sm outline-none focus:ring-2 focus:ring-rose-500" :placeholder="globalDate" /></div>
+        </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeReset">取消</Button><Button class="bg-rose-600 text-white hover:bg-rose-700" :disabled="processing || !resetReason.trim() || resetConfirmationDate !== globalDate" @click="submitReset">{{ processing ? '重置中...' : '确认重置当前数据' }}</Button></CardFooter>
+      </Card>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { CalendarRange, FileSpreadsheet, History, Sliders, UploadCloud } from 'lucide-vue-next';
+import { Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
-import type { BatchDetail, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import type { BatchDetail, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
 import { globalDate } from '../services/store';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Select } from '../components/ui/select';
 
 type QueueStatus = 'ready' | 'preflighting' | 'importing' | 'imported' | 'duplicate' | 'attention' | 'failed';
@@ -158,10 +208,21 @@ const queue = ref<QueueItem[]>([]);
 const loadingBatch = ref(false);
 const processing = ref(false);
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const showHistory = ref(false);
+const actionFile = ref<ImportFile | null>(null);
+const fileAction = ref<'replace' | 'invalidate'>('replace');
+const actionReason = ref('');
+const replacementFile = ref<File | null>(null);
+const showReset = ref(false);
+const resetReason = ref('');
+const resetConfirmationDate = ref('');
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
 const openIssueCount = computed(() => batchDetail.value?.quality_issues.filter((issue) => issue.status === 'open').length ?? 0);
+const currentFileCount = computed(() => batchDetail.value?.import_files.filter((file) => file.is_current).length ?? 0);
+const historicalFileCount = computed(() => batchDetail.value?.import_files.filter((file) => !file.is_current).length ?? 0);
+const visibleImportFiles = computed(() => (batchDetail.value?.import_files ?? []).filter((file) => showHistory.value || file.is_current));
 const canImport = computed(() => Boolean(
   activeBatch.value
   && canOperate.value
@@ -227,6 +288,86 @@ const processQueue = async () => {
     ? { type: 'error', text: `${queue.value.length - failed} 份导入完成，${failed} 份失败，请查看逐文件原因。` }
     : { type: 'success', text: '本次文件已完成预检和导入。若出现未知门店，请到“对账明细”人工确认。' };
   processing.value = false;
+};
+
+const refreshBatch = async () => {
+  if (!activeBatch.value) return;
+  batchDetail.value = await api.getBatchDetail(activeBatch.value.id);
+  activeBatch.value = batchDetail.value.batch;
+};
+
+const openFileAction = (action: 'replace' | 'invalidate', file: ImportFile) => {
+  fileAction.value = action;
+  actionFile.value = file;
+  actionReason.value = '';
+  replacementFile.value = null;
+  message.value = null;
+};
+
+const closeFileAction = () => {
+  if (processing.value) return;
+  actionFile.value = null;
+  actionReason.value = '';
+  replacementFile.value = null;
+};
+
+const onReplacementSelected = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  replacementFile.value = input.files?.[0] ?? null;
+  input.value = '';
+};
+
+const submitFileAction = async () => {
+  if (!actionFile.value || !actionReason.value.trim()) return;
+  processing.value = true;
+  message.value = null;
+  try {
+    const filename = actionFile.value.filename;
+    if (fileAction.value === 'replace') {
+      if (!replacementFile.value) return;
+      await api.replaceImportFile(actionFile.value.id, replacementFile.value, actionReason.value.trim());
+      message.value = { type: 'success', text: `已用新文件替换“${filename}”，覆盖状态和对账结果已自动重算。` };
+    } else {
+      await api.invalidateImportFile(actionFile.value.id, actionReason.value.trim());
+      message.value = { type: 'success', text: `已作废“${filename}”，历史数据仍然保留。` };
+    }
+    actionFile.value = null;
+    actionReason.value = '';
+    replacementFile.value = null;
+    await refreshBatch();
+  } catch (error) {
+    message.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    processing.value = false;
+  }
+};
+
+const openReset = () => {
+  showReset.value = true;
+  resetReason.value = '';
+  resetConfirmationDate.value = '';
+  message.value = null;
+};
+
+const closeReset = () => {
+  if (processing.value) return;
+  showReset.value = false;
+};
+
+const submitReset = async () => {
+  if (!activeBatch.value || !resetReason.value.trim() || resetConfirmationDate.value !== globalDate.value) return;
+  processing.value = true;
+  try {
+    activeBatch.value = await api.resetBatchCurrentData(activeBatch.value.id, resetReason.value.trim(), resetConfirmationDate.value);
+    await refreshBatch();
+    showReset.value = false;
+    showHistory.value = true;
+    message.value = { type: 'success', text: '该账期当前数据已重置，历史仍保留。请重新导入正确文件。' };
+  } catch (error) {
+    message.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    processing.value = false;
+  }
 };
 
 const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入', finance: '财务表' }[source] ?? source);

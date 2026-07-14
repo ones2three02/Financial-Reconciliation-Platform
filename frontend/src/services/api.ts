@@ -98,7 +98,8 @@ export interface ImportFile {
   store_id?: number | null;
   profile_code?: string | null;
   profile_version?: number | null;
-  is_current?: boolean;
+  supersedes_file_id: number | null;
+  is_current: boolean;
 }
 
 export interface ReconciliationBatch {
@@ -136,7 +137,7 @@ export interface DataQualityIssue {
   raw_value: string | null;
   affected_row_count: number;
   affected_amount: number;
-  status: 'open' | 'resolved';
+  status: 'open' | 'resolved' | 'superseded';
   created_at: string;
 }
 
@@ -192,6 +193,12 @@ export interface ImportOutcome {
   extraction_run_id: number | null;
 }
 
+export interface ImportVersionAction {
+  status: 'invalidated' | 'reset';
+  batch_id: number;
+  file_id: number | null;
+}
+
 export type SourceCode = 'tonglian' | 'meituan' | 'douyin' | 'cash' | 'sales';
 export type ProfileCode = 'store_finance_v1' | 'tonglian_v1' | 'meituan_v1' | 'douyin_v1';
 
@@ -242,6 +249,11 @@ export const api = {
     client.post<ReconciliationBatch>(`/batches/${batchId}/close`).then((res) => res.data),
   reopenBatch: (batchId: number, reason: string) =>
     client.post<ReconciliationBatch>(`/batches/${batchId}/reopen`, { reason }).then((res) => res.data),
+  resetBatchCurrentData: (batchId: number, reason: string, confirmationDate: string) =>
+    client.post<ReconciliationBatch>(`/batches/${batchId}/reset-current-data`, {
+      reason,
+      confirmation_date: confirmationDate,
+    }).then((res) => res.data),
 
   preflightWorkbook: (file: File, profileCode: ProfileCode, businessDate: string, storeId?: number | null) =>
     client.post<PreflightResult>('/files/preflight', workbookForm(file, {
@@ -255,6 +267,12 @@ export const api = {
       profile_code: profileCode,
       store_id: storeId,
     }), { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data),
+  replaceImportFile: (fileId: number, file: File, reason: string) =>
+    client.post<ImportOutcome>(`/files/${fileId}/replace`, workbookForm(file, { reason }), {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((res) => res.data),
+  invalidateImportFile: (fileId: number, reason: string) =>
+    client.post<ImportVersionAction>(`/files/${fileId}/invalidate`, { reason }).then((res) => res.data),
 
   getStores: () => client.get<Store[]>('/stores/').then((res) => res.data),
   createStore: (data: { name: string; code?: string; region?: string; manager?: string; phone?: string; is_active?: boolean }) =>
