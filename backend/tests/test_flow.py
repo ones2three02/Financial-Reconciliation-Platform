@@ -7,7 +7,10 @@ from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.models.clean_data import CleanData
 from backend.app.models.reconciliation import ReconciliationResult
+from backend.app.services.batch_service import get_or_create_batch
 from backend.app.services.cleaner import clean_amount, clean_date, get_or_create_store_alias, clean_import_file_data
+from backend.app.services.coverage_service import upsert_coverage
+from backend.app.services.reconciliation_service import confirm_zero
 from backend.app.services.reconciler import run_reconciliation_for_date
 
 # --- Cleaner Unit Tests ---
@@ -139,7 +142,37 @@ def test_reconciliation_calculation(db_session):
     assert len(clean_rows) == 3
     for cr in clean_rows:
         assert cr.standard_store_name == "杨一一店"
-        
+
+    # 旧清洗入口不再允许通过“没有记录”推断来源为零，显式补齐来源覆盖证据。
+    batch = get_or_create_batch(db_session, date(2026, 7, 13), actor="test")
+    for source, amount in (
+        ("tonglian", Decimal("100.00")),
+        ("sales", Decimal("120.00")),
+        ("cash", Decimal("20.00")),
+    ):
+        upsert_coverage(
+            db_session,
+            batch_id=batch.id,
+            business_date=batch.business_date,
+            store_id=store.id,
+            source_code=source,
+            status="present_data",
+            evidence_type="data_rows",
+            amount=amount,
+            file_count=1,
+            valid_row_count=1,
+            error_row_count=0,
+            extraction_run_id=None,
+        )
+    for source in ("meituan", "douyin"):
+        confirm_zero(
+            db_session,
+            batch_id=batch.id,
+            store_id=store.id,
+            source_code=source,
+            actor="test",
+        )
+
     # 4. Run reconciler
     reconciled = run_reconciliation_for_date(db_session, date(2026, 7, 13))
     assert len(reconciled) == 1

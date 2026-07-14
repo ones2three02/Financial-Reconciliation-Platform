@@ -27,6 +27,11 @@ class ReconciliationResultUpdate(BaseModel):
 
 class ReconciliationResult(ReconciliationResultBase):
     id: int
+    batch_id: Optional[int] = None
+    store_id: Optional[int] = None
+    formula_version: Optional[int] = None
+    completeness_status: Optional[str] = None
+    calculated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
