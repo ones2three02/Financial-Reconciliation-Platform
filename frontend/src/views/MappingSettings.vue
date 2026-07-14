@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-8 fade-in">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="h-[calc(100vh-8rem)] flex flex-col fade-in overflow-hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 min-h-0 overflow-hidden">
       <!-- Create Mapping Form Card -->
       <Card class="h-fit shadow-sm border border-slate-200/80">
         <CardHeader class="pb-4">
@@ -54,7 +54,7 @@
       </Card>
 
       <!-- Mappings List Card -->
-      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80">
+      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -72,17 +72,17 @@
             align="right"
           />
         </CardHeader>
-        <CardContent>
+        <CardContent class="p-4 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Mappings Table -->
-          <div class="overflow-hidden rounded-xl border border-slate-200/80">
+          <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-slate-200/80">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                  <th class="p-4">数据分类</th>
-                  <th class="p-4">目标标准字段</th>
-                  <th class="p-4">Excel 原始列标题</th>
-                  <th class="p-4 text-center">使用状态</th>
-                  <th class="p-4 text-center">操作</th>
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">数据分类</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">目标标准字段</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 原始列标题</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">使用状态</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs">
