@@ -382,11 +382,11 @@ const updateSpotlight = () => {
   const el = document.querySelector(selector) as HTMLElement;
   
   if (el) {
-    // 平滑滚动定位元素到视口中央，解决元素在视口外遮罩全黑的问题
-    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    // 改用 behavior: 'auto' 瞬间滚动定位，彻底根除平滑滚动过渡期计算的相对位移偏移（如截图3的问题）
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
     
-    // 延时等滚动完成后再精确计算位置
-    setTimeout(() => {
+    // 用 nextTick 确保 DOM 滚动完全就绪后，直接进行坐标提取
+    nextTick(() => {
       const rect = el.getBoundingClientRect();
       const padding = 6;
       
@@ -400,30 +400,36 @@ const updateSpotlight = () => {
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
       
-      // 气泡卡片也是 fixed 定位，直接使用 viewport 坐标（不用加 window.scrollY / scrollX）
-      let top = rect.bottom + 16;
-      let left = rect.left;
+      let top = 0;
+      let left = 0;
       
-      // 若高亮目标元素体积过大（例如门店列表、映射列表等大卡片），则将说明气泡固定在视口右下角以防遮挡或移出视窗
-      if (rect.height > 280) {
-        top = viewportHeight - 190;
+      // 对于高度非常大（超过半屏）的表格等大型组件（如门店名录、映射配置表），直接将气泡卡片停靠在右下角，避免遮挡和出界
+      if (rect.height > viewportHeight * 0.5) {
+        top = viewportHeight - 160;
         left = viewportWidth - 304;
       } else {
-        // 若气泡溢出视口底部，则置于高亮元素的正上方
-        if (top + 160 > viewportHeight) {
-          if (rect.top - 180 > 16) {
-            top = rect.top - 180;
-          } else {
-            top = 16; // 强行限制顶部边界，防止被浏览器顶部截断
-          }
+        // 默认布局：气泡在元素下方
+        top = rect.bottom + 16;
+        left = rect.left;
+        
+        // 若下方空间不足，则将气泡置于上方
+        if (rect.bottom + 180 > viewportHeight) {
+          top = rect.top - 180;
         }
-        // 横向边缘校验保护
-        if (left + 288 > viewportWidth) {
-          left = viewportWidth - 304;
-        }
-        if (left < 16) {
-          left = 16;
-        }
+      }
+      
+      // 视口安全边界保护（彻底解决气泡超出屏幕上方或左右边缘被裁切的问题）
+      if (top < 16) {
+        top = 16;
+      }
+      if (top + 160 > viewportHeight) {
+        top = viewportHeight - 176;
+      }
+      if (left < 16) {
+        left = 16;
+      }
+      if (left + 288 > viewportWidth) {
+        left = viewportWidth - 304;
       }
       
       tooltipStyle.value = {
@@ -431,7 +437,7 @@ const updateSpotlight = () => {
         left: `${left}px`,
         transform: 'none'
       };
-    }, 200);
+    });
   } else {
     spotlightRect.value = null;
     tooltipStyle.value = {
