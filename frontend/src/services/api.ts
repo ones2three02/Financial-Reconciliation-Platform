@@ -171,6 +171,8 @@ export interface BatchDetail {
   coverages: SourceCoverage[];
   quality_issues: DataQualityIssue[];
   results: ReconciliationResult[];
+  can_restore_last_reset: boolean;
+  last_reset_event_id: number | null;
 }
 
 export interface PreflightResult {
@@ -255,10 +257,17 @@ export const api = {
     client.post<ReconciliationBatch>(`/batches/${batchId}/close`).then((res) => res.data),
   reopenBatch: (batchId: number, reason: string) =>
     client.post<ReconciliationBatch>(`/batches/${batchId}/reopen`, { reason }).then((res) => res.data),
-  resetBatchCurrentData: (batchId: number, reason: string, confirmationDate: string) =>
+  resetBatchCurrentData: (batchId: number, reason: string, confirmationDate: string, riskAcknowledged: boolean) =>
     client.post<ReconciliationBatch>(`/batches/${batchId}/reset-current-data`, {
       reason,
       confirmation_date: confirmationDate,
+      risk_acknowledged: riskAcknowledged,
+    }).then((res) => res.data),
+  restoreLastReset: (batchId: number, reason: string, confirmationDate: string, riskAcknowledged: boolean) =>
+    client.post<ReconciliationBatch>(`/batches/${batchId}/restore-last-reset`, {
+      reason,
+      confirmation_date: confirmationDate,
+      risk_acknowledged: riskAcknowledged,
     }).then((res) => res.data),
 
   preflightWorkbook: (file: File, profileCode: ProfileCode, businessDate: string, storeId?: number | null) =>
@@ -279,6 +288,8 @@ export const api = {
     }).then((res) => res.data),
   invalidateImportFile: (fileId: number, reason: string) =>
     client.post<ImportVersionAction>(`/files/${fileId}/invalidate`, { reason }).then((res) => res.data),
+  restoreImportFile: (fileId: number, reason: string) =>
+    client.post<ImportOutcome>(`/files/${fileId}/restore`, { reason }).then((res) => res.data),
 
   getStores: () => client.get<Store[]>('/stores/').then((res) => res.data),
   createStore: (data: { name: string; code?: string; region?: string; manager?: string; phone?: string; is_active?: boolean }) =>
