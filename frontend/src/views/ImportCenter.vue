@@ -249,9 +249,9 @@
             </div>
             
             <div v-else class="space-y-4">
-              <div v-for="issue in resolutionIssues" :key="issue.id" class="grid items-center gap-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 md:grid-cols-[1fr_1.2fr_auto]">
+              <div v-for="issue in resolutionIssues" :key="issue.id" class="grid items-center gap-4 rounded-xl border p-4 md:grid-cols-[1fr_1.2fr_auto] transition-all hover:shadow-sm" :class="issueCardClass(issue.source_code)">
                 <div>
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600">
+                  <div class="inline-block text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md mb-2" :class="issueTagClass(issue.source_code)">
                     {{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}
                   </div>
                   <div class="mt-1 text-sm font-extrabold text-slate-800">
@@ -662,6 +662,32 @@ const uploadStatusLabel = (status: string) => ({ pending: '待处理', parsed: '
 const uploadStatusClass = (status: string) => status === 'processed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : status === 'attention_required' ? 'bg-amber-50 text-amber-700 border border-amber-100' : status === 'failed' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-slate-100 text-slate-600 border border-transparent';
 const formatDateTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false });
 const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
+
+const issueCardClass = (source: string) => {
+  switch (source) {
+    case 'tonglian':
+      return 'border-blue-100 bg-blue-50/20';
+    case 'meituan':
+      return 'border-amber-100 bg-amber-50/25';
+    case 'douyin':
+      return 'border-purple-100 bg-purple-50/20';
+    default:
+      return 'border-slate-200 bg-slate-50/50';
+  }
+};
+
+const issueTagClass = (source: string) => {
+  switch (source) {
+    case 'tonglian':
+      return 'text-blue-600 bg-blue-100/50';
+    case 'meituan':
+      return 'text-amber-700 bg-amber-100/50';
+    case 'douyin':
+      return 'text-purple-600 bg-purple-100/50';
+    default:
+      return 'text-slate-600 bg-slate-100/50';
+  }
+};
 
 watch(globalDate, () => {
   queues.value = {};

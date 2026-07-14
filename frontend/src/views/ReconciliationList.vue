@@ -192,22 +192,59 @@
             <CardTitle class="flex items-center gap-2 text-sm"><AlertTriangle class="h-4 w-4 text-blue-600" />待人工确认门店</CardTitle>
             <CardDescription class="text-xs text-slate-400">系统不会依据名称相似度自动归店。请核对来源和原始名称后，由管理员明确选择标准门店。</CardDescription>
           </CardHeader>
-          <CardContent class="flex-1 overflow-auto min-h-0 p-5 border-t border-slate-100">
-            <div v-if="!openIssues.length" class="h-full flex items-center justify-center text-center">
+          <CardContent class="flex-1 overflow-auto min-h-0 p-5 border-t border-slate-100 flex flex-col gap-4">
+            <!-- Filter Toolbar -->
+            <div v-if="openIssues.length" class="flex items-center gap-1.5 bg-slate-100/85 p-1 rounded-xl w-fit self-start shrink-0">
+              <button 
+                v-for="filterOpt in [{value: 'all', label: '全部'}, {value: 'tonglian', label: '通联'}, {value: 'meituan', label: '美团'}, {value: 'douyin', label: '抖音'}]"
+                :key="filterOpt.value"
+                @click="selectedSourceFilter = filterOpt.value"
+                :class="[
+                  'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1',
+                  selectedSourceFilter === filterOpt.value 
+                    ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20' 
+                    : 'text-slate-500 hover:text-slate-800'
+                ]"
+              >
+                {{ filterOpt.label }}
+                <span 
+                  class="px-1.5 py-0.5 rounded-full text-[9px] font-mono"
+                  :class="selectedSourceFilter === filterOpt.value ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-500'"
+                >
+                  {{ filterCount(filterOpt.value) }}
+                </span>
+              </button>
+            </div>
+
+            <div v-if="!openIssues.length" class="h-full flex items-center justify-center text-center py-10">
               <div>
                 <div class="text-sm font-bold text-emerald-600">暂无待确认门店</div>
                 <p class="mt-1 text-xs text-slate-500">所有第三方账单内的店名均已正确映射为标准门店。</p>
               </div>
             </div>
-            <div v-else class="space-y-3">
-              <div v-for="issue in openIssues" :key="issue.id" class="grid items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 md:grid-cols-[1fr_1fr_auto]">
+            
+            <div v-else-if="filteredOpenIssues.length === 0" class="h-full flex items-center justify-center text-center py-10">
+              <div>
+                <div class="text-sm font-bold text-slate-400">该渠道下暂无待确认的店名</div>
+              </div>
+            </div>
+
+            <div v-else class="space-y-3 flex-1 overflow-auto min-h-0 pr-1">
+              <div 
+                v-for="issue in filteredOpenIssues" 
+                :key="issue.id" 
+                class="grid items-center gap-3 rounded-xl border p-4 md:grid-cols-[1fr_1fr_auto] transition-all hover:shadow-sm"
+                :class="issueCardClass(issue.source_code)"
+              >
                 <div>
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600">{{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}</div>
-                  <div class="mt-1 text-sm font-extrabold text-slate-800">{{ issue.raw_value || '空门店名称' }}</div>
+                  <div class="inline-block text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md mb-2" :class="issueTagClass(issue.source_code)">
+                    {{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}
+                  </div>
+                  <div class="text-sm font-extrabold text-slate-800">{{ issue.raw_value || '空门店名称' }}</div>
                   <div class="mt-1 text-[11px] text-slate-500">影响 {{ issue.affected_row_count }} 行，金额 ¥{{ money(issue.affected_amount) }}</div>
                 </div>
                 <Select v-model="issueStoreSelections[issue.id]" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="选择确认归属的标准门店" />
-                <Button size="sm" :disabled="!issueStoreSelections[issue.id] || working || !canConfirmAlias" @click="confirmIssueAlias(issue)">确认映射</Button>
+                <Button size="sm" class="bg-blue-600 hover:bg-blue-700 text-white" :disabled="!issueStoreSelections[issue.id] || working || !canConfirmAlias" @click="confirmIssueAlias(issue)">确认映射</Button>
               </div>
             </div>
           </CardContent>
@@ -565,6 +602,42 @@ const resultStatusClass = (status: string) => status === 'consistent' ? 'bg-emer
 const money = (value: number) => Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const signedMoney = (value: number) => `${Number(value) > 0 ? '+' : ''}¥${money(value)}`;
 const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
+
+const selectedSourceFilter = ref<string>('all');
+const filterCount = (source: string) => {
+  if (source === 'all') return openIssues.value.length;
+  return openIssues.value.filter(issue => issue.source_code === source).length;
+};
+const filteredOpenIssues = computed(() => {
+  if (selectedSourceFilter.value === 'all') return openIssues.value;
+  return openIssues.value.filter(issue => issue.source_code === selectedSourceFilter.value);
+});
+
+const issueCardClass = (source: string) => {
+  switch (source) {
+    case 'tonglian':
+      return 'border-blue-100 bg-blue-50/20';
+    case 'meituan':
+      return 'border-amber-100 bg-amber-50/25';
+    case 'douyin':
+      return 'border-purple-100 bg-purple-50/20';
+    default:
+      return 'border-slate-200 bg-slate-50/50';
+  }
+};
+
+const issueTagClass = (source: string) => {
+  switch (source) {
+    case 'tonglian':
+      return 'text-blue-600 bg-blue-100/50';
+    case 'meituan':
+      return 'text-amber-700 bg-amber-100/50';
+    case 'douyin':
+      return 'text-purple-600 bg-purple-100/50';
+    default:
+      return 'text-slate-600 bg-slate-100/50';
+  }
+};
 
 watch(globalDate, () => { void loadWorkspace(); });
 onMounted(loadWorkspace);
