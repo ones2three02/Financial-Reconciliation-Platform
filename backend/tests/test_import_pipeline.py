@@ -74,6 +74,23 @@ def test_same_filename_with_different_content_is_preserved(db_session):
     assert db_session.query(ImportFile).count() == 2
 
 
+def test_same_content_for_different_file_level_store_is_not_duplicate(db_session):
+    command = create_command(db_session, finance_workbook(100))
+    another_store = Store(name="民院二店", code="MD011")
+    db_session.add(another_store)
+    db_session.commit()
+
+    first = import_workbook(db_session, command)
+    second = import_workbook(
+        db_session,
+        replace(command, store_id=another_store.id),
+    )
+
+    assert first.status == "imported"
+    assert second.status == "imported"
+    assert first.import_file_id != second.import_file_id
+
+
 def test_failed_raw_write_rolls_back_entire_file(db_session, monkeypatch):
     command = create_command(db_session, finance_workbook(100))
 

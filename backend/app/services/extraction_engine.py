@@ -186,8 +186,8 @@ def _refresh_channel_coverage(
         business_date=batch.business_date,
         store_id=store_id,
         source_code=source_code,
-        status="present_data",
-        evidence_type="data_rows",
+        status="present_data" if row_count else "missing",
+        evidence_type="data_rows" if row_count else None,
         amount=amount,
         file_count=file_count,
         valid_row_count=row_count,
@@ -220,7 +220,11 @@ def _extract_channel_rows(
     source_amount = Decimal("0.00")
     clean_row_count = 0
     issue_count = 0
-    touched_store_ids: set[int] = set()
+    touched_store_ids: set[int] = {
+        previous.store_id
+        for previous in previous_rows
+        if previous.store_id is not None
+    }
     raw_rows = (
         db.query(RawData)
         .filter(RawData.import_file_id == import_file.id)

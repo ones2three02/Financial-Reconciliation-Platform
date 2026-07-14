@@ -120,11 +120,14 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
     if batch.status == "closed":
         raise BatchClosedError("已关账批次不允许导入文件")
 
+    profile = get_profile(command.profile_code)
     duplicate = (
         db.query(ImportFile)
         .filter(
             ImportFile.batch_id == batch.id,
             ImportFile.content_hash == content_hash,
+            ImportFile.profile_code == profile.code,
+            ImportFile.store_id == command.store_id,
             ImportFile.is_current.is_(True),
         )
         .first()
@@ -136,7 +139,6 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
             extraction_run_id=None,
         )
 
-    profile = get_profile(command.profile_code)
     preflight_workbook(
         command.content,
         profile_code=profile.code,

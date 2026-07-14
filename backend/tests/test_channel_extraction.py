@@ -186,3 +186,43 @@ def test_unknown_store_blocks_rows_until_manual_confirmation(db_session):
     assert source_amount(db_session, batch.id, store.id, "meituan") == Decimal("9.90")
     assert issue.status == "resolved"
     assert run.status == "completed"
+
+
+def test_confirmed_alias_remap_moves_current_amount_and_coverage(db_session):
+    batch, first_store = setup_batch(db_session)
+    second_store = Store(name="民院二店", code="MD011")
+    db_session.add(second_store)
+    db_session.commit()
+    raw_store = "武汉 : 待改绑的门店"
+    alias = add_confirmed_alias(db_session, "meituan", raw_store, first_store.id)
+    content = workbook_bytes(
+        "收益明细表",
+        ["验券/退款/", "消费门店", "总收入（元）", "商家营销费用（元）"],
+        [[datetime(2026, 7, 10), raw_store, 10, -0.10]],
+    )
+    import_channel(db_session, batch.id, "meituan_v1", content)
+    assert source_amount(db_session, batch.id, first_store.id, "meituan") == Decimal("9.90")
+
+    confirm_alias(
+        db_session,
+        alias_id=alias.id,
+        store_id=second_store.id,
+        actor="admin",
+    )
+    db_session.commit()
+
+    assert source_amount(db_session, batch.id, first_store.id, "meituan") == Decimal("0.00")
+    assert source_amount(db_session, batch.id, second_store.id, "meituan") == Decimal("9.90")
+    old_coverage = db_session.query(SourceCoverage).filter_by(
+        batch_id=batch.id,
+        store_id=first_store.id,
+        source_code="meituan",
+    ).one()
+    new_coverage = db_session.query(SourceCoverage).filter_by(
+        batch_id=batch.id,
+        store_id=second_store.id,
+        source_code="meituan",
+    ).one()
+    assert old_coverage.status == "missing"
+    assert old_coverage.amount == Decimal("0.00")
+    assert new_coverage.status == "present_data"

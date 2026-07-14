@@ -6,6 +6,7 @@ from difflib import SequenceMatcher
 from sqlalchemy.orm import Session
 
 from backend.app.models.audit import AuditEvent
+from backend.app.models.clean_data import CleanData
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.quality_service import (
@@ -137,17 +138,21 @@ def confirm_alias(
     if store is None or not store.is_active:
         raise ValueError(f"标准门店不存在或已停用: {store_id}")
 
+    affected_run_ids = set(_affected_run_ids(db, alias))
     confirmed_at = datetime.now(UTC)
     alias.store_id = store.id
     alias.status = "mapped"
     alias.confirmed_by = clean_actor
     alias.confirmed_at = confirmed_at
-    affected_run_ids = resolve_unknown_store_issues(
-        db,
-        source_code=alias.source_code,
-        raw_name=alias.alias_name,
-        actor=clean_actor,
+    affected_run_ids.update(
+        resolve_unknown_store_issues(
+            db,
+            source_code=alias.source_code,
+            raw_name=alias.alias_name,
+            actor=clean_actor,
+        )
     )
+    sorted_run_ids = sorted(affected_run_ids)
     db.add(
         AuditEvent(
             batch_id=None,
@@ -159,23 +164,20 @@ def confirm_alias(
                 "source_code": alias.source_code,
                 "alias_name": alias.alias_name,
                 "store_id": store.id,
-                "affected_run_ids": affected_run_ids,
+                "affected_run_ids": sorted_run_ids,
             },
         )
     )
     db.flush()
     from backend.app.services.extraction_engine import extract_current_batch_rows
 
-    for run_id in affected_run_ids:
+    for run_id in sorted_run_ids:
         extract_current_batch_rows(db, run_id)
     return alias
 
 
-def reprocess_affected_runs(db: Session, alias_id: int) -> list[int]:
-    alias = db.get(StoreAlias, alias_id)
-    if alias is None:
-        raise ValueError(f"门店别名不存在: {alias_id}")
-    run_ids = [
+def _affected_run_ids(db: Session, alias: StoreAlias) -> list[int]:
+    issue_run_ids = {
         run_id
         for (run_id,) in (
             db.query(DataQualityIssue.extraction_run_id)
@@ -188,7 +190,28 @@ def reprocess_affected_runs(db: Session, alias_id: int) -> list[int]:
             .distinct()
             .all()
         )
-    ]
+    }
+    clean_run_ids = {
+        run_id
+        for (run_id,) in (
+            db.query(CleanData.extraction_run_id)
+            .filter(
+                CleanData.source == alias.source_code,
+                CleanData.original_store_name == alias.alias_name,
+                CleanData.extraction_run_id.is_not(None),
+            )
+            .distinct()
+            .all()
+        )
+    }
+    return sorted(issue_run_ids | clean_run_ids)
+
+
+def reprocess_affected_runs(db: Session, alias_id: int) -> list[int]:
+    alias = db.get(StoreAlias, alias_id)
+    if alias is None:
+        raise ValueError(f"门店别名不存在: {alias_id}")
+    run_ids = _affected_run_ids(db, alias)
     from backend.app.services.extraction_engine import extract_current_batch_rows
 
     for run_id in run_ids:
