@@ -38,7 +38,6 @@ import test from 'node:test';
 
 import {
   clearQueue,
-  createQueueItems,
   getQueue,
   queueKey,
   replaceQueue,
