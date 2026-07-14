@@ -5,6 +5,7 @@ from typing import Optional, List
 # StoreAlias Schemas
 class StoreAliasBase(BaseModel):
     alias_name: str
+    source_code: str = "legacy"
     store_id: Optional[int] = None
     status: Optional[str] = "pending"
 
@@ -12,13 +13,18 @@ class StoreAliasCreate(StoreAliasBase):
     pass
 
 class StoreAliasUpdate(BaseModel):
-    store_id: Optional[int] = None
-    status: Optional[str] = None
+    store_id: int
+
+
+class StoreAliasConfirm(BaseModel):
+    store_id: int
 
 class StoreAlias(StoreAliasBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    confirmed_by: Optional[str] = None
+    confirmed_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

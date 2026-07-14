@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from backend.app.models.raw_data import RawData
 from backend.app.models.clean_data import CleanData
-from backend.app.models.store import Store, StoreAlias
+from backend.app.models.store import Store
 from backend.app.crud.field_mapping import get_mappings_by_source
 import re
 from datetime import datetime, date
@@ -87,38 +87,16 @@ def get_or_create_store_alias(db: Session, raw_name: str) -> Tuple[Optional[str]
     If no alias exists, inserts a new one in 'pending' status.
     Returns: (standard_store_name or None, clean_status)
     """
+    from backend.app.services.store_resolution import resolve_store
+
     name_clean = str(raw_name).strip()
     if not name_clean:
         return None, "error"
-        
-    # Find exact matching alias
-    alias = db.query(StoreAlias).filter(StoreAlias.alias_name == name_clean).first()
-    
-    if alias:
-        if alias.status == "mapped" and alias.store_id:
-            store = db.query(Store).filter(Store.id == alias.store_id).first()
-            if store and store.is_active:
-                return store.name, "cleaned"
+    resolution = resolve_store(db, "legacy", name_clean)
+    if resolution.status != "resolved" or resolution.store_id is None:
         return None, "pending_store_mapping"
-    else:
-        # Create a new pending alias
-        # Check if we have a Standard Store with the exact same name already
-        existing_store = db.query(Store).filter(Store.name == name_clean).first()
-        store_id = existing_store.id if existing_store else None
-        status = "mapped" if store_id else "pending"
-        
-        new_alias = StoreAlias(
-            alias_name=name_clean,
-            store_id=store_id,
-            status=status
-        )
-        db.add(new_alias)
-        db.commit()
-        
-        if existing_store:
-            return existing_store.name, "cleaned"
-            
-        return None, "pending_store_mapping"
+    store = db.get(Store, resolution.store_id)
+    return (store.name, "cleaned") if store is not None else (None, "error")
 
 from backend.app.models.import_file import ImportFile
 

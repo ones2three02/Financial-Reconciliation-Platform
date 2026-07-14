@@ -1,6 +1,6 @@
 import pytest
 from decimal import Decimal
-from datetime import date
+from datetime import UTC, date, datetime
 from backend.app.models.store import Store, StoreAlias
 from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
@@ -59,8 +59,22 @@ def test_reconciliation_calculation(db_session):
     db_session.commit()
     
     # Create mapped aliases
-    alias1 = StoreAlias(alias_name="杨一一游泳馆", store_id=store.id, status="mapped")
-    alias2 = StoreAlias(alias_name="杨一店", store_id=store.id, status="mapped")
+    alias1 = StoreAlias(
+        source_code="legacy",
+        alias_name="杨一一游泳馆",
+        store_id=store.id,
+        status="mapped",
+        confirmed_by="test",
+        confirmed_at=datetime.now(UTC),
+    )
+    alias2 = StoreAlias(
+        source_code="legacy",
+        alias_name="杨一店",
+        store_id=store.id,
+        status="mapped",
+        confirmed_by="test",
+        confirmed_at=datetime.now(UTC),
+    )
     db_session.add_all([alias1, alias2])
     db_session.commit()
     
