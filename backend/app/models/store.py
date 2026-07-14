@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from backend.app.core.db import Base
@@ -20,13 +20,19 @@ class Store(Base):
 
 class StoreAlias(Base):
     __tablename__ = "store_alias"
+    __table_args__ = (
+        UniqueConstraint("source_code", "alias_name", name="uq_store_alias_source_name"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    alias_name = Column(String(100), unique=True, nullable=False, index=True)
+    source_code = Column(String(50), nullable=False, default="legacy", index=True)
+    alias_name = Column(String(100), nullable=False, index=True)
     store_id = Column(Integer, ForeignKey("store.id", ondelete="CASCADE"), nullable=True)
     status = Column(String(20), default="pending")  # "mapped", "pending"
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    confirmed_by = Column(String(50), nullable=True)
+    confirmed_at = Column(DateTime, nullable=True)
 
     # Relationships
     store = relationship("Store", back_populates="aliases")

@@ -1,9 +1,12 @@
-from sqlalchemy import Column, Integer, String, Date, Numeric, Boolean, Text, DateTime
+from sqlalchemy import Column, Integer, String, Date, Numeric, Boolean, Text, DateTime, ForeignKey, UniqueConstraint
 from datetime import datetime
 from backend.app.core.db import Base
 
 class ReconciliationResult(Base):
     __tablename__ = "reconciliation_result"
+    __table_args__ = (
+        UniqueConstraint("batch_id", "store_id", name="uq_reconciliation_result_batch_store"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     trade_date = Column(Date, nullable=False, index=True)
@@ -33,3 +36,18 @@ class ReconciliationResult(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    batch_id = Column(
+        Integer,
+        ForeignKey("reconciliation_batch.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    store_id = Column(
+        Integer,
+        ForeignKey("store.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    formula_version = Column(Integer, nullable=True)
+    completeness_status = Column(String(30), nullable=True)
+    calculated_at = Column(DateTime, nullable=True)

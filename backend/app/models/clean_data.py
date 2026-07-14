@@ -18,6 +18,26 @@ class CleanData(Base):
     clean_status = Column(String(20), default="cleaned")  # "cleaned", "pending_store_mapping", "error"
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    batch_id = Column(
+        Integer,
+        ForeignKey("reconciliation_batch.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    store_id = Column(
+        Integer,
+        ForeignKey("store.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
+    extraction_run_id = Column(
+        Integer,
+        ForeignKey("extraction_run.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    profile_code = Column(String(50), nullable=True)
+    profile_version = Column(Integer, nullable=True)
+    is_current = Column(Boolean, nullable=False, default=True)
 
     # Relationships
     raw_data = relationship("RawData", back_populates="clean_rows")
