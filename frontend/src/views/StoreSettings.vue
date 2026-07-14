@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-8 fade-in">
+  <div class="h-[calc(100vh-8rem)] flex flex-col gap-4 fade-in overflow-hidden">
     <!-- Top Tabs Selection -->
     <div class="flex border-b border-slate-200/80 gap-6">
       <button 
@@ -21,8 +21,8 @@
     </div>
 
     <!-- Tab 1: Standard Stores Management -->
-    <div v-if="activeTab === 'stores'" class="space-y-6 fade-in">
-      <Card class="shadow-sm border border-slate-200/80">
+    <div v-if="activeTab === 'stores'" class="flex-1 flex flex-col overflow-hidden min-h-0 fade-in">
+      <Card class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -47,18 +47,18 @@
             </Button>
           </div>
         </CardHeader>
-        <CardContent class="p-0">
-          <div class="overflow-hidden border-t border-slate-100">
+        <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
+          <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                  <th class="p-4">门店编码</th>
-                  <th class="p-4">标准门店名称</th>
-                  <th class="p-4">所在区域</th>
-                  <th class="p-4">店长/负责人</th>
-                  <th class="p-4">联系电话</th>
-                  <th class="p-4 text-center">状态</th>
-                  <th class="p-4 text-center">操作</th>
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">门店编码</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">标准门店名称</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">所在区域</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">店长/负责人</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">联系电话</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">状态</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs">
@@ -144,8 +144,8 @@
     </div>
 
     <!-- Tab 2: Alias Standardization Mapping -->
-    <div v-else-if="activeTab === 'aliases'" class="fade-in">
-      <Card class="shadow-sm border border-slate-200/80">
+    <div v-else-if="activeTab === 'aliases'" class="flex-1 flex flex-col overflow-hidden min-h-0 fade-in">
+      <Card class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -205,16 +205,16 @@
             </div>
           </div>
         </CardHeader>
-        <CardContent class="p-0">
+        <CardContent class="p-0 flex-1 flex flex-col overflow-hidden min-h-0">
           <!-- Alias Mapping Table -->
-          <div class="overflow-hidden border-t border-slate-100">
+          <div class="flex-1 overflow-auto min-h-0 border-t border-slate-100">
             <table class="w-full text-left border-collapse">
               <thead>
-                <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                  <th class="p-4">Excel 中的原始店名</th>
-                  <th class="p-4">对应标准门店</th>
-                  <th class="p-4 text-center">状态</th>
-                  <th class="p-4 text-center">更新操作</th>
+                <tr class="sticky top-0 z-10 bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">Excel 中的原始店名</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4">对应标准门店</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">状态</th>
+                  <th class="sticky top-0 z-10 bg-slate-50 p-4 text-center">更新操作</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100 text-xs">
