@@ -271,7 +271,7 @@ def reconcile_batch(db: Session, batch_id: int) -> list[ReconciliationResult]:
         expected = amounts["tonglian"] + amounts["meituan"] + amounts["douyin"]
         actual = amounts["sales"] - amounts["cash"]
         difference = expected - actual
-        is_complete = not incomplete_sources and not has_open_quality_issue
+        is_complete = not incomplete_sources
         status = (
             "incomplete"
             if not is_complete
