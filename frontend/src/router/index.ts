@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import Dashboard from '../views/Dashboard.vue';
-import ImportCenter from '../views/ImportCenter.vue';
-import ReconciliationList from '../views/ReconciliationList.vue';
-import MappingSettings from '../views/MappingSettings.vue';
-import StoreSettings from '../views/StoreSettings.vue';
-import Login from '../views/Login.vue';
+import { getSession } from '../services/api';
+
+const Dashboard = () => import('../views/Dashboard.vue');
+const ImportCenter = () => import('../views/ImportCenter.vue');
+const ReconciliationList = () => import('../views/ReconciliationList.vue');
+const MappingSettings = () => import('../views/MappingSettings.vue');
+const StoreSettings = () => import('../views/StoreSettings.vue');
+const Login = () => import('../views/Login.vue');
 
 const routes = [
   {
@@ -26,11 +28,13 @@ const routes = [
     path: '/settings/mappings',
     name: 'MappingSettings',
     component: MappingSettings,
+    meta: { requiresAdmin: true },
   },
   {
     path: '/settings/stores',
     name: 'StoreSettings',
     component: StoreSettings,
+    meta: { requiresAdmin: true },
   },
   {
     path: '/login',
@@ -44,11 +48,13 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('access_token');
+router.beforeEach((to, _from, next) => {
+  const isAuthenticated = !!getSession().token;
   if (to.name !== 'Login' && !isAuthenticated) {
     next({ name: 'Login' });
   } else if (to.name === 'Login' && isAuthenticated) {
+    next({ name: 'Dashboard' });
+  } else if (to.meta.requiresAdmin && getSession().role !== 'admin') {
     next({ name: 'Dashboard' });
   } else {
     next();

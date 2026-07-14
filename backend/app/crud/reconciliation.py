@@ -64,11 +64,13 @@ def get_dashboard_summary(db: Session, target_date: date) -> DashboardSummary:
     total_stores = len(results)
     consistent_count = sum(1 for r in results if r.status == "consistent")
     discrepancy_count = sum(1 for r in results if r.status == "discrepancy")
-    missing_data_count = sum(1 for r in results if r.status == "missing_data")
+    missing_data_count = sum(1 for r in results if r.status in {"incomplete", "missing_data"})
     
     total_sales = sum((r.sales_amount for r in results), Decimal("0.00"))
-    total_tonglian = sum((r.tonglian_amount for r in results), Decimal("0.00"))
-    total_difference = sum((r.difference for r in results), Decimal("0.00"))
+    # 保留旧响应字段名以兼容现有前端，但口径是三方渠道收入合计。
+    total_tonglian = sum((r.expected_amount for r in results), Decimal("0.00"))
+    # 差异监控使用绝对值，避免不同门店正负差额相互抵消。
+    total_difference = sum((abs(r.difference) for r in results), Decimal("0.00"))
     
     return DashboardSummary(
         total_stores=total_stores,
@@ -87,11 +89,11 @@ def get_dashboard_trends(db: Session, days: int = 7) -> List[dict]:
     # Run a group-by query for dates
     db_trends = db.query(
         ReconciliationResult.trade_date,
-        func.sum(ReconciliationResult.sales_amount).label("sales"),
-        func.sum(ReconciliationResult.tonglian_amount).label("tonglian"),
+        func.sum(ReconciliationResult.actual_amount).label("sales"),
+        func.sum(ReconciliationResult.expected_amount).label("tonglian"),
         func.sum(func.abs(ReconciliationResult.difference)).label("abs_difference"),
         func.count(ReconciliationResult.id).label("total_stores"),
-        func.sum(func.cast(ReconciliationResult.status == "discrepancy", Integer)).label("discrepancies")
+        func.sum(func.cast(ReconciliationResult.status != "consistent", Integer)).label("discrepancies")
     ).filter(
         ReconciliationResult.trade_date.between(start_date, end_date)
     ).group_by(

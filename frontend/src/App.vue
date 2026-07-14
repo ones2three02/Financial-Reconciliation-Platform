@@ -64,10 +64,11 @@
         </router-link>
 
         <!-- Config Section -->
-        <div class="h-px bg-zinc-800/80 my-5" :class="isCollapsed ? 'mx-1' : 'mx-2'"></div>
-        <div v-if="!isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统配置</div>
+        <div v-if="isAdmin" class="h-px bg-zinc-800/80 my-5" :class="isCollapsed ? 'mx-1' : 'mx-2'"></div>
+        <div v-if="isAdmin && !isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统配置</div>
 
         <router-link 
+          v-if="isAdmin"
           to="/settings/mappings" 
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
@@ -79,6 +80,7 @@
         </router-link>
 
         <router-link 
+          v-if="isAdmin"
           to="/settings/stores" 
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
@@ -148,7 +150,7 @@
               {{ currentUsername ? currentUsername.charAt(0).toUpperCase() : 'A' }}
             </div>
             <div class="flex flex-col text-left shrink-0">
-              <span class="text-xs font-bold text-slate-700 leading-none">管理员 ({{ currentUsername }})</span>
+              <span class="text-xs font-bold text-slate-700 leading-none">{{ currentRole }} ({{ currentUsername }})</span>
               <button 
                 @click="handleLogout" 
                 class="text-[10px] text-slate-400 font-bold hover:text-rose-500 hover:underline transition-all mt-0.5 text-left bg-transparent p-0 border-0"
@@ -177,13 +179,13 @@ import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { globalDate } from './services/store';
 import { DatePicker } from './components/ui/date-picker';
+import { api, clearSession, getSession } from './services/api';
 import { 
   LayoutDashboard, 
   FileUp, 
   ClipboardCheck, 
   Sliders, 
   Store, 
-  Calendar, 
   Activity, 
   PanelLeftClose, 
   PanelLeftOpen 
@@ -201,13 +203,22 @@ const toggleSidebar = () => {
 };
 
 const currentUsername = computed(() => {
-  return localStorage.getItem('username') || 'admin';
+  return getSession().username || '未登录';
 });
 
-const handleLogout = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('username');
-  router.push('/login');
+const currentRole = computed(() => {
+  const role = getSession().role;
+  return role === 'admin' ? '管理员' : role === 'finance' ? '财务' : '只读用户';
+});
+const isAdmin = computed(() => getSession().role === 'admin');
+
+const handleLogout = async () => {
+  try {
+    await api.logout();
+  } finally {
+    clearSession();
+    router.push('/login');
+  }
 };
 
 const pageTitle = computed(() => {

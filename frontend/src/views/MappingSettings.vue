@@ -151,7 +151,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Sliders, Plus, Trash2, FolderOpen } from 'lucide-vue-next';
+import { Sliders, Plus, FolderOpen } from 'lucide-vue-next';
 
 const sources = [
   { value: 'tonglian', label: '通联后台', badge: 'bg-violet-50 text-violet-600' },

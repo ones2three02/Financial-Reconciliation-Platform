@@ -20,8 +20,8 @@ def list_reconciliation_results(
     trade_date: Optional[date] = Query(None),
     status: Optional[str] = Query(None),
     is_resolved: Optional[bool] = Query(None),
-    skip: int = Query(0),
-    limit: int = Query(100),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
     db: Session = Depends(get_db)
 ):
     return crud_recon.list_reconciliation_results(

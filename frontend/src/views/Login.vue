@@ -70,7 +70,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { api } from '../services/api';
+import { api, saveSession } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -88,14 +88,11 @@ const handleLogin = async () => {
   try {
     const res = await api.login(username.value.trim(), password.value);
     
-    // Save to localStorage
-    localStorage.setItem('access_token', res.access_token);
-    localStorage.setItem('username', res.username);
-    
-    // Redirect to Dashboard
+    saveSession(res);
     router.push('/');
-  } catch (err: any) {
-    errorMessage.value = err.response?.data?.detail || '网络连接失败，请稍后重试';
+  } catch (err: unknown) {
+    const responseError = err as { response?: { data?: { detail?: string } } };
+    errorMessage.value = responseError.response?.data?.detail || '网络连接失败，请稍后重试';
   } finally {
     isLoading.value = false;
   }

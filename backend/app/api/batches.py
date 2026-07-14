@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
 from backend.app.api.auth import require_finance
 from backend.app.models.auth import AppUser
 from backend.app.models.batch import ReconciliationBatch
+from backend.app.models.coverage import SourceCoverage
+from backend.app.models.import_file import ImportFile
+from backend.app.models.quality_issue import DataQualityIssue
+from backend.app.models.reconciliation import ReconciliationResult as ReconciliationResultModel
 from backend.app.schemas.batch import (
     BatchCreate,
+    BatchDetailRead,
     BatchRead,
     BatchReopenRequest,
     ConfirmZeroRequest,
@@ -22,6 +27,24 @@ from backend.app.services.reconciliation_service import confirm_zero, reconcile_
 
 
 router = APIRouter()
+
+
+@router.get("/", response_model=list[BatchRead])
+def list_reconciliation_batches(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    return (
+        db.query(ReconciliationBatch)
+        .order_by(
+            ReconciliationBatch.business_date.desc(),
+            ReconciliationBatch.id.desc(),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 @router.post("/", response_model=BatchRead)
@@ -50,6 +73,47 @@ def get_reconciliation_batch(batch_id: int, db: Session = Depends(get_db)):
     if batch is None:
         raise HTTPException(status_code=404, detail="对账批次不存在")
     return batch
+
+
+@router.get("/{batch_id}/detail", response_model=BatchDetailRead)
+def get_reconciliation_batch_detail(
+    batch_id: int,
+    db: Session = Depends(get_db),
+) -> BatchDetailRead:
+    batch = db.get(ReconciliationBatch, batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="对账批次不存在")
+    import_files = (
+        db.query(ImportFile)
+        .filter(ImportFile.batch_id == batch_id, ImportFile.is_current.is_(True))
+        .order_by(ImportFile.id.desc())
+        .all()
+    )
+    coverages = (
+        db.query(SourceCoverage)
+        .filter(SourceCoverage.batch_id == batch_id)
+        .order_by(SourceCoverage.store_id, SourceCoverage.source_code)
+        .all()
+    )
+    quality_issues = (
+        db.query(DataQualityIssue)
+        .filter(DataQualityIssue.batch_id == batch_id)
+        .order_by(DataQualityIssue.status, DataQualityIssue.id)
+        .all()
+    )
+    results = (
+        db.query(ReconciliationResultModel)
+        .filter(ReconciliationResultModel.batch_id == batch_id)
+        .order_by(ReconciliationResultModel.store_id)
+        .all()
+    )
+    return BatchDetailRead(
+        batch=batch,
+        import_files=import_files,
+        coverages=coverages,
+        quality_issues=quality_issues,
+        results=results,
+    )
 
 
 @router.post("/{batch_id}/confirm-zero")

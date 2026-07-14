@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from backend.app.core.db import get_db
@@ -25,8 +25,8 @@ router = APIRouter()
 @router.get("/aliases/list", response_model=List[StoreAliasWithStore])
 def list_store_aliases(
     status: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
     db: Session = Depends(get_db)
 ):
     return crud_store.get_store_aliases(db, status=status, skip=skip, limit=limit)
@@ -101,7 +101,11 @@ def update_store_alias(
 # --- Standard Stores ---
 
 @router.get("/", response_model=List[Store])
-def list_stores(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_stores(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
     return crud_store.get_stores(db, skip=skip, limit=limit)
 
 @router.post("/", response_model=Store, status_code=status.HTTP_201_CREATED)

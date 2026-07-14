@@ -1,588 +1,243 @@
 <template>
-  <div class="space-y-8 fade-in">
-    <!-- File Upload Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Upload Config Card -->
-      <Card class="shadow-sm border border-slate-200/80 flex flex-col justify-between">
-        <CardHeader class="pb-4">
-          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
-            <Sliders class="h-4.5 w-4.5 text-blue-500" />
-            <span>1. 选择数据来源</span>
-          </CardTitle>
-          <CardDescription>选择您将要导入的 Excel 文件的账目渠道归属</CardDescription>
-        </CardHeader>
-        <CardContent class="space-y-3">
-          <label 
-            v-for="source in sources" 
-            :key="source.value"
-            class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 cursor-pointer transition-all duration-150 hover:bg-slate-50/50"
-            :class="{'border-blue-500 bg-blue-50/15 ring-1 ring-blue-500/20': selectedSource === source.value}"
-          >
-            <div class="flex items-center gap-3">
-              <input 
-                type="radio" 
-                name="source" 
-                :value="source.value" 
-                v-model="selectedSource"
-                class="text-blue-600 focus:ring-blue-500 h-4 w-4"
-              />
-              <span class="font-bold text-xs text-slate-800">{{ source.label }}</span>
-            </div>
-            <span class="text-[10px] font-semibold text-slate-400">{{ source.desc }}</span>
-          </label>
-
-          <!-- Explicit store selection for cash/sales sources -->
-          <div v-if="selectedSource === 'cash' || selectedSource === 'sales'" class="mt-4 pt-4 border-t border-slate-100 flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">指定报表归属标准门店</label>
-            <Select 
-              v-model="selectedStoreId"
-              :options="stores.map(s => ({ value: s.id, label: s.name }))"
-              placeholder="-- 请选择该报表归属的标准门店 --"
-              class="h-9"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <!-- Drag & Drop Upload Zone -->
-      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col justify-between min-h-[300px]">
-        <CardHeader class="pb-2">
-          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
-            <UploadCloud class="h-4.5 w-4.5 text-blue-500" />
-            <span>2. 拖入或选择 Excel 文件</span>
-          </CardTitle>
-          <CardDescription>支持批量拖拽多张 Excel 表，系统会自动提取记录并自动重对账</CardDescription>
-        </CardHeader>
-        <CardContent class="flex-1 flex flex-col justify-between mt-2">
-          <div 
-            @dragover.prevent="dragOver = true"
-            @dragleave.prevent="dragOver = false"
-            @drop.prevent="handleDrop"
-            @click="triggerFileSelect"
-            class="flex-1 border-2 border-dashed rounded-xl py-8 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 group text-slate-400 hover:text-slate-600 min-h-[160px]"
-            :class="dragOver ? 'border-blue-500 bg-blue-50/10' : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'"
-          >
-            <input 
-              type="file" 
-              ref="fileInputRef" 
-              multiple 
-              accept=".xlsx, .xls"
-              class="hidden" 
-              @change="handleFileSelect"
-            />
-            <UploadCloud class="w-10 h-10 text-slate-300 group-hover:scale-105 transition-transform mb-2.5 group-hover:text-blue-500" />
-            <span class="font-bold text-xs text-slate-700">点击选择或拖入 Excel 文件到这里</span>
-            <span class="text-[10px] text-slate-400 mt-1">仅限扩展名: .xlsx, .xls</span>
-          </div>
-
-          <!-- Queue progress -->
-          <div v-if="uploadQueue.length > 0" class="mt-4 space-y-2">
-            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">本次导入任务 ({{ uploadQueue.length }})</div>
-            <div 
-              v-for="item in uploadQueue" 
-              :key="item.name"
-              class="flex items-center justify-between text-xs p-3 bg-slate-50 border border-slate-200/60 rounded-xl"
-            >
-              <div class="flex items-center gap-2 max-w-[70%] truncate">
-                <FileSpreadsheet class="w-4 h-4 text-emerald-600 shrink-0" />
-                <span class="font-bold text-slate-700 truncate">{{ item.name }}</span>
-              </div>
-              <div class="flex items-center gap-3 shrink-0">
-                <span v-if="item.status === 'uploading'" class="text-blue-500 font-bold animate-pulse text-[11px]">⏳ 处理中...</span>
-                <span v-else-if="item.status === 'success'" class="text-emerald-500 font-bold text-[11px] inline-flex items-center gap-1">
-                  <CheckCircle2 class="w-3.5 h-3.5" /> 已导入
-                </span>
-                <span v-else class="text-rose-500 font-bold text-[11px]" :title="item.error">✗ {{ item.error && item.error.length > 15 ? item.error.substring(0, 15) + '...' : item.error }}</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-
-    <!-- Import History Table -->
-    <Card class="shadow-sm border border-slate-200/80">
-      <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
+  <div class="space-y-6 fade-in">
+    <Card class="border-slate-200/80 shadow-sm">
+      <CardHeader class="flex flex-row items-start justify-between gap-4">
         <div>
-          <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
-            <History class="h-4.5 w-4.5 text-blue-500" />
-            <span>导入历史日志</span>
+          <CardTitle class="flex items-center gap-2 text-base">
+            <CalendarRange class="h-5 w-5 text-blue-600" />每日对账批次
           </CardTitle>
-          <CardDescription>追溯已上传文件的清洗历史、解析行数与对账状态日志</CardDescription>
+          <CardDescription>先确认账期，再按来源批量预检和导入。相同文件名允许重复使用，系统按内容和业务范围判重。</CardDescription>
         </div>
-        <!-- Search and refresh controls -->
         <div class="flex items-center gap-3">
-          <Input 
-            v-model="searchQuery" 
-            placeholder="搜索文件名..." 
-            class="h-8.5 w-48 text-xs font-semibold rounded-lg"
-          />
-          <Button 
-            @click="fetchImportHistory" 
-            variant="outline"
-            size="sm"
-            class="h-8.5 text-xs font-semibold border border-slate-200/80 hover:bg-slate-50 flex items-center gap-1"
-          >
-            🔄 刷新日志
+          <span v-if="activeBatch" :class="batchStatusClass(activeBatch.status)" class="rounded-full px-3 py-1 text-xs font-bold">
+            {{ batchStatusLabel(activeBatch.status) }} · V{{ activeBatch.version }}
+          </span>
+          <Button variant="outline" size="sm" :disabled="loadingBatch || !canOperate" @click="ensureBatch">
+            {{ loadingBatch ? '载入中...' : activeBatch ? '刷新批次' : '创建该账期批次' }}
           </Button>
         </div>
       </CardHeader>
-      <CardContent class="p-0">
-        <div class="overflow-hidden border-t border-slate-100">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                <th class="p-4">文件名称</th>
-                <th class="p-4">数据分类</th>
-                <th class="p-4">归属门店</th>
-                <th class="p-4">上传时间</th>
-                <th class="p-4 text-center">状态</th>
-                <th class="p-4 text-center">解析记录数</th>
-                <th class="p-4">异常日志</th>
-                <th class="p-4 text-center">操作</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 text-xs">
-              <tr v-if="paginatedHistory.length === 0">
-                <td colspan="8" class="p-8 text-center text-slate-400 font-medium">
-                  <div class="flex flex-col items-center justify-center gap-2">
-                    <FolderOpen class="w-8 h-8 text-slate-300" />
-                    <span>暂无满足条件的上传记录</span>
-                  </div>
-                </td>
-              </tr>
-              <tr v-for="item in paginatedHistory" :key="item.id" class="hover:bg-slate-50/40 transition-colors">
-                <td class="p-4 font-bold text-slate-700 flex items-center gap-2">
-                  <FileSpreadsheet class="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span class="truncate max-w-[200px]" :title="item.filename">{{ item.filename }}</span>
-                </td>
-                <td class="p-4">
-                  <span class="px-2.5 py-1 rounded-full text-[10px] font-semibold" :class="getSourceBadgeClass(item.data_source)">
-                    {{ getSourceLabel(item.data_source) }}
-                  </span>
-                </td>
-                <td class="p-4">
-                  <span v-if="item.store_id" class="font-bold text-slate-700">
-                    {{ getStoreNameById(item.store_id) }}
-                  </span>
-                  <span v-else class="text-slate-400 font-medium">多店表自动拆分</span>
-                </td>
-                <td class="p-4 text-slate-500 font-mono">{{ formatDate(item.uploaded_at) }}</td>
-                <td class="p-4 text-center">
-                  <span 
-                    class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
-                    :class="{
-                      'bg-emerald-50 text-emerald-600 border border-emerald-250': item.upload_status === 'parsed',
-                      'bg-blue-50 text-blue-600 border border-blue-250': item.upload_status === 'pending_mapping' || item.upload_status === 'pending',
-                      'bg-rose-50 text-rose-600 border border-rose-250': item.upload_status === 'failed',
-                    }"
-                  >
-                    {{ getStatusLabel(item.upload_status) }}
-                  </span>
-                </td>
-                <td class="p-4 text-center font-bold text-slate-600">{{ item.row_count }} 行</td>
-                <td class="p-4 text-slate-400 max-w-xs truncate" :title="item.error_message || ''">
-                  {{ item.error_message || '—' }}
-                </td>
-                <td class="p-4 text-center">
-                  <div class="flex items-center justify-center gap-2">
-                    <template v-if="deletingId === item.id">
-                      <span class="text-rose-500 font-bold text-[11px] mr-1">确定删除该数据？</span>
-                      <Button 
-                        @click="deleteFile(item.id)" 
-                        variant="ghost"
-                        size="xs"
-                        class="text-xs font-bold text-rose-600 hover:text-rose-800 bg-rose-50 px-1.5 py-0.5 rounded"
-                      >
-                        确定
-                      </Button>
-                      <Button 
-                        @click="deletingId = null" 
-                        variant="ghost"
-                        size="xs"
-                        class="text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded"
-                      >
-                        取消
-                      </Button>
-                    </template>
-                    <template v-else>
-                      <Button 
-                        @click="reprocessFile(item.id)" 
-                        variant="ghost"
-                        size="xs"
-                        class="text-xs font-bold text-blue-600 hover:text-blue-800"
-                        :disabled="reprocessingId === item.id || deletingId !== null"
-                      >
-                        {{ reprocessingId === item.id ? '重算中...' : '🔄 重新对账' }}
-                      </Button>
-                      <Button 
-                        @click="deletingId = item.id" 
-                        variant="ghost"
-                        size="xs"
-                        class="text-xs font-bold text-rose-600 hover:text-rose-800"
-                        :disabled="reprocessingId !== null || deletingId !== null"
-                      >
-                        🗑 删除
-                      </Button>
-                    </template>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination Controls -->
-        <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
-          <div class="text-slate-400 font-medium select-none">
-            显示第 {{ (currentPage - 1) * pageSize + 1 }} 至 {{ Math.min(currentPage * pageSize, filteredHistory.length) }} 条记录，共 {{ filteredHistory.length }} 条
+      <CardContent>
+        <div class="grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">当前账期</div>
+            <div class="mt-1 text-lg font-extrabold text-slate-800">{{ globalDate }}</div>
           </div>
-          <div class="flex items-center gap-2">
-            <Button 
-              size="xs" 
-              variant="outline" 
-              :disabled="currentPage === 1" 
-              @click="currentPage--"
-              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
-            >
-              上一页
-            </Button>
-            <span class="text-slate-600 font-bold px-2 select-none">第 {{ currentPage }} / {{ totalPages }} 页</span>
-            <Button 
-              size="xs" 
-              variant="outline" 
-              :disabled="currentPage === totalPages" 
-              @click="currentPage++"
-              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
-            >
-              下一页
-            </Button>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">已导入文件</div>
+            <div class="mt-1 text-lg font-extrabold text-slate-800">{{ batchDetail?.import_files.length ?? 0 }} 份</div>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">待处理质量问题</div>
+            <div class="mt-1 text-lg font-extrabold" :class="openIssueCount ? 'text-amber-600' : 'text-emerald-600'">{{ openIssueCount }} 项</div>
           </div>
         </div>
       </CardContent>
     </Card>
 
-    <!-- Column Mapping Confirmation Modal Dialog -->
-    <div 
-      v-if="showMappingModal" 
-      class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
-      @click.self="showMappingModal = false"
-    >
-      <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
-        <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <CardTitle class="text-base font-bold text-slate-800">手动指定表头列映射</CardTitle>
-              <CardDescription class="text-xs text-slate-400 mt-1">
-                未能自动匹配文件 [{{ mappingContext.filename }}] 的核心列，请核对指派：
-              </CardDescription>
-            </div>
-            <button @click="showMappingModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
-          </div>
+    <div class="grid gap-6 lg:grid-cols-3">
+      <Card class="border-slate-200/80 shadow-sm">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base"><Sliders class="h-4 w-4 text-blue-600" />1. 选择工作簿模板</CardTitle>
+          <CardDescription>模板是有版本的白名单规则，不会根据相似表头随意猜测。</CardDescription>
         </CardHeader>
-        
-        <CardContent class="p-6 space-y-4">
-          <!-- Trade Date Mapping -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">账期日期列</label>
-            <Select 
-              v-model="chosenMappings.trade_date"
-              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
-              placeholder="-- 选择 Excel 中代表账期日期的列 --"
-              class="h-9"
-            />
-          </div>
-
-          <!-- Store Name Mapping -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">门店名称列</label>
-            <Select 
-              v-model="chosenMappings.store_name"
-              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
-              placeholder="-- 选择 Excel 中代表门店名称的列 --"
-              class="h-9"
-            />
-          </div>
-
-          <!-- Amount Mapping -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">交易金额列</label>
-            <Select 
-              v-model="chosenMappings.amount"
-              :options="mappingContext.columns.map(c => ({ value: c, label: c }))"
-              placeholder="-- 选择 Excel 中代表交易金额的列 --"
-              class="h-9"
-            />
+        <CardContent class="space-y-3">
+          <label v-for="profile in profiles" :key="profile.code" class="block cursor-pointer rounded-xl border p-3 transition-colors" :class="selectedProfile === profile.code ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200 hover:bg-slate-50'">
+            <div class="flex items-start gap-3">
+              <input v-model="selectedProfile" type="radio" :value="profile.code" class="mt-1" />
+              <div>
+                <div class="text-xs font-bold text-slate-800">{{ profile.label }}</div>
+                <div class="mt-1 text-[11px] leading-5 text-slate-500">{{ profile.description }}</div>
+              </div>
+            </div>
+          </label>
+          <div v-if="selectedProfile === 'store_finance_v1'" class="border-t border-slate-100 pt-3">
+            <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">财务表所属门店</label>
+            <Select v-model="selectedStoreId" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="必须选择标准门店" />
           </div>
         </CardContent>
+      </Card>
 
-        <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
-          <Button 
-            @click="showMappingModal = false"
-            variant="outline"
-            size="sm"
-            class="h-8 text-xs font-semibold"
-          >
-            取消
-          </Button>
-          <Button 
-            @click="submitColumnMapping"
-            :disabled="isSubmittingMapping"
-            size="sm"
-            class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10 flex items-center gap-1.5"
-          >
-            <Save class="w-3.5 h-3.5" />
-            <span>{{ isSubmittingMapping ? '正在处理...' : '确认导入' }}</span>
-          </Button>
-        </CardFooter>
+      <Card class="border-slate-200/80 shadow-sm lg:col-span-2">
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2 text-base"><UploadCloud class="h-4 w-4 text-blue-600" />2. 选择并导入文件</CardTitle>
+          <CardDescription>支持一次选择多份 .xlsx。每个文件都会先预检，预检通过后才写入批次。</CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <label class="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-6 text-center hover:border-blue-400">
+            <FileSpreadsheet class="mb-2 h-9 w-9 text-emerald-600" />
+            <span class="text-sm font-bold text-slate-700">选择一份或多份 Excel 工作簿</span>
+            <span class="mt-1 text-xs text-slate-400">仅支持 .xlsx；单文件大小与解压规模均受安全限制</span>
+            <input type="file" accept=".xlsx" multiple class="hidden" @change="onFilesSelected" />
+          </label>
+
+          <div v-if="queue.length" class="space-y-2">
+            <div v-for="item in queue" :key="item.key" class="rounded-xl border border-slate-200 bg-white p-3">
+              <div class="flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="truncate text-xs font-bold text-slate-700">{{ item.file.name }}</div>
+                  <div v-if="item.preflight" class="mt-1 text-[11px] text-slate-500">
+                    {{ item.preflight.sheet_name }} · 命中 {{ item.preflight.matching_row_count }}/{{ item.preflight.total_data_rows }} 行 · 输出 {{ item.preflight.output_sources.map(sourceLabel).join('、') }}
+                  </div>
+                  <div v-if="item.error" class="mt-1 text-[11px] text-rose-600">{{ item.error }}</div>
+                </div>
+                <span class="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" :class="queueStatusClass(item.status)">{{ queueStatusLabel(item.status) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="message" class="rounded-xl border px-4 py-3 text-xs font-semibold" :class="message.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">
+            {{ message.text }}
+          </div>
+
+          <div class="flex justify-end gap-3">
+            <Button variant="outline" :disabled="processing || !queue.length" @click="queue = []">清空列表</Button>
+            <Button class="bg-blue-600 text-white hover:bg-blue-700" :disabled="processing || !canImport" @click="processQueue">
+              {{ processing ? '正在逐份预检并导入...' : `开始导入 ${queue.length} 份文件` }}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
     </div>
+
+    <Card class="border-slate-200/80 shadow-sm">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-base"><History class="h-4 w-4 text-blue-600" />当前批次导入记录</CardTitle>
+        <CardDescription>原始导入不可物理删除；需要修正时重新导入新版本，历史记录继续用于审计追溯。</CardDescription>
+      </CardHeader>
+      <CardContent class="p-0">
+        <div class="overflow-x-auto border-t border-slate-100">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400">
+              <tr><th class="p-4">文件</th><th class="p-4">模板</th><th class="p-4">来源</th><th class="p-4">行数</th><th class="p-4">状态</th><th class="p-4">导入时间</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-if="!batchDetail?.import_files.length"><td colspan="6" class="p-8 text-center text-slate-400">该账期尚未导入文件</td></tr>
+              <tr v-for="file in batchDetail?.import_files ?? []" :key="file.id">
+                <td class="p-4 font-bold text-slate-700">{{ file.filename }}</td>
+                <td class="p-4 text-slate-500">{{ profileLabel(file.profile_code) }}</td>
+                <td class="p-4 text-slate-500">{{ sourceLabel(file.data_source) }}</td>
+                <td class="p-4 text-slate-500">{{ file.row_count }}</td>
+                <td class="p-4"><span class="rounded-full bg-slate-100 px-2 py-1 font-bold text-slate-600">{{ file.upload_status }}</span></td>
+                <td class="p-4 font-mono text-slate-500">{{ formatDateTime(file.uploaded_at) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { api } from '../services/api';
-import type { ImportFile } from '../services/api';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
+import { computed, onMounted, ref, watch } from 'vue';
+import { CalendarRange, FileSpreadsheet, History, Sliders, UploadCloud } from 'lucide-vue-next';
+import { api, getSession } from '../services/api';
+import type { BatchDetail, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import { globalDate } from '../services/store';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select } from '../components/ui/select';
-import { Sliders, UploadCloud, FileSpreadsheet, CheckCircle2, History, FolderOpen, Save } from 'lucide-vue-next';
 
-const sources = [
-  { value: 'tonglian', label: '通联后台', desc: '第三方好老板系统流水', badge: 'bg-violet-50 text-violet-600 border border-violet-100' },
-  { value: 'meituan', label: '美团收入', desc: '美团团购核销对账数据', badge: 'bg-amber-50 text-amber-600 border border-amber-100' },
-  { value: 'douyin', label: '抖音收入', desc: '抖音本地生活核销流水', badge: 'bg-slate-100 text-slate-700 border border-slate-200' },
-  { value: 'cash', label: '现金收入', desc: '门店手工交班现金账', badge: 'bg-teal-50 text-teal-600 border border-teal-100' },
-  { value: 'sales', label: '销售收入', desc: '收银系统 ERP/POS 销售汇总', badge: 'bg-blue-50 text-blue-600 border border-blue-100' },
+type QueueStatus = 'ready' | 'preflighting' | 'importing' | 'imported' | 'duplicate' | 'attention' | 'failed';
+interface QueueItem { key: string; file: File; status: QueueStatus; preflight?: PreflightResult; error?: string }
+
+const profiles: { code: ProfileCode; label: string; description: string }[] = [
+  { code: 'store_finance_v1', label: '门店财务表', description: '一次导入，同时生成销售收入和现金收入；必须指定标准门店。' },
+  { code: 'tonglian_v1', label: '通联好老板', description: '统计成功交易金额，工作簿内门店名称必须经过来源别名确认。' },
+  { code: 'meituan_v1', label: '美团收入', description: '按验券/退款日期统计“总收入 + 商家营销费用”。' },
+  { code: 'douyin_v1', label: '抖音收入', description: '按核销时间统计订单实收，不引入不存在的撤销核销规则。' },
 ];
 
-const selectedSource = ref('tonglian');
-const dragOver = ref(false);
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const history = ref<ImportFile[]>([]);
-const reprocessingId = ref<number | null>(null);
-
-// Pagination and Search states
-const searchQuery = ref('');
-const currentPage = ref(1);
-const pageSize = ref(10);
-
-// Store states
+const selectedProfile = ref<ProfileCode>('store_finance_v1');
 const selectedStoreId = ref<number | null>(null);
-const stores = ref<any[]>([]);
-const deletingId = ref<number | null>(null);
+const stores = ref<Store[]>([]);
+const activeBatch = ref<ReconciliationBatch | null>(null);
+const batchDetail = ref<BatchDetail | null>(null);
+const queue = ref<QueueItem[]>([]);
+const loadingBatch = ref(false);
+const processing = ref(false);
+const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 
-// Column mapping modal states
-const showMappingModal = ref(false);
-const isSubmittingMapping = ref(false);
-const mappingContext = ref({
-  import_file_id: 0,
-  filename: '',
-  data_source: '',
-  columns: [] as string[],
-  detected_mappings: {} as Record<string, string>
-});
-const chosenMappings = ref({
-  trade_date: '',
-  store_name: '',
-  amount: ''
-});
+const activeStores = computed(() => stores.value.filter((store) => store.is_active));
+const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
+const openIssueCount = computed(() => batchDetail.value?.quality_issues.filter((issue) => issue.status === 'open').length ?? 0);
+const canImport = computed(() => Boolean(
+  activeBatch.value
+  && canOperate.value
+  && activeBatch.value.status !== 'closed'
+  && queue.value.length
+  && (selectedProfile.value !== 'store_finance_v1' || selectedStoreId.value),
+));
 
-interface UploadItem {
-  name: string;
-  status: 'uploading' | 'success' | 'failed';
-  error?: string;
-}
-const uploadQueue = ref<UploadItem[]>([]);
-
-const getSourceLabel = (val: string) => {
-  return sources.find(s => s.value === val)?.label || val;
-};
-
-const getSourceBadgeClass = (val: string) => {
-  return sources.find(s => s.value === val)?.badge || 'bg-slate-100 text-slate-600';
-};
-
-const getStatusLabel = (val: string) => {
-  switch (val) {
-    case 'parsed': return '已完成';
-    case 'pending': return '待处理';
-    case 'pending_mapping': return '待指派表头';
-    case 'failed': return '处理失败';
-    default: return val;
-  }
-};
-
-const getStoreNameById = (id: number) => {
-  return stores.value.find(s => s.id === id)?.name || `ID: ${id}`;
-};
-
-const formatDate = (dateStr: string) => {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-
-// Filtered and Paginated computed history
-const filteredHistory = computed(() => {
-  if (!searchQuery.value.trim()) return history.value;
-  const q = searchQuery.value.toLowerCase().trim();
-  return history.value.filter(item => item.filename.toLowerCase().includes(q));
-});
-
-const totalPages = computed(() => Math.ceil(filteredHistory.value.length / pageSize.value) || 1);
-
-const paginatedHistory = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return filteredHistory.value.slice(start, end);
-});
-
-// Reset page on search
-watch(searchQuery, () => {
-  currentPage.value = 1;
-});
-
-// Reset selected store when data source changes
-watch(selectedSource, () => {
-  selectedStoreId.value = null;
-});
-
-const fetchImportHistory = async () => {
+const ensureBatch = async () => {
+  loadingBatch.value = true;
+  message.value = null;
   try {
-    history.value = await api.getImportFiles();
+    activeBatch.value = await api.createBatch(globalDate.value);
+    batchDetail.value = await api.getBatchDetail(activeBatch.value.id);
   } catch (error) {
-    console.error('Failed to load history:', error);
+    message.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    loadingBatch.value = false;
   }
 };
 
-const fetchStores = async () => {
+const loadExistingBatch = async () => {
+  loadingBatch.value = true;
   try {
-    stores.value = await api.getStores();
-  } catch (error) {
-    console.error('Failed to load stores:', error);
+    const batch = (await api.getBatches()).find((item) => item.business_date === globalDate.value) ?? null;
+    activeBatch.value = batch;
+    batchDetail.value = batch ? await api.getBatchDetail(batch.id) : null;
+  } finally {
+    loadingBatch.value = false;
   }
 };
 
-const triggerFileSelect = () => {
-  fileInputRef.value?.click();
+const onFilesSelected = (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const files = Array.from(input.files ?? []);
+  queue.value = files.map((file, index) => ({ key: `${file.name}-${file.size}-${index}`, file, status: 'ready' }));
+  input.value = '';
+  message.value = null;
 };
 
-const handleFileSelect = (e: Event) => {
-  const files = (e.target as HTMLInputElement).files;
-  if (files) {
-    uploadFiles(Array.from(files));
-  }
-};
-
-const handleDrop = (e: DragEvent) => {
-  dragOver.value = false;
-  const files = e.dataTransfer?.files;
-  if (files) {
-    uploadFiles(Array.from(files));
-  }
-};
-
-const uploadFiles = async (files: File[]) => {
-  for (const file of files) {
-    const queueItem: UploadItem = {
-      name: file.name,
-      status: 'uploading'
-    };
-    uploadQueue.value.unshift(queueItem);
-    
-    // Explicit selection check for Cash/Sales
-    if ((selectedSource.value === 'cash' || selectedSource.value === 'sales') && !selectedStoreId.value) {
-      queueItem.status = 'failed';
-      queueItem.error = '导入单店账时请先指定归属门店！';
-      continue;
-    }
-    
+const processQueue = async () => {
+  if (!activeBatch.value || !canImport.value) return;
+  processing.value = true;
+  message.value = null;
+  let failed = 0;
+  for (const item of queue.value) {
+    item.error = undefined;
     try {
-      const res = await api.uploadFile(file, selectedSource.value, selectedStoreId.value);
-      if (res && res.status === 'requires_column_mapping') {
-        queueItem.status = 'failed';
-        queueItem.error = '需要手动指定列头';
-        
-        mappingContext.value = {
-          import_file_id: res.import_file_id,
-          filename: res.filename,
-          data_source: res.data_source,
-          columns: res.columns,
-          detected_mappings: res.detected_mappings
-        };
-        
-        chosenMappings.value = {
-          trade_date: res.detected_mappings.trade_date || '',
-          store_name: res.detected_mappings.store_name || '',
-          amount: res.detected_mappings.amount || ''
-        };
-        
-        showMappingModal.value = true;
-      } else {
-        queueItem.status = 'success';
-        if (res && res.overwritten) {
-          alert(`检测到同名文件 [${file.name}] 已存在，系统已自动覆盖历史数据并重算对账！`);
-        }
-      }
-    } catch (err: any) {
-      queueItem.status = 'failed';
-      queueItem.error = err.response?.data?.detail || '解析失败';
+      item.status = 'preflighting';
+      item.preflight = await api.preflightWorkbook(item.file, selectedProfile.value, globalDate.value, selectedStoreId.value);
+      item.status = 'importing';
+      const outcome = await api.importWorkbook(item.file, activeBatch.value.id, selectedProfile.value, selectedStoreId.value);
+      item.status = outcome.status === 'duplicate' ? 'duplicate' : outcome.status === 'attention_required' ? 'attention' : 'imported';
+    } catch (error) {
+      item.status = 'failed';
+      item.error = errorDetail(error);
+      failed += 1;
     }
   }
-  
-  fetchImportHistory();
-  
-  setTimeout(() => {
-    uploadQueue.value = uploadQueue.value.filter(item => item.status === 'failed');
-  }, 5000);
+  batchDetail.value = await api.getBatchDetail(activeBatch.value.id);
+  activeBatch.value = batchDetail.value.batch;
+  message.value = failed
+    ? { type: 'error', text: `${queue.value.length - failed} 份导入完成，${failed} 份失败，请查看逐文件原因。` }
+    : { type: 'success', text: '本次文件已完成预检和导入。若出现未知门店，请到“对账明细”人工确认。' };
+  processing.value = false;
 };
 
-const submitColumnMapping = async () => {
-  if (!chosenMappings.value.trade_date || !chosenMappings.value.store_name || !chosenMappings.value.amount) {
-    alert('请为所有 3 个标准字段指定对应的 Excel 列名！');
-    return;
-  }
-  isSubmittingMapping.value = true;
-  try {
-    await api.confirmMapping(mappingContext.value.import_file_id, chosenMappings.value);
-    showMappingModal.value = false;
-    alert('映射确认成功，数据已完成对账！');
-    fetchImportHistory();
-  } catch (err: any) {
-    alert('确认映射失败: ' + (err.response?.data?.detail || '未知错误'));
-  } finally {
-    isSubmittingMapping.value = false;
-  }
-};
+const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入', finance: '财务表' }[source] ?? source);
+const profileLabel = (code?: string | null) => profiles.find((item) => item.code === code)?.label ?? code ?? '—';
+const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);
+const batchStatusClass = (status: string) => status === 'closed' ? 'bg-slate-200 text-slate-700' : status === 'ready_to_close' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
+const queueStatusLabel = (status: QueueStatus) => ({ ready: '待处理', preflighting: '预检中', importing: '导入中', imported: '已导入', duplicate: '内容重复', attention: '需确认门店', failed: '失败' }[status]);
+const queueStatusClass = (status: QueueStatus) => status === 'failed' ? 'bg-rose-50 text-rose-700' : status === 'imported' ? 'bg-emerald-50 text-emerald-700' : status === 'attention' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
+const formatDateTime = (value: string) => new Date(value).toLocaleString('zh-CN', { hour12: false });
+const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
 
-const deleteFile = async (fileId: number) => {
-  try {
-    await api.deleteImportFile(fileId);
-    alert('文件数据及清洗对账结果已成功完全清除！');
-    deletingId.value = null;
-    fetchImportHistory();
-  } catch (err: any) {
-    alert('删除文件失败: ' + (err.response?.data?.detail || '未知错误'));
-  }
-};
-
-const reprocessFile = async (fileId: number) => {
-  reprocessingId.value = fileId;
-  try {
-    await api.reprocessFile(fileId);
-    alert('重新处理成功，对账结果已刷新！');
-    fetchImportHistory();
-  } catch (err: any) {
-    alert('重新处理失败: ' + (err.response?.data?.detail || '未知错误'));
-  } finally {
-    reprocessingId.value = null;
-  }
-};
-
-onMounted(() => {
-  fetchImportHistory();
-  fetchStores();
-});
+watch(globalDate, () => { queue.value = []; message.value = null; void loadExistingBatch(); });
+onMounted(async () => { stores.value = await api.getStores(); await loadExistingBatch(); });
 </script>

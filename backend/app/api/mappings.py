@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from backend.app.core.db import get_db
@@ -10,7 +10,11 @@ from backend.app.crud import field_mapping as crud_field_mapping
 router = APIRouter()
 
 @router.get("/", response_model=List[FieldMapping])
-def list_field_mappings(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_field_mappings(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
     return crud_field_mapping.get_field_mappings(db, skip=skip, limit=limit)
 
 @router.get("/source/{data_source}", response_model=List[FieldMapping])

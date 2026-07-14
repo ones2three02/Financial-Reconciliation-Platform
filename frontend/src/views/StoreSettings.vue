@@ -401,7 +401,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Store as StoreIcon, Link, Plus, Trash2, CheckCircle2, FolderOpen, Save } from 'lucide-vue-next';
+import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save } from 'lucide-vue-next';
 
 // Tab state
 const activeTab = ref('stores'); // 'stores' or 'aliases'
@@ -593,6 +593,10 @@ const deleteStore = async (id: number) => {
 };
 
 const mapAlias = async (aliasId: number, storeId: number | null) => {
+  if (storeId === null) {
+    alert('请先选择明确的标准门店，系统不会自动匹配。');
+    return;
+  }
   try {
     await api.updateStoreAlias(aliasId, { store_id: storeId });
     fetchAliases();

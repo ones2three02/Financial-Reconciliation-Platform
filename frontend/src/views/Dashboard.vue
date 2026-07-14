@@ -147,7 +147,7 @@
             <LineChart class="w-4 h-4 text-blue-500" />
             <span>近 7 天收支趋势比对</span>
           </CardTitle>
-          <CardDescription>按日对比门店总应收(Expected)与后台实收(Actual)</CardDescription>
+      <CardDescription>按日对比三方渠道收入合计与销售收入减现金</CardDescription>
         </CardHeader>
         <CardContent class="flex-1 w-full relative pt-2">
           <div ref="trendChartRef" class="w-full h-full"></div>
@@ -202,11 +202,14 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick, watch } from 'vue';
 import { api } from '../services/api';
-import type { DashboardSummary, ReconciliationResult } from '../services/api';
+import type { DashboardSummary, ReconciliationResult, TrendData } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Store as StoreIcon, CheckCircle2, AlertTriangle, Coins, LineChart, CalendarDays } from 'lucide-vue-next';
-import * as echarts from 'echarts';
+import { BarChart, LineChart as EChartsLineChart } from 'echarts/charts';
+import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components';
+import { init, use, type EChartsType } from 'echarts/core';
+import { CanvasRenderer } from 'echarts/renderers';
 import { globalDate, setGlobalDate } from '../services/store';
 import { DatePicker } from '../components/ui/date-picker';
 
@@ -221,27 +224,29 @@ const summary = ref<DashboardSummary>({
 });
 
 const discrepancyStores = ref<ReconciliationResult[]>([]);
-const recentTrends = ref<any[]>([]);
+const recentTrends = ref<TrendData[]>([]);
+
+use([BarChart, EChartsLineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
 // Chart reference
 const trendChartRef = ref<HTMLDivElement | null>(null);
-let trendChart: echarts.ECharts | null = null;
+let trendChart: EChartsType | null = null;
 
-const initChart = (trends: any[]) => {
+const initChart = (trends: TrendData[]) => {
   if (!trendChartRef.value) return;
   
   if (trendChart) {
     trendChart.dispose();
   }
   
-  trendChart = echarts.init(trendChartRef.value);
+  trendChart = init(trendChartRef.value);
   
   const dates = trends.map(t => t.date.slice(5)); // Show as MM-DD
   const sales = trends.map(t => t.sales_amount);
   const expected = trends.map(t => t.tonglian_amount);
   const diffs = trends.map(t => t.difference);
   
-  const option: echarts.EChartsOption = {
+  const option = {
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -251,7 +256,7 @@ const initChart = (trends: any[]) => {
       axisPointer: { type: 'shadow' }
     },
     legend: {
-      data: ['预期销售 (应收)', '三方后台 (实收)', '两端差额'],
+      data: ['销售减现金', '三方渠道合计', '两端差额'],
       bottom: 0,
       itemWidth: 10,
       itemHeight: 10,
@@ -278,7 +283,7 @@ const initChart = (trends: any[]) => {
     },
     series: [
       {
-        name: '预期销售 (应收)',
+        name: '销售减现金',
         type: 'bar',
         barWidth: '15%',
         data: sales,
@@ -288,7 +293,7 @@ const initChart = (trends: any[]) => {
         }
       },
       {
-        name: '三方后台 (实收)',
+        name: '三方渠道合计',
         type: 'bar',
         barWidth: '15%',
         data: expected,

@@ -1,434 +1,327 @@
 <template>
-  <div class="space-y-8 fade-in">
-    <!-- Filter & Action Bar Card -->
-    <Card class="shadow-sm border border-slate-200/80">
-      <CardContent class="p-6 flex flex-wrap items-center justify-between gap-6">
-        <div class="flex flex-wrap items-center gap-5">
-          <!-- Date Filter -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Calendar class="w-3.5 h-3.5" />
-              <span>账期日期</span>
-            </label>
-            <DatePicker v-model="globalDate" />
-          </div>
-
-          <!-- Store Search Filter -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Search class="w-3.5 h-3.5 text-slate-400" />
-              <span>搜索门店</span>
-            </label>
-            <Input 
-              v-model="storeSearchQuery" 
-              placeholder="输入门店名称..."
-              class="h-9 w-40 text-xs font-semibold rounded-lg bg-white"
-            />
-          </div>
-
-          <!-- Status Filter -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <Sliders class="w-3.5 h-3.5" />
-              <span>比对状态</span>
-            </label>
-            <Select 
-              v-model="filterStatus" 
-              :options="statusOptions"
-              @change="fetchResults"
-              class="w-32 h-9"
-            />
-          </div>
-
-          <!-- Resolution Filter -->
-          <div class="flex flex-col gap-1.5">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-              <CheckCircle2 class="w-3.5 h-3.5" />
-              <span>核实处理</span>
-            </label>
-            <Select 
-              v-model="filterResolved" 
-              :options="resolvedOptions"
-              @change="fetchResults"
-              class="w-28 h-9"
-            />
-          </div>
+  <div class="space-y-6 fade-in">
+    <Card class="border-slate-200/80 shadow-sm">
+      <CardHeader class="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle class="flex items-center gap-2 text-base"><ClipboardCheck class="h-5 w-5 text-blue-600" />{{ globalDate }} 对账工作台</CardTitle>
+          <CardDescription>完整性优先于金额比较：缺少任一必需来源或存在待确认门店时，结果只能是不完整。</CardDescription>
         </div>
-
-        <!-- Action Buttons -->
-        <div class="flex items-center gap-3.5 shrink-0 self-end">
-          <Button 
-            @click="recalculate"
-            variant="outline"
-            size="sm"
-            class="h-9 font-semibold text-xs border border-slate-200/80 hover:bg-slate-50 flex items-center gap-1.5"
-            :disabled="isRecalculating"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{'animate-spin': isRecalculating}" />
-            <span>重新对账</span>
-          </Button>
-          
-          <Button 
-            @click="exportExcel"
-            size="sm"
-            class="h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
-          >
-            <Download class="w-3.5 h-3.5" />
-            <span>导出报表</span>
-          </Button>
+        <div class="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" size="sm" :disabled="loading" @click="loadWorkspace"><RefreshCw class="mr-1 h-3.5 w-3.5" />刷新</Button>
+          <Button v-if="detail?.results.length" variant="outline" size="sm" :disabled="working" @click="downloadReport"><FileDown class="mr-1 h-3.5 w-3.5" />导出结果</Button>
+          <Button v-if="batch && batch.status !== 'closed' && canOperate" size="sm" class="bg-blue-600 text-white hover:bg-blue-700" :disabled="working" @click="runReconciliation">执行对账</Button>
+          <Button v-if="batch?.status === 'ready_to_close' && canOperate" size="sm" class="bg-emerald-600 text-white hover:bg-emerald-700" :disabled="working" @click="closeCurrentBatch">关账</Button>
+          <Button v-if="batch?.status === 'closed' && canOperate" variant="outline" size="sm" class="border-amber-300 text-amber-700" @click="showReopen = true">重开账期</Button>
         </div>
+      </CardHeader>
+      <CardContent>
+        <div v-if="!batch" class="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+          <div class="text-sm font-bold text-slate-700">该账期尚未创建批次</div>
+          <p class="mt-1 text-xs text-slate-500">请先到“文件导入”创建批次并上传工作簿。</p>
+        </div>
+        <div v-else class="grid gap-4 md:grid-cols-4">
+          <MetricCard label="批次状态" :value="batchStatusLabel(batch.status)" :tone="batch.status === 'closed' || batch.status === 'ready_to_close' ? 'green' : 'amber'" />
+          <MetricCard label="完整来源" :value="`${completeCoverageCount} / ${activeStores.length * sourceCodes.length}`" :tone="missingCoverageCount ? 'amber' : 'green'" />
+          <MetricCard label="待处理问题" :value="String(openIssues.length)" :tone="openIssues.length ? 'red' : 'green'" />
+          <MetricCard label="金额差异门店" :value="String(discrepancyCount)" :tone="discrepancyCount ? 'red' : 'green'" />
+        </div>
+        <div v-if="notice" class="mt-4 rounded-xl border px-4 py-3 text-xs font-semibold" :class="notice.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">{{ notice.text }}</div>
       </CardContent>
     </Card>
 
-    <!-- Main Results Card / Table -->
-    <Card class="shadow-sm border border-slate-200/80 overflow-hidden">
+    <Card v-if="batch" class="border-slate-200/80 shadow-sm">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-base"><Grid3X3 class="h-4 w-4 text-blue-600" />来源完整性矩阵</CardTitle>
+        <CardDescription>“有数据”和“已确认零”均为完整；“缺失”不能当作 0。确认零收入会记录当前登录人和时间。</CardDescription>
+      </CardHeader>
       <CardContent class="p-0">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-wider border-b border-slate-200/80">
-                <th class="p-4">标准门店</th>
-                <th class="p-4 text-right">销售系统 (S)</th>
-                <th class="p-4 text-right">交班现金 (C)</th>
-                <th class="p-4 text-right">计算应收 (S - C)</th>
-                <th class="p-4 text-right">后台实收汇总 (P)</th>
-                <th class="p-4 text-right">偏差额 (P - 应收)</th>
-                <th class="p-4 text-center">状态</th>
-                <th class="p-4">核实备注</th>
-                <th class="p-4 text-center">操作</th>
-              </tr>
+        <div class="max-h-[430px] overflow-auto border-t border-slate-100">
+          <table class="w-full min-w-[850px] text-left text-xs">
+            <thead class="sticky top-0 z-10 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400">
+              <tr><th class="p-3">门店</th><th v-for="source in sourceCodes" :key="source" class="p-3 text-center">{{ sourceLabel(source) }}</th></tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 text-xs">
-              <tr v-if="paginatedResults.length === 0">
-                <td colspan="9" class="p-12 text-center text-slate-400 font-medium">
-                  <div class="flex flex-col items-center justify-center gap-2">
-                    <FolderOpen class="w-8 h-8 text-slate-300" />
-                    <span>暂无符合筛选条件的门店对账明细</span>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="store in activeStores" :key="store.id" class="hover:bg-slate-50/50">
+                <td class="p-3 font-bold text-slate-700">{{ store.name }}</td>
+                <td v-for="source in sourceCodes" :key="source" class="p-2 text-center">
+                  <div class="inline-flex min-w-24 flex-col items-center gap-1 rounded-lg px-2 py-1.5" :class="coverageClass(coverageFor(store.id, source)?.status)">
+                    <span class="font-bold">{{ coverageLabel(coverageFor(store.id, source)?.status) }}</span>
+                    <span v-if="coverageFor(store.id, source)?.status === 'present_data'" class="font-mono text-[10px]">¥{{ money(coverageFor(store.id, source)?.amount ?? 0) }}</span>
+                    <button v-else-if="batch.status !== 'closed' && canOperate" class="text-[10px] font-bold text-blue-700 underline decoration-dotted" :disabled="working" @click="confirmSourceZero(store.id, source)">确认零收入</button>
                   </div>
-                </td>
-              </tr>
-              <tr 
-                v-for="r in paginatedResults" 
-                :key="r.id"
-                class="hover:bg-slate-50/40 transition-colors"
-                :class="{'bg-rose-50/5': r.status === 'discrepancy' && !r.is_resolved}"
-              >
-                <td class="p-4 font-bold text-slate-700">{{ r.standard_store_name }}</td>
-                <td class="p-4 text-right font-semibold text-slate-600">¥{{ Number(r.sales_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}</td>
-                <td class="p-4 text-right font-semibold text-slate-600">¥{{ Number(r.cash_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}</td>
-                <td class="p-4 text-right font-bold text-slate-700 bg-slate-50/30">
-                  ¥{{ Number(r.actual_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
-                </td>
-                <td class="p-4 text-right font-bold text-slate-700" title="通联+美团+抖音">
-                  ¥{{ Number(r.expected_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
-                </td>
-                <td class="p-4 text-right font-extrabold" :class="getDifferenceClass(r)">
-                  {{ getDifferencePrefix(r.difference) }}¥{{ Math.abs(r.difference).toLocaleString('zh-CN', {minimumFractionDigits: 2}) }}
-                </td>
-                <td class="p-4 text-center">
-                  <span 
-                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                    :class="getStatusBadgeClass(r.status)"
-                  >
-                    <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(r.status)"></span>
-                    <span>{{ getStatusLabel(r.status) }}</span>
-                  </span>
-                </td>
-                <td class="p-4 max-w-xs truncate text-slate-400 font-medium" :title="r.remarks || ''">
-                  {{ r.remarks || '—' }}
-                </td>
-                <td class="p-4 text-center">
-                  <Button 
-                    @click="openAuditModal(r)"
-                    variant="ghost"
-                    size="xs"
-                    class="h-7 border border-slate-200 hover:bg-slate-50 text-[11px] font-bold text-slate-700"
-                  >
-                    📝 核实
-                  </Button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </CardContent>
+    </Card>
 
-        <!-- Pagination Controls -->
-        <div v-if="totalPages > 1" class="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50 text-xs">
-          <div class="text-slate-400 font-medium select-none">
-            显示第 {{ (currentPage - 1) * pageSize + 1 }} 至 {{ Math.min(currentPage * pageSize, filteredResults.length) }} 家门店，共 {{ filteredResults.length }} 家
+    <Card v-if="batch && openIssues.length" class="border-amber-200 shadow-sm">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-base text-amber-800"><AlertTriangle class="h-4 w-4" />待人工确认门店</CardTitle>
+        <CardDescription>系统不会依据名称相似度自动归店。请核对来源和原始名称后，由管理员明确选择标准门店。</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <div v-for="issue in openIssues" :key="issue.id" class="grid items-center gap-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4 md:grid-cols-[1fr_1fr_auto]">
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600">{{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}</div>
+            <div class="mt-1 text-sm font-extrabold text-slate-800">{{ issue.raw_value || '空门店名称' }}</div>
+            <div class="mt-1 text-[11px] text-slate-500">影响 {{ issue.affected_row_count }} 行，金额 ¥{{ money(issue.affected_amount) }}</div>
           </div>
-          <div class="flex items-center gap-2">
-            <Button 
-              size="xs" 
-              variant="outline" 
-              :disabled="currentPage === 1" 
-              @click="currentPage--"
-              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
-            >
-              上一页
-            </Button>
-            <span class="text-slate-600 font-bold px-2 select-none">第 {{ currentPage }} / {{ totalPages }} 页</span>
-            <Button 
-              size="xs" 
-              variant="outline" 
-              :disabled="currentPage === totalPages" 
-              @click="currentPage++"
-              class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
-            >
-              下一页
-            </Button>
-          </div>
+          <Select v-model="issueStoreSelections[issue.id]" :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" placeholder="选择确认归属的标准门店" />
+          <Button size="sm" :disabled="!issueStoreSelections[issue.id] || working || !canConfirmAlias" @click="confirmIssueAlias(issue)">确认映射</Button>
         </div>
       </CardContent>
     </Card>
 
-    <!-- Audit Dialog Modal (shadcn style) -->
-    <div 
-      v-if="showAuditModal" 
-      class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
-      @click.self="showAuditModal = false"
-    >
-      <Card class="w-full max-w-md shadow-2xl border border-slate-200/80 overflow-hidden bg-white">
-        <CardHeader class="bg-slate-50/50 border-b border-slate-200/60 pb-4">
-          <div class="flex items-center justify-between">
-            <div>
-              <CardTitle class="text-base font-bold text-slate-800">门店对账核实</CardTitle>
-              <CardDescription class="text-xs text-slate-400">标准门店: {{ activeRow?.standard_store_name }} ({{ activeRow?.trade_date }})</CardDescription>
-            </div>
-            <button @click="showAuditModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
-          </div>
-        </CardHeader>
-        
-        <CardContent class="p-6 space-y-5">
-          <!-- Summary Metrics inside modal -->
-          <div class="grid grid-cols-2 gap-4 p-4 bg-slate-50 border border-slate-200/60 rounded-xl text-xs font-semibold">
-            <div>
-              <span class="text-slate-400 block mb-0.5">计算应收 (销售-现金)</span>
-              <span class="font-bold text-slate-700 text-sm">¥{{ activeRow ? Number(activeRow.actual_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}</span>
-            </div>
-            <div>
-              <span class="text-slate-400 block mb-0.5">三方实收汇总</span>
-              <span class="font-bold text-slate-700 text-sm">¥{{ activeRow ? Number(activeRow.expected_amount).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}</span>
-            </div>
-            <div class="col-span-2 border-t border-slate-200/80 pt-2.5 flex items-center justify-between">
-              <span class="text-slate-500">偏差金额</span>
-              <span class="font-bold text-sm" :class="activeRow ? getDifferenceClass(activeRow) : ''">
-                ¥{{ activeRow ? Number(activeRow.difference).toLocaleString('zh-CN', {minimumFractionDigits: 2}) : '0.00' }}
-              </span>
-            </div>
-          </div>
+    <Card v-if="batch" class="border-slate-200/80 shadow-sm">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2 text-base"><TableProperties class="h-4 w-4 text-blue-600" />门店对账结果</CardTitle>
+        <CardDescription>差异 =（通联 + 美团 + 抖音）-（销售收入 - 现金）。差异项填写核实说明并标记处理后才可关账。</CardDescription>
+      </CardHeader>
+      <CardContent class="p-0">
+        <div class="overflow-x-auto border-t border-slate-100">
+          <table class="w-full min-w-[1100px] text-left text-xs">
+            <thead class="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400">
+              <tr><th class="p-3">门店</th><th class="p-3 text-right">通联</th><th class="p-3 text-right">美团</th><th class="p-3 text-right">抖音</th><th class="p-3 text-right">现金</th><th class="p-3 text-right">销售</th><th class="p-3 text-right">差异</th><th class="p-3 text-center">状态</th><th class="p-3">核实说明</th><th class="p-3 text-center">操作</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-if="!detail?.results.length"><td colspan="10" class="p-10 text-center text-slate-400">尚未执行对账</td></tr>
+              <tr v-for="result in detail?.results ?? []" :key="result.id" class="hover:bg-slate-50/50">
+                <td class="p-3 font-bold text-slate-700">{{ result.standard_store_name }}</td>
+                <td class="p-3 text-right font-mono">{{ money(result.tonglian_amount) }}</td>
+                <td class="p-3 text-right font-mono">{{ money(result.meituan_amount) }}</td>
+                <td class="p-3 text-right font-mono">{{ money(result.douyin_amount) }}</td>
+                <td class="p-3 text-right font-mono">{{ money(result.cash_amount) }}</td>
+                <td class="p-3 text-right font-mono">{{ money(result.sales_amount) }}</td>
+                <td class="p-3 text-right font-mono font-extrabold" :class="result.status === 'consistent' ? 'text-emerald-600' : 'text-rose-600'">{{ signedMoney(result.difference) }}</td>
+                <td class="p-3 text-center"><span class="rounded-full px-2 py-1 text-[10px] font-bold" :class="resultStatusClass(result.status)">{{ resultStatusLabel(result.status) }}</span></td>
+                <td class="max-w-64 truncate p-3 text-slate-500" :title="result.remarks || ''">{{ result.remarks || '—' }}</td>
+                <td class="p-3 text-center"><Button v-if="result.status === 'discrepancy' && canOperate" variant="ghost" size="xs" class="text-blue-700" @click="openResolution(result)">{{ result.is_resolved ? '修改说明' : '处理差异' }}</Button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
 
-          <!-- Inputs -->
-          <div class="space-y-4">
-            <div class="flex flex-col gap-1.5">
-              <label for="audit-remark" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">异常成因备注</label>
-              <textarea 
-                id="audit-remark"
-                v-model="auditRemark" 
-                rows="3" 
-                placeholder="例如: 财务确认今日美团因退款延迟核销导致100元差异，已与店长核实。"
-                class="border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              ></textarea>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <input 
-                id="is-resolved-cb"
-                type="checkbox" 
-                v-model="auditResolved" 
-                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-              />
-              <label for="is-resolved-cb" class="text-xs font-bold text-slate-700 cursor-pointer">
-                已核实并标记解决 (Resolved)
-              </label>
-            </div>
-          </div>
+    <div v-if="activeResult" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="activeResult = null">
+      <Card class="w-full max-w-lg bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base">处理 {{ activeResult.standard_store_name }} 差异</CardTitle><CardDescription>当前差异 {{ signedMoney(activeResult.difference) }}。请填写实际核实结论，不要只写“已处理”。</CardDescription></CardHeader>
+        <CardContent class="space-y-4">
+          <textarea v-model="resolutionRemark" rows="5" maxlength="1000" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如：门店销售表漏录一笔，已联系门店于次日补录……"></textarea>
+          <label class="flex items-center gap-2 text-xs font-bold text-slate-700"><input v-model="resolutionDone" type="checkbox" /> 已核实并完成处理</label>
         </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="activeResult = null">取消</Button><Button :disabled="working || !resolutionRemark.trim()" @click="saveResolution">保存说明</Button></CardFooter>
+      </Card>
+    </div>
 
-        <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
-          <Button 
-            @click="showAuditModal = false"
-            variant="outline"
-            size="sm"
-            class="h-8 text-xs font-semibold"
-          >
-            取消
-          </Button>
-          <Button 
-            @click="saveAudit"
-            size="sm"
-            class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10"
-          >
-            保存备注
-          </Button>
-        </CardFooter>
+    <div v-if="showReopen" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="showReopen = false">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base">重开已关账批次</CardTitle><CardDescription>重开会增加批次版本并写入审计记录，必须填写具体原因。</CardDescription></CardHeader>
+        <CardContent><textarea v-model="reopenReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" placeholder="请输入重开原因"></textarea></CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="showReopen = false">取消</Button><Button class="bg-amber-600 text-white hover:bg-amber-700" :disabled="working || !reopenReason.trim()" @click="reopenCurrentBatch">确认重开</Button></CardFooter>
       </Card>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
-import { api } from '../services/api';
-import type { ReconciliationResult } from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Select } from '../components/ui/select';
-import { Input } from '../components/ui/input';
-import { DatePicker } from '../components/ui/date-picker';
-import { Calendar, Sliders, CheckCircle2, RefreshCw, Download, FolderOpen, Search } from 'lucide-vue-next';
+import { computed, defineComponent, h, onMounted, reactive, ref, watch } from 'vue';
+import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties } from 'lucide-vue-next';
+import { api, getSession } from '../services/api';
+import type { BatchDetail, DataQualityIssue, ReconciliationBatch, ReconciliationResult, SourceCode, Store, StoreAlias } from '../services/api';
 import { globalDate } from '../services/store';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import { Select } from '../components/ui/select';
 
-// Filter & Search states
-const filterStatus = ref('');
-const filterResolved = ref('');
-const storeSearchQuery = ref('');
-
-// Pagination states
-const currentPage = ref(1);
-const pageSize = ref(10);
-
-const statusOptions = [
-  { value: '', label: '全部状态' },
-  { value: 'consistent', label: '账目一致' },
-  { value: 'discrepancy', label: '金额不符' },
-  { value: 'missing_data', label: '缺失数据' }
-];
-
-const resolvedOptions = [
-  { value: '', label: '全部处理' },
-  { value: 'false', label: '未处理' },
-  { value: 'true', label: '已处理' }
-];
-
-const results = ref<ReconciliationResult[]>([]);
-const isRecalculating = ref(false);
-
-// Audit Modal states
-const showAuditModal = ref(false);
-const activeRow = ref<ReconciliationResult | null>(null);
-const auditRemark = ref('');
-const auditResolved = ref(false);
-
-const getDifferenceClass = (row: ReconciliationResult) => {
-  if (row.status === 'consistent') return 'text-emerald-600';
-  return row.difference > 0 ? 'text-blue-600' : 'text-rose-600';
-};
-
-const getDifferencePrefix = (diff: number) => {
-  if (diff > 0) return '+';
-  return '';
-};
-
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'consistent': return 'bg-emerald-50 text-emerald-600 border border-emerald-150';
-    case 'discrepancy': return 'bg-rose-50 text-rose-600 border border-rose-150';
-    case 'missing_data': return 'bg-amber-50 text-amber-600 border border-amber-150';
-    default: return 'bg-slate-100 text-slate-600 border border-slate-200';
-  }
-};
-
-const getStatusDotClass = (status: string) => {
-  switch (status) {
-    case 'consistent': return 'bg-emerald-500';
-    case 'discrepancy': return 'bg-rose-500';
-    case 'missing_data': return 'bg-amber-500';
-    default: return 'bg-slate-400';
-  }
-};
-
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'consistent': return '一致';
-    case 'discrepancy': return '金额不符';
-    case 'missing_data': return '缺失数据';
-    default: return status;
-  }
-};
-
-// Filtered results by store name search query locally
-const filteredResults = computed(() => {
-  if (!storeSearchQuery.value.trim()) return results.value;
-  const q = storeSearchQuery.value.toLowerCase().trim();
-  return results.value.filter(r => r.standard_store_name.toLowerCase().includes(q));
+const MetricCard = defineComponent({
+  props: { label: { type: String, required: true }, value: { type: String, required: true }, tone: { type: String, default: 'green' } },
+  setup(props) {
+    return () => h('div', { class: 'rounded-xl border border-slate-200 bg-slate-50 p-4' }, [
+      h('div', { class: 'text-[10px] font-bold uppercase tracking-wider text-slate-400' }, props.label),
+      h('div', { class: ['mt-1 text-lg font-extrabold', props.tone === 'red' ? 'text-rose-600' : props.tone === 'amber' ? 'text-amber-600' : 'text-emerald-600'] }, props.value),
+    ]);
+  },
 });
 
-const totalPages = computed(() => Math.ceil(filteredResults.value.length / pageSize.value) || 1);
+const sourceCodes: SourceCode[] = ['tonglian', 'meituan', 'douyin', 'cash', 'sales'];
+const stores = ref<Store[]>([]);
+const aliases = ref<StoreAlias[]>([]);
+const batch = ref<ReconciliationBatch | null>(null);
+const detail = ref<BatchDetail | null>(null);
+const loading = ref(false);
+const working = ref(false);
+const notice = ref<{ type: 'success' | 'error'; text: string } | null>(null);
+const issueStoreSelections = reactive<Record<number, number | null>>({});
+const activeResult = ref<ReconciliationResult | null>(null);
+const resolutionRemark = ref('');
+const resolutionDone = ref(false);
+const showReopen = ref(false);
+const reopenReason = ref('');
 
-const paginatedResults = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return filteredResults.value.slice(start, end);
-});
+const activeStores = computed(() => stores.value.filter((store) => store.is_active));
+const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
+const canConfirmAlias = computed(() => getSession().role === 'admin');
+const openIssues = computed(() => detail.value?.quality_issues.filter((issue) => issue.status === 'open') ?? []);
+const completeCoverageCount = computed(() => detail.value?.coverages.filter((coverage) => ['present_data', 'present_zero'].includes(coverage.status)).length ?? 0);
+const missingCoverageCount = computed(() => Math.max(0, activeStores.value.length * sourceCodes.length - completeCoverageCount.value));
+const discrepancyCount = computed(() => detail.value?.results.filter((result) => result.status === 'discrepancy' && !result.is_resolved).length ?? 0);
 
-// Watch triggers to reset pagination to page 1
-watch([storeSearchQuery, filterStatus, filterResolved, globalDate], () => {
-  currentPage.value = 1;
-});
-
-const fetchResults = async () => {
+const loadWorkspace = async () => {
+  loading.value = true;
+  notice.value = null;
   try {
-    const data = await api.getReconciliationResults({
-      trade_date: globalDate.value,
-      status: filterStatus.value || undefined,
-      is_resolved: filterResolved.value === '' ? undefined : filterResolved.value === 'true'
-    });
-    results.value = data;
+    const [storeRows, batchRows, aliasRows] = await Promise.all([api.getStores(), api.getBatches(), api.getStoreAliases('pending')]);
+    stores.value = storeRows;
+    aliases.value = aliasRows;
+    batch.value = batchRows.find((item) => item.business_date === globalDate.value) ?? null;
+    detail.value = batch.value ? await api.getBatchDetail(batch.value.id) : null;
   } catch (error) {
-    console.error('Failed to fetch reconciliation results:', error);
-  }
-};
-
-const recalculate = async () => {
-  isRecalculating.value = true;
-  try {
-    await api.recalculateDate(globalDate.value);
-    alert('重新计算对账完成！');
-    fetchResults();
-  } catch (error) {
-    alert('对账重算失败！');
+    notice.value = { type: 'error', text: errorDetail(error) };
   } finally {
-    isRecalculating.value = false;
+    loading.value = false;
   }
 };
 
-const exportExcel = () => {
-  const url = api.getExportUrl(globalDate.value);
-  window.open(url, '_blank');
-};
+const coverageFor = (storeId: number, source: SourceCode) => detail.value?.coverages.find((item) => item.store_id === storeId && item.source_code === source);
 
-const openAuditModal = (row: ReconciliationResult) => {
-  activeRow.value = row;
-  auditRemark.value = row.remarks || '';
-  auditResolved.value = row.is_resolved;
-  showAuditModal.value = true;
-};
-
-const saveAudit = async () => {
-  if (!activeRow.value) return;
+const confirmSourceZero = async (storeId: number, source: SourceCode) => {
+  if (!batch.value) return;
+  working.value = true;
   try {
-    const updated = await api.updateReconciliationResult(activeRow.value.id, {
-      remarks: auditRemark.value,
-      is_resolved: auditResolved.value,
-      resolved_by: '财务管理员'
-    });
-    
-    const idx = results.value.findIndex(r => r.id === updated.id);
-    if (idx !== -1) {
-      results.value[idx] = updated;
-    }
-    showAuditModal.value = false;
+    await api.confirmZero(batch.value.id, storeId, source);
+    notice.value = { type: 'success', text: `已确认 ${sourceLabel(source)} 为零收入，操作已写入审计记录。` };
+    detail.value = await api.getBatchDetail(batch.value.id);
   } catch (error) {
-    alert('保存核实说明失败！');
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
   }
 };
 
-watch(globalDate, () => {
-  fetchResults();
-});
+const confirmIssueAlias = async (issue: DataQualityIssue) => {
+  const storeId = issueStoreSelections[issue.id];
+  const alias = aliases.value.find((item) => item.source_code === issue.source_code && item.alias_name === issue.raw_value);
+  if (!storeId || !alias) {
+    notice.value = { type: 'error', text: '没有找到与该质量问题对应的待确认别名，请刷新后重试。' };
+    return;
+  }
+  if (getSession().role !== 'admin') {
+    notice.value = { type: 'error', text: '门店别名确认需要管理员权限。' };
+    return;
+  }
+  working.value = true;
+  try {
+    await api.confirmStoreAlias(alias.id, storeId);
+    notice.value = { type: 'success', text: `已将“${alias.alias_name}”明确绑定到所选标准门店，并重新提取受影响文件。` };
+    await loadWorkspace();
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
 
-onMounted(() => {
-  fetchResults();
-});
+const runReconciliation = async () => {
+  if (!batch.value) return;
+  working.value = true;
+  try {
+    await api.reconcileBatch(batch.value.id);
+    detail.value = await api.getBatchDetail(batch.value.id);
+    batch.value = detail.value.batch;
+    notice.value = { type: 'success', text: '对账已按当前完整性和金额重新计算。' };
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const closeCurrentBatch = async () => {
+  if (!batch.value) return;
+  working.value = true;
+  try {
+    batch.value = await api.closeBatch(batch.value.id);
+    detail.value = await api.getBatchDetail(batch.value.id);
+    notice.value = { type: 'success', text: '该账期已关账，后续修改需先填写原因并重开。' };
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const reopenCurrentBatch = async () => {
+  if (!batch.value || !reopenReason.value.trim()) return;
+  working.value = true;
+  try {
+    batch.value = await api.reopenBatch(batch.value.id, reopenReason.value.trim());
+    detail.value = await api.getBatchDetail(batch.value.id);
+    showReopen.value = false;
+    reopenReason.value = '';
+    notice.value = { type: 'success', text: '批次已重开并增加版本，可以补充文件后重新对账。' };
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const openResolution = (result: ReconciliationResult) => {
+  activeResult.value = result;
+  resolutionRemark.value = result.remarks ?? '';
+  resolutionDone.value = result.is_resolved;
+};
+
+const saveResolution = async () => {
+  if (!activeResult.value) return;
+  working.value = true;
+  try {
+    await api.updateReconciliationResult(activeResult.value.id, { remarks: resolutionRemark.value.trim(), is_resolved: resolutionDone.value });
+    activeResult.value = null;
+    if (batch.value) {
+      await api.reconcileBatch(batch.value.id);
+      detail.value = await api.getBatchDetail(batch.value.id);
+      batch.value = detail.value.batch;
+    }
+    notice.value = { type: 'success', text: '差异核实说明已保存。' };
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const downloadReport = async () => {
+  working.value = true;
+  try {
+    const blob = await api.downloadReconciliation(globalDate.value);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `对账结果_${globalDate.value}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    notice.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    working.value = false;
+  }
+};
+
+const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团', douyin: '抖音', cash: '现金', sales: '销售收入' }[source] ?? source);
+const coverageLabel = (status?: string) => ({ present_data: '有数据', present_zero: '已确认零', missing: '缺失', attention_required: '待处理' }[status ?? 'missing'] ?? '缺失');
+const coverageClass = (status?: string) => status === 'present_data' ? 'bg-emerald-50 text-emerald-700' : status === 'present_zero' ? 'bg-blue-50 text-blue-700' : status === 'attention_required' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700';
+const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);
+const resultStatusLabel = (status: string) => ({ consistent: '一致', discrepancy: '金额差异', incomplete: '数据不完整', missing_data: '数据不完整' }[status] ?? status);
+const resultStatusClass = (status: string) => status === 'consistent' ? 'bg-emerald-50 text-emerald-700' : status === 'discrepancy' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700';
+const money = (value: number) => Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signedMoney = (value: number) => `${Number(value) > 0 ? '+' : ''}¥${money(value)}`;
+const errorDetail = (error: unknown) => (error as { response?: { data?: { detail?: string } }; message?: string }).response?.data?.detail || (error as { message?: string }).message || '操作失败';
+
+watch(globalDate, () => { void loadWorkspace(); });
+onMounted(loadWorkspace);
 </script>

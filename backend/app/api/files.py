@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
@@ -24,8 +24,8 @@ LEGACY_DISABLED_MESSAGE = (
 
 @router.get("/", response_model=list[ImportFile])
 def list_import_files(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
     return crud_import_file.get_import_files(db, skip=skip, limit=limit)

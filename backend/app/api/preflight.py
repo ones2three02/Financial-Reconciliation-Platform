@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.app.core.db import get_db
+from backend.app.api.auth import require_finance
+from backend.app.models.auth import AppUser
 from backend.app.schemas.preflight import PreflightResult
 from backend.app.services.workbook_preflight import (
     PreflightValidationError,
@@ -21,9 +23,10 @@ async def preflight_file(
     profile_code: str = Form(...),
     business_date: date = Form(...),
     store_id: int | None = Form(None),
+    current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
-    del db  # 保持统一依赖入口；预检本身不写数据库。
+    del current_user, db  # 保持统一依赖入口；预检本身不写数据库。
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="当前仅支持 .xlsx 工作簿")
