@@ -145,10 +145,22 @@
                 <td class="p-4 text-slate-500">{{ sourceLabel(file.data_source) }}</td>
                 <td class="p-4 text-slate-500">{{ file.row_count }}</td>
                 <td class="p-4"><span class="rounded-full px-2 py-1 font-bold" :class="file.is_current ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">{{ file.is_current ? '当前有效' : '历史版本' }}</span></td>
-                <td class="p-4"><span class="rounded-full px-2.5 py-1 text-[11px] font-bold" :class="uploadStatusClass(file.upload_status)">{{ uploadStatusLabel(file.upload_status) }}</span></td>
+                <td class="p-4">
+                  <span 
+                    class="rounded-full px-2.5 py-1 text-[11px] font-bold border" 
+                    :class="[
+                      uploadStatusClass(file.upload_status),
+                      file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canOperate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+                    ]"
+                    @click="file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canOperate ? openMappingResolution(file) : null"
+                  >
+                    {{ uploadStatusLabel(file.upload_status) }}
+                  </span>
+                </td>
                 <td class="p-4 font-mono text-slate-500">{{ formatDateTime(file.uploaded_at) }}</td>
                 <td class="p-4 text-right">
                   <div v-if="file.is_current && activeBatch?.status !== 'closed' && canOperate" class="flex justify-end gap-2">
+                    <Button v-if="file.upload_status === 'attention_required'" variant="outline" size="xs" class="border-amber-300 text-amber-700 hover:bg-amber-50" :disabled="processing" @click="openMappingResolution(file)"><AlertTriangle class="mr-1 h-3 w-3" />确认门店</Button>
                     <Button variant="outline" size="xs" :disabled="processing" @click="openFileAction('replace', file)"><RefreshCw class="mr-1 h-3 w-3" />替换</Button>
                     <Button variant="outline" size="xs" class="border-rose-200 text-rose-700" :disabled="processing" @click="openFileAction('invalidate', file)"><Ban class="mr-1 h-3 w-3" />作废</Button>
                   </div>
@@ -216,14 +228,73 @@
         </Card>
       </div>
     </Teleport>
+
+    <Teleport to="body">
+      <div v-if="showMappingResolution && resolutionFile" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeMappingResolution">
+        <Card class="w-full max-w-2xl bg-white shadow-2xl flex flex-col max-h-[85vh] overflow-hidden">
+          <CardHeader class="shrink-0 pb-3">
+            <CardTitle class="text-base flex items-center gap-2">
+              <AlertTriangle class="h-5 w-5 text-amber-500" />
+              确认门店归属 — {{ resolutionFile.filename }}
+            </CardTitle>
+            <CardDescription class="text-xs text-slate-400">
+              该导入文件中包含系统无法识别的第三方门店名称。请手动选择对应的标准门店完成映射，以继续对账。
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent class="flex-1 overflow-y-auto p-6 border-t border-b border-slate-100 min-h-0">
+            <div v-if="!resolutionIssues.length" class="text-center py-8">
+              <div class="text-sm font-bold text-emerald-600">所有门店映射已确认</div>
+              <p class="mt-1 text-xs text-slate-500">该文件内没有需要人工确认的待处理问题。</p>
+            </div>
+            
+            <div v-else class="space-y-4">
+              <div v-for="issue in resolutionIssues" :key="issue.id" class="grid items-center gap-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 md:grid-cols-[1fr_1.2fr_auto]">
+                <div>
+                  <div class="text-[10px] font-bold uppercase tracking-wider text-amber-600">
+                    {{ sourceLabel(issue.source_code) }} · {{ issue.issue_type }}
+                  </div>
+                  <div class="mt-1 text-sm font-extrabold text-slate-800">
+                    {{ issue.raw_value || '空门店名称' }}
+                  </div>
+                  <div class="mt-1 text-[11px] text-slate-500">
+                    影响 {{ issue.affected_row_count }} 行数据 · 金额 ¥{{ money(issue.affected_amount) }}
+                  </div>
+                </div>
+                
+                <Select 
+                  v-model="issueStoreSelections[issue.id]" 
+                  :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" 
+                  placeholder="选择确认归属的标准门店" 
+                  :disabled="processing"
+                />
+                
+                <Button 
+                  size="sm" 
+                  class="bg-blue-600 hover:bg-blue-700 text-white" 
+                  :disabled="!issueStoreSelections[issue.id] || processing" 
+                  @click="confirmIssueAlias(issue)"
+                >
+                  确认映射
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+          
+          <CardFooter class="justify-end shrink-0 p-4 bg-slate-50">
+            <Button variant="outline" @click="closeMappingResolution">关闭</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import { Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { AlertTriangle, Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
-import type { BatchDetail, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import type { BatchDetail, DataQualityIssue, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
 import { loadExistingBatchForDate } from '../services/importBatchLoader';
 import {
   clearQueue,
@@ -276,6 +347,15 @@ const showRestoreReset = ref(false);
 const restoreResetReason = ref('');
 const restoreResetConfirmationDate = ref('');
 const restoreResetRiskAcknowledged = ref(false);
+
+const showMappingResolution = ref(false);
+const resolutionFile = ref<ImportFile | null>(null);
+const issueStoreSelections = reactive<Record<number, number | null>>({});
+const resolutionIssues = computed(() => 
+  batchDetail.value?.quality_issues.filter(
+    (issue) => issue.import_file_id === resolutionFile.value?.id && issue.status === 'open'
+  ) ?? []
+);
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
 const currentContext = computed<ImportQueueContext>(() => ({
@@ -432,6 +512,43 @@ const closeFileAction = () => {
   replacementFile.value = null;
 };
 
+const openMappingResolution = (file: ImportFile) => {
+  resolutionFile.value = file;
+  showMappingResolution.value = true;
+  message.value = null;
+  const issues = batchDetail.value?.quality_issues.filter(
+    (issue) => issue.import_file_id === file.id && issue.status === 'open'
+  ) ?? [];
+  for (const issue of issues) {
+    issueStoreSelections[issue.id] = null;
+  }
+};
+
+const closeMappingResolution = () => {
+  if (processing.value) return;
+  resolutionFile.value = null;
+  showMappingResolution.value = false;
+};
+
+const confirmIssueAlias = async (issue: DataQualityIssue) => {
+  const storeId = issueStoreSelections[issue.id];
+  if (!storeId) return;
+  processing.value = true;
+  message.value = null;
+  try {
+    await api.confirmStoreAlias(issue.id, storeId);
+    await refreshBatch();
+    if (!resolutionIssues.value.length) {
+      showMappingResolution.value = false;
+      resolutionFile.value = null;
+    }
+  } catch (error) {
+    message.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    processing.value = false;
+  }
+};
+
 const onReplacementSelected = (event: Event) => {
   const input = event.target as HTMLInputElement;
   replacementFile.value = input.files?.[0] ?? null;
@@ -537,6 +654,7 @@ const sourceLabel = (source: string) => ({ tonglian: '通联', meituan: '美团'
 const profileLabel = (code?: string | null) => profiles.find((item) => item.code === code)?.label ?? code ?? '—';
 const fileStoreName = (file: ImportFile) => file.store_id ? activeStores.value.find((store) => store.id === file.store_id)?.name ?? `门店 #${file.store_id}` : '工作簿内多门店';
 const batchStatusLabel = (status: string) => ({ draft: '草稿', attention_required: '待处理', ready_to_close: '可关账', closed: '已关账' }[status] ?? status);
+const money = (value: number | string) => Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const batchStatusClass = (status: string) => status === 'closed' ? 'bg-slate-200 text-slate-700' : status === 'ready_to_close' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
 const queueStatusLabel = (status: QueueItem['status']) => ({ ready: '待处理', preflighting: '预检中', importing: '导入中', imported: '已导入', duplicate: '内容重复', attention: '需确认门店', failed: '失败' }[status]);
 const queueStatusClass = (status: QueueItem['status']) => status === 'failed' ? 'bg-rose-50 text-rose-700' : status === 'imported' ? 'bg-emerald-50 text-emerald-700' : status === 'attention' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600';
