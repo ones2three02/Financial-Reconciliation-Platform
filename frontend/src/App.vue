@@ -32,7 +32,7 @@
         
         <router-link 
           to="/" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
           :title="isCollapsed ? '系统看板' : ''"
@@ -43,7 +43,7 @@
 
         <router-link 
           to="/import" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
           :title="isCollapsed ? '文件导入' : ''"
@@ -54,7 +54,7 @@
 
         <router-link 
           to="/reconciliation" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
           :title="isCollapsed ? '对账明细' : ''"
@@ -70,7 +70,7 @@
         <router-link 
           v-if="isAdmin"
           to="/settings/mappings" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
           :title="isCollapsed ? '字段映射' : ''"
@@ -82,7 +82,7 @@
         <router-link 
           v-if="isAdmin"
           to="/settings/stores" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
           :title="isCollapsed ? '门店标准化' : ''"
