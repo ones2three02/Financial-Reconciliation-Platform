@@ -138,8 +138,19 @@
         
         <!-- Header Right side details -->
         <div class="flex items-center gap-4 shrink-0">
+          <!-- Operations Guide Onboarding Trigger Button -->
+          <button 
+            v-if="route.path !== '/login' && route.path !== '/register'"
+            @click="handleStartTour"
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 hover:bg-blue-100 hover:text-blue-700 text-blue-600 rounded-lg text-xs font-bold transition-all shadow-sm shadow-blue-500/5 select-none shrink-0"
+            title="查看当前页面的操作指引"
+          >
+            <span>💡</span>
+            <span>新手引导</span>
+          </button>
+
           <!-- Shared Global Date Selector -->
-          <div class="flex items-center gap-2">
+          <div id="global-date-selector" class="flex items-center gap-2">
             <span class="text-xs font-semibold text-slate-400 select-none">全局账期:</span>
             <DatePicker v-model="globalDate" align="right" class="h-9" />
           </div>
@@ -171,12 +182,75 @@
         </router-view>
       </div>
     </main>
+
+    <!-- 全局新手指引操作向导遮罩与弹窗 -->
+    <Teleport to="body">
+      <div v-if="isTourActive && currentStep" class="fixed inset-0 z-[10000] pointer-events-none select-none">
+        <!-- 磨砂半透明暗色背景 -->
+        <div class="fixed inset-0 bg-zinc-950/50 backdrop-blur-[1px] pointer-events-auto" @click="closeTour"></div>
+        
+        <!-- 悬浮说明气泡卡片 -->
+        <div 
+          class="fixed z-[10002] w-72 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xl flex flex-col gap-3 pointer-events-auto text-slate-800 transition-all duration-300"
+          :style="tooltipStyle"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full select-none">
+              指引步骤 {{ currentStepIndex + 1 }} / {{ tourSteps.length }}
+            </span>
+            <button @click="closeTour" class="text-slate-400 hover:text-slate-600 font-bold text-xs p-1 rounded-lg hover:bg-slate-100 transition-colors">
+              ✕
+            </button>
+          </div>
+          
+          <div class="space-y-1">
+            <h4 class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+              <span>💡</span> {{ currentStep.title }}
+            </h4>
+            <p class="text-[11px] text-slate-500 leading-relaxed font-medium">
+              {{ currentStep.content }}
+            </p>
+          </div>
+          
+          <div class="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
+            <button 
+              @click="prevStep" 
+              class="text-[10px] font-bold text-slate-500 hover:text-slate-800 disabled:opacity-30 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              :disabled="currentStepIndex === 0"
+            >
+              上一步
+            </button>
+            <div class="flex gap-2">
+              <button 
+                @click="closeTour" 
+                class="text-[10px] font-bold text-slate-400 hover:text-slate-600 p-1.5"
+              >
+                跳过
+              </button>
+              <button 
+                @click="nextStep" 
+                class="text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm shadow-blue-500/10 transition-colors"
+              >
+                {{ currentStepIndex === tourSteps.length - 1 ? '我知道了' : '下一步' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { 
+  isTourActive, 
+  tourSteps, 
+  currentStepIndex, 
+  startTour, 
+  closeTour 
+} from './services/tour';
 import { globalDate } from './services/store';
 import { DatePicker } from './components/ui/date-picker';
 import { api, clearSession, getSession } from './services/api';
@@ -253,6 +327,105 @@ const breadcrumbSection = computed(() => {
       return '核心系统';
   }
 });
+
+// 新手指引向导流程控制器逻辑
+const currentStep = computed(() => tourSteps.value[currentStepIndex.value] ?? null);
+const tooltipStyle = ref<Record<string, string>>({});
+const activeElement = ref<HTMLElement | null>(null);
+
+const updateSpotlight = () => {
+  if (!currentStep.value) return;
+  const selector = currentStep.value.targetSelector;
+  const el = document.querySelector(selector) as HTMLElement;
+  
+  if (activeElement.value) {
+    activeElement.value.classList.remove('tour-highlighted');
+  }
+  
+  if (el) {
+    activeElement.value = el;
+    el.classList.add('tour-highlighted');
+    
+    // 平滑滚动定位元素
+    el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    
+    // 延时等待滚动动画完成后进行定位框位置运算，规避闪烁
+    setTimeout(() => {
+      const rect = el.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+      
+      let top = rect.bottom + window.scrollY + 12;
+      let left = rect.left + window.scrollX;
+      
+      // 若气泡溢出视口底部，则置于高亮元素的正上方
+      if (rect.bottom + 180 > viewportHeight) {
+        top = rect.top + window.scrollY - 180;
+      }
+      // 横向边缘校验保护
+      if (left + 288 > viewportWidth) {
+        left = viewportWidth - 304;
+      }
+      if (left < 16) {
+        left = 16;
+      }
+      
+      tooltipStyle.value = {
+        top: `${top}px`,
+        left: `${left}px`,
+        transform: 'none'
+      };
+    }, 250);
+  } else {
+    // 备用兜底方案：居中显示说明框
+    tooltipStyle.value = {
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)'
+    };
+  }
+};
+
+watch([isTourActive, currentStepIndex], () => {
+  if (isTourActive.value) {
+    nextTick(() => {
+      updateSpotlight();
+    });
+  } else {
+    if (activeElement.value) {
+      activeElement.value.classList.remove('tour-highlighted');
+      activeElement.value = null;
+    }
+  }
+});
+
+// 监听路由改变自动销毁未完成指引
+watch(() => route.path, () => {
+  closeTour();
+});
+
+const nextStep = () => {
+  if (currentStepIndex.value < tourSteps.value.length - 1) {
+    currentStepIndex.value++;
+  } else {
+    closeTour();
+  }
+};
+
+const prevStep = () => {
+  if (currentStepIndex.value > 0) {
+    currentStepIndex.value--;
+  }
+};
+
+const handleStartTour = () => {
+  const path = route.path;
+  if (path === '/') startTour('dashboard');
+  else if (path === '/reconciliation') startTour('reconciliation');
+  else if (path === '/import') startTour('import');
+  else if (path === '/settings/stores') startTour('stores');
+  else if (path === '/settings/mappings') startTour('mappings');
+};
 </script>
 
 <style scoped>

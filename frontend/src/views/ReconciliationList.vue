@@ -62,7 +62,7 @@
         </div>
       </div>
 
-      <div class="space-y-3 mt-6">
+      <div id="reconciliation-sidebar-actions" class="space-y-3 mt-6">
         <!-- Actions Toolbar -->
         <div class="h-px bg-slate-100 mb-3"></div>
         
@@ -175,6 +175,7 @@
         <!-- Tab Controls -->
         <div class="flex border border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1 shrink-0 select-none">
           <button 
+            id="issues-tab-btn"
             @click="activeTab = 'issues'" 
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
@@ -193,6 +194,7 @@
             </span>
           </button>
           <button 
+            id="integrity-tab-btn"
             @click="activeTab = 'integrity'" 
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
@@ -205,6 +207,7 @@
             2. 数据来源完整性
           </button>
           <button 
+            id="results-tab-btn"
             @click="activeTab = 'results'" 
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',

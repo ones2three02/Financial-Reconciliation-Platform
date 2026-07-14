@@ -1,7 +1,7 @@
 <template>
   <div class="h-[calc(100vh-8rem)] flex flex-col gap-4 fade-in overflow-hidden">
     <!-- Top Tabs Selection -->
-    <div class="flex border-b border-slate-200/80 gap-6">
+    <div id="store-tab-controls" class="flex border-b border-slate-200/80 gap-6">
       <button 
         @click="activeTab = 'stores'"
         class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 select-none"
@@ -22,7 +22,7 @@
 
     <!-- Tab 1: Standard Stores Management -->
     <div v-if="activeTab === 'stores'" class="flex-1 flex flex-col overflow-hidden min-h-0 fade-in">
-      <Card class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
+      <Card id="store-list-card" class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -145,7 +145,7 @@
 
     <!-- Tab 2: Alias Standardization Mapping -->
     <div v-else-if="activeTab === 'aliases'" class="flex-1 flex flex-col overflow-hidden min-h-0 fade-in">
-      <Card class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
+      <Card id="store-alias-card" class="shadow-sm border border-slate-200/80 flex-1 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">

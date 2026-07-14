@@ -54,7 +54,7 @@
       </Card>
 
       <!-- Mappings List Card -->
-      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col overflow-hidden min-h-0 bg-white">
+      <Card id="mapping-list-card" class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col overflow-hidden min-h-0 bg-white">
         <CardHeader class="flex flex-row items-center justify-between flex-wrap gap-4 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -65,6 +65,7 @@
           </div>
           
           <Select 
+            id="mapping-datasource-selector"
             v-model="selectedFilterSource" 
             :options="filterSourceOptions"
             @change="fetchMappings"

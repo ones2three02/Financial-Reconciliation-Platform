@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6 fade-in">
-    <Card class="border-slate-200/80 shadow-sm">
+    <Card id="import-upload-card" class="border-slate-200/80 shadow-sm">
       <CardHeader class="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle class="flex items-center gap-2 text-base">
@@ -138,7 +138,7 @@
       </Card>
     </div>
 
-    <Card class="border-slate-200/80 shadow-sm">
+    <Card id="import-history-card" class="border-slate-200/80 shadow-sm">
       <CardHeader class="flex flex-row items-start justify-between gap-4">
         <div>
           <CardTitle class="flex items-center gap-2 text-base"><History class="h-4 w-4 text-blue-600" />当前批次导入记录</CardTitle>

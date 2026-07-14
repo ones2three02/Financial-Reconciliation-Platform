@@ -79,7 +79,7 @@
     </div>
 
     <!-- Recent 7 Days Backlog Catch-up / Full Month Calendar Card -->
-    <Card class="shadow-sm border border-slate-200/80">
+    <Card id="dashboard-trends-card" class="shadow-sm border border-slate-200/80">
       <CardHeader class="pb-2 flex flex-row items-center justify-between flex-wrap gap-4">
         <div>
           <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
@@ -285,7 +285,7 @@
       </Card>
 
       <!-- Leaderboard / Discrepancy list -->
-      <Card class="shadow-sm border border-slate-200/80 flex flex-col h-[400px]">
+      <Card id="dashboard-discrepancy-stores" class="shadow-sm border border-slate-200/80 flex flex-col h-[400px]">
         <CardHeader class="pb-2">
           <CardTitle class="flex items-center gap-2 text-sm font-bold text-slate-800">
             <AlertTriangle class="w-4 h-4 text-rose-500" />
