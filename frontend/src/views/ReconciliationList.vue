@@ -112,7 +112,7 @@
 
       <template v-else>
         <!-- 今日对账工作流步骤指南 -->
-        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
+        <div id="workflow-guide" class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
           <div class="flex items-center gap-2">
             <div class="w-1.5 h-6 bg-blue-600 rounded-full"></div>
             <div>

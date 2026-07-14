@@ -404,16 +404,26 @@ const updateSpotlight = () => {
       let top = rect.bottom + 16;
       let left = rect.left;
       
-      // 若气泡溢出视口底部，则置于高亮元素的正上方
-      if (rect.bottom + 180 > viewportHeight) {
-        top = rect.top - 180;
-      }
-      // 横向边缘校验保护
-      if (left + 288 > viewportWidth) {
+      // 若高亮目标元素体积过大（例如门店列表、映射列表等大卡片），则将说明气泡固定在视口右下角以防遮挡或移出视窗
+      if (rect.height > 280) {
+        top = viewportHeight - 190;
         left = viewportWidth - 304;
-      }
-      if (left < 16) {
-        left = 16;
+      } else {
+        // 若气泡溢出视口底部，则置于高亮元素的正上方
+        if (top + 160 > viewportHeight) {
+          if (rect.top - 180 > 16) {
+            top = rect.top - 180;
+          } else {
+            top = 16; // 强行限制顶部边界，防止被浏览器顶部截断
+          }
+        }
+        // 横向边缘校验保护
+        if (left + 288 > viewportWidth) {
+          left = viewportWidth - 304;
+        }
+        if (left < 16) {
+          left = 16;
+        }
       }
       
       tooltipStyle.value = {
