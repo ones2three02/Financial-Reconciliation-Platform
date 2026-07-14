@@ -129,6 +129,7 @@ def confirm_alias(
     alias_id: int,
     store_id: int,
     actor: str,
+    reason: str | None = None,
 ) -> StoreAlias:
     clean_actor = actor.strip()
     if not clean_actor:
@@ -139,6 +140,17 @@ def confirm_alias(
     store = db.get(Store, store_id)
     if store is None or not store.is_active:
         raise ValueError(f"标准门店不存在或已停用: {store_id}")
+    clean_reason = reason.strip() if reason else None
+    if clean_reason and len(clean_reason) > 500:
+        raise ValueError("重新绑定原因不能超过 500 个字符")
+    previous_store_id = alias.store_id
+    if (
+        alias.status == "mapped"
+        and previous_store_id is not None
+        and previous_store_id != store.id
+        and not clean_reason
+    ):
+        raise ValueError("门店别名重新绑定必须填写原因")
 
     confirmed_at = datetime.now(UTC)
     alias.store_id = store.id
@@ -163,6 +175,9 @@ def confirm_alias(
                 "source_code": alias.source_code,
                 "alias_name": alias.alias_name,
                 "store_id": store.id,
+                "previous_store_id": previous_store_id,
+                "new_store_id": store.id,
+                "reason": clean_reason,
                 "affected_run_ids": sorted_run_ids,
             },
         )

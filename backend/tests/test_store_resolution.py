@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from backend.app.models.audit import AuditEvent
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.import_file import ImportFile
@@ -136,3 +138,44 @@ def test_confirmation_endpoint_uses_server_side_actor(db_session):
     assert alias.status == "mapped"
     assert alias.confirmed_by == "admin"
     assert alias.confirmed_at is not None
+
+
+def test_alias_rebind_requires_reason_and_audits_old_new_store(db_session):
+    first_store = Store(name="民院店", code="MD010")
+    second_store = Store(name="民院二店", code="MD011")
+    alias = StoreAlias(
+        source_code="meituan",
+        alias_name="美团民院门店",
+        store_id=first_store.id,
+        status="mapped",
+        confirmed_by="admin",
+    )
+    db_session.add_all([first_store, second_store])
+    db_session.flush()
+    alias.store_id = first_store.id
+    db_session.add(alias)
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="重新绑定必须填写原因"):
+        confirm_alias(
+            db_session,
+            alias_id=alias.id,
+            store_id=second_store.id,
+            actor="admin",
+        )
+
+    confirm_alias(
+        db_session,
+        alias_id=alias.id,
+        store_id=second_store.id,
+        actor="admin",
+        reason="原门店选择错误",
+    )
+    db_session.commit()
+
+    audit = db_session.query(AuditEvent).filter_by(
+        event_type="store_alias_confirmed"
+    ).one()
+    assert audit.event_data["previous_store_id"] == first_store.id
+    assert audit.event_data["new_store_id"] == second_store.id
+    assert audit.event_data["reason"] == "原门店选择错误"

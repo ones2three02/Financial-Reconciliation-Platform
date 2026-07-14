@@ -78,7 +78,7 @@
                   <td class="p-4 font-mono text-slate-500">{{ s.phone || '—' }}</td>
                   <td class="p-4 text-center">
                     <button 
-                      @click="toggleStoreStatus(s)" 
+                      @click="openStoreStatusModal(s)"
                       class="px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 transition-all"
                       :class="s.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'"
                       title="点击切换状态"
@@ -88,7 +88,7 @@
                     </button>
                   </td>
                   <td class="p-4 text-center">
-                    <div class="flex items-center justify-center gap-2" v-if="confirmDeleteStoreId !== s.id">
+                    <div class="flex items-center justify-center gap-2">
                       <Button 
                         @click="openEditModal(s)"
                         variant="ghost"
@@ -97,18 +97,14 @@
                       >
                         编辑
                       </Button>
-                      <Button 
-                        @click="confirmDeleteStoreId = s.id" 
+                      <Button
+                        @click="openStoreStatusModal(s)"
                         variant="ghost"
                         size="xs"
-                        class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold"
+                        :class="s.is_active ? 'text-amber-600 hover:text-amber-800 hover:bg-amber-50 font-bold' : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 font-bold'"
                       >
-                        删除
+                        {{ s.is_active ? '停用' : '重新启用' }}
                       </Button>
-                    </div>
-                    <div v-else class="flex items-center gap-1.5 justify-center">
-                      <Button @click="deleteStore(s.id)" size="xs" class="bg-rose-600 hover:bg-rose-700 text-white h-7 text-[10px] px-2 font-bold">确认</Button>
-                      <Button @click="confirmDeleteStoreId = null" size="xs" variant="outline" class="h-7 text-[10px] px-2 font-bold">取消</Button>
                     </div>
                   </td>
                 </tr>
@@ -208,10 +204,10 @@
                   <td class="p-4 font-bold text-slate-700">{{ a.alias_name }}</td>
                   <td class="p-4">
                     <!-- Custom Select component -->
-                    <Select 
-                      v-model="a.store_id"
+                    <Select
+                      :model-value="a.store_id"
                       :options="storeOptions"
-                      @change="mapAlias(a.id, a.store_id)"
+                      @update:model-value="openAliasBinding(a, $event)"
                       class="w-full max-w-[250px] h-8"
                     />
                   </td>
@@ -227,7 +223,7 @@
                   <td class="p-4 text-center">
                     <Button 
                       v-if="a.status === 'pending'"
-                      @click="mapAlias(a.id, a.store_id)" 
+                      @click="a.store_id && openAliasBinding(a, a.store_id)"
                       size="xs"
                       :disabled="!a.store_id"
                       class="h-7 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium inline-flex items-center gap-1"
@@ -357,7 +353,7 @@
           </div>
 
           <!-- Active status toggle -->
-          <div class="flex items-center gap-2 pt-2">
+          <div v-if="formStore.id === null" class="flex items-center gap-2 pt-2">
             <input 
               id="store-active-cb"
               type="checkbox" 
@@ -390,6 +386,35 @@
         </CardFooter>
       </Card>
     </div>
+
+    <div v-if="statusStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeStoreStatusModal">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader>
+          <CardTitle class="text-base">{{ statusStore.is_active ? '停用标准门店' : '重新启用标准门店' }}</CardTitle>
+          <CardDescription v-if="statusStore.is_active">停用“{{ statusStore.name }}”后，该门店不会参加后续新对账；若当前未关账批次仍有数据，后端会拒绝停用。</CardDescription>
+          <CardDescription v-else>重新启用“{{ statusStore.name }}”后，该门店将重新参加后续对账。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <textarea v-model="storeStatusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusStore.is_active ? '请输入停用原因，例如：门店已停止营业' : '请输入重新启用原因'"></textarea>
+        </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStoreStatusModal">取消</Button><Button :class="statusStore.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!storeStatusReason.trim()" @click="submitStoreStatusChange">{{ statusStore.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
+      </Card>
+    </div>
+
+    <div v-if="bindingAlias && bindingStore" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeAliasBinding">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base">确认门店别名绑定</CardTitle><CardDescription>系统不会自行匹配门店，请核对来源原始名称和标准门店后确认。</CardDescription></CardHeader>
+        <CardContent class="space-y-4 text-sm">
+          <div class="grid grid-cols-[90px_1fr] gap-2 rounded-xl bg-slate-50 p-4">
+            <span class="text-slate-500">原始别名</span><strong>{{ bindingAlias.alias_name }}</strong>
+            <span class="text-slate-500">原绑定</span><strong>{{ bindingAlias.store?.name || '尚未绑定' }}</strong>
+            <span class="text-slate-500">新绑定</span><strong class="text-blue-700">{{ bindingStore.name }}</strong>
+          </div>
+          <textarea v-if="isAliasRebind" v-model="aliasBindingReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="重新绑定必须填写原因，例如：原门店选择错误"></textarea>
+        </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeAliasBinding">取消</Button><Button :disabled="isAliasRebind && !aliasBindingReason.trim()" @click="submitAliasBinding">确认绑定</Button></CardFooter>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -410,8 +435,11 @@ const activeTab = ref('stores'); // 'stores' or 'aliases'
 const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);
 
-// Delete confirmation states
-const confirmDeleteStoreId = ref<number | null>(null);
+const statusStore = ref<Store | null>(null);
+const storeStatusReason = ref('');
+const bindingAlias = ref<StoreAlias | null>(null);
+const bindingStore = ref<Store | null>(null);
+const aliasBindingReason = ref('');
 
 // Alias filtering states
 const aliasFilter = ref('pending');
@@ -450,6 +478,11 @@ const storeOptions = computed(() => {
     ...stores.value.map(s => ({ value: s.id, label: s.name }))
   ];
 });
+const isAliasRebind = computed(() => Boolean(
+  bindingAlias.value?.store_id
+  && bindingStore.value
+  && bindingAlias.value.store_id !== bindingStore.value.id,
+));
 
 // Standard Stores computed filtered and paginated
 const filteredStores = computed(() => {
@@ -555,7 +588,7 @@ const submitForm = async () => {
     region: formStore.value.region.trim() || undefined,
     manager: formStore.value.manager.trim() || undefined,
     phone: formStore.value.phone.trim() || undefined,
-    is_active: formStore.value.is_active
+    ...(formStore.value.id === null ? { is_active: formStore.value.is_active } : {})
   };
 
   try {
@@ -572,36 +605,61 @@ const submitForm = async () => {
   }
 };
 
-const toggleStoreStatus = async (store: Store) => {
-  try {
-    await api.updateStore(store.id, { is_active: !store.is_active });
-    fetchStores();
-  } catch (error) {
-    alert('修改门店状态失败！');
-  }
+const openStoreStatusModal = (store: Store) => {
+  statusStore.value = store;
+  storeStatusReason.value = '';
 };
 
-const deleteStore = async (id: number) => {
+const closeStoreStatusModal = () => {
+  statusStore.value = null;
+  storeStatusReason.value = '';
+};
+
+const submitStoreStatusChange = async () => {
+  if (!statusStore.value || !storeStatusReason.value.trim()) return;
   try {
-    await api.deleteStore(id);
-    confirmDeleteStoreId.value = null;
-    fetchStores();
+    await api.updateStore(statusStore.value.id, {
+      is_active: !statusStore.value.is_active,
+      status_change_reason: storeStatusReason.value.trim(),
+    });
+    closeStoreStatusModal();
+    await fetchStores();
     fetchAliases();
-  } catch (error) {
-    alert('删除门店失败！');
+  } catch (error: any) {
+    alert(error.response?.data?.detail || '修改门店状态失败！');
   }
 };
 
-const mapAlias = async (aliasId: number, storeId: number | null) => {
+const openAliasBinding = (alias: StoreAlias, storeId: number | null) => {
   if (storeId === null) {
     alert('请先选择明确的标准门店，系统不会自动匹配。');
     return;
   }
+  const store = stores.value.find((item) => item.id === Number(storeId));
+  if (!store) return;
+  bindingAlias.value = alias;
+  bindingStore.value = store;
+  aliasBindingReason.value = '';
+};
+
+const closeAliasBinding = () => {
+  bindingAlias.value = null;
+  bindingStore.value = null;
+  aliasBindingReason.value = '';
+};
+
+const submitAliasBinding = async () => {
+  if (!bindingAlias.value || !bindingStore.value) return;
+  if (isAliasRebind.value && !aliasBindingReason.value.trim()) return;
   try {
-    await api.updateStoreAlias(aliasId, { store_id: storeId });
-    fetchAliases();
-  } catch (error) {
-    alert('绑定别名失败！');
+    await api.updateStoreAlias(bindingAlias.value.id, {
+      store_id: bindingStore.value.id,
+      reason: aliasBindingReason.value.trim() || undefined,
+    });
+    closeAliasBinding();
+    await fetchAliases();
+  } catch (error: any) {
+    alert(error.response?.data?.detail || '绑定别名失败！');
   }
 };
 

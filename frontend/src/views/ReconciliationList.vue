@@ -10,7 +10,7 @@
           <Button variant="outline" size="sm" :disabled="loading" @click="loadWorkspace"><RefreshCw class="mr-1 h-3.5 w-3.5" />刷新</Button>
           <Button v-if="detail?.results.length" variant="outline" size="sm" :disabled="working" @click="downloadReport"><FileDown class="mr-1 h-3.5 w-3.5" />导出结果</Button>
           <Button v-if="batch && batch.status !== 'closed' && canOperate" size="sm" class="bg-blue-600 text-white hover:bg-blue-700" :disabled="working" @click="runReconciliation">执行对账</Button>
-          <Button v-if="batch?.status === 'ready_to_close' && canOperate" size="sm" class="bg-emerald-600 text-white hover:bg-emerald-700" :disabled="working" @click="closeCurrentBatch">关账</Button>
+          <Button v-if="batch?.status === 'ready_to_close' && canOperate" size="sm" class="bg-emerald-600 text-white hover:bg-emerald-700" :disabled="working" @click="showClose = true">关账</Button>
           <Button v-if="batch?.status === 'closed' && canOperate" variant="outline" size="sm" class="border-amber-300 text-amber-700" @click="showReopen = true">重开账期</Button>
         </div>
       </CardHeader>
@@ -174,6 +174,14 @@
         <CardFooter class="justify-end gap-3"><Button variant="outline" @click="showReopen = false">取消</Button><Button class="bg-amber-600 text-white hover:bg-amber-700" :disabled="working || !reopenReason.trim()" @click="reopenCurrentBatch">确认重开</Button></CardFooter>
       </Card>
     </div>
+
+    <div v-if="showClose" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="showClose = false">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base">确认关账 {{ globalDate }}</CardTitle><CardDescription>关账后该账期的导入、确认零、门店映射重提和重新对账都会被锁定；如需修改，必须填写原因重开。</CardDescription></CardHeader>
+        <CardContent><div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">请确认当前所有来源完整、金额差异已核实，且账期日期无误。</div></CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" :disabled="working" @click="showClose = false">取消</Button><Button class="bg-emerald-600 text-white hover:bg-emerald-700" :disabled="working" @click="closeCurrentBatch">我已核对，确认关账</Button></CardFooter>
+      </Card>
+    </div>
   </div>
 </template>
 
@@ -210,6 +218,7 @@ const activeResult = ref<ReconciliationResult | null>(null);
 const resolutionRemark = ref('');
 const resolutionDone = ref(false);
 const showReopen = ref(false);
+const showClose = ref(false);
 const reopenReason = ref('');
 type ZeroAction = { storeId: number; storeName: string; source: SourceCode };
 const zeroConfirmation = ref<ZeroAction | null>(null);
@@ -340,6 +349,7 @@ const closeCurrentBatch = async () => {
   try {
     batch.value = await api.closeBatch(batch.value.id);
     detail.value = await api.getBatchDetail(batch.value.id);
+    showClose.value = false;
     notice.value = { type: 'success', text: '该账期已关账，后续修改需先填写原因并重开。' };
   } catch (error) {
     notice.value = { type: 'error', text: errorDetail(error) };

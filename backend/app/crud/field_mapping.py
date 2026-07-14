@@ -23,9 +23,7 @@ def create_field_mapping(db: Session, mapping: FieldMappingCreate) -> FieldMappi
         FieldMapping.source_column == mapping.source_column
     ).first()
     if existing:
-        existing.is_active = True
-        db.commit()
-        db.refresh(existing)
+        # 已停用映射只能通过显式“重新启用”流程恢复，避免绕过原因和审计。
         return existing
 
     db_mapping = FieldMapping(**mapping.model_dump())

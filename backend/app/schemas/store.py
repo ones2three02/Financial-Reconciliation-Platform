@@ -14,10 +14,12 @@ class StoreAliasCreate(StoreAliasBase):
 
 class StoreAliasUpdate(BaseModel):
     store_id: int
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 
 class StoreAliasConfirm(BaseModel):
     store_id: int
+    reason: Optional[str] = Field(default=None, max_length=500)
 
 class StoreAlias(StoreAliasBase):
     model_config = ConfigDict(from_attributes=True)
@@ -53,6 +55,7 @@ class StoreUpdate(BaseModel):
     manager: Optional[str] = None
     phone: Optional[str] = None
     is_active: Optional[bool] = None
+    status_change_reason: Optional[str] = Field(default=None, max_length=500)
 
 class Store(StoreBase):
     model_config = ConfigDict(from_attributes=True)

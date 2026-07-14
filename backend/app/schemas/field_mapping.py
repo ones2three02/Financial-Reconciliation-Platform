@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional
 
@@ -16,6 +16,7 @@ class FieldMappingUpdate(BaseModel):
     target_field: Optional[str] = None
     source_column: Optional[str] = None
     is_active: Optional[bool] = None
+    status_change_reason: Optional[str] = Field(default=None, max_length=500)
 
 class FieldMapping(FieldMappingBase):
     model_config = ConfigDict(from_attributes=True)

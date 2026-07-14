@@ -108,7 +108,7 @@
                   <td class="p-4 font-bold text-slate-800">{{ m.source_column }}</td>
                   <td class="p-4 text-center">
                     <Button 
-                      @click="toggleActive(m)" 
+                      @click="openStatusModal(m)"
                       variant="ghost"
                       size="xs"
                       class="px-2.5 py-1 rounded-full text-[10px] font-bold"
@@ -119,25 +119,31 @@
                     </Button>
                   </td>
                   <td class="p-4 text-center">
-                    <Button 
-                      v-if="confirmDeleteId !== m.id"
-                      @click="confirmDeleteId = m.id" 
+                    <Button
+                      @click="openStatusModal(m)"
                       variant="ghost"
                       size="xs"
-                      class="text-rose-500 hover:text-rose-700 hover:bg-rose-50 font-bold"
+                      :class="m.is_active ? 'text-amber-600 hover:text-amber-800 hover:bg-amber-50 font-bold' : 'text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 font-bold'"
                     >
-                      🗑 删除
+                      {{ m.is_active ? '停用' : '重新启用' }}
                     </Button>
-                    <div v-else class="flex items-center gap-1 justify-center">
-                      <Button @click="deleteMapping(m.id)" size="xs" class="bg-rose-600 hover:bg-rose-700 text-white h-7 text-[10px] px-2 font-bold">确认</Button>
-                      <Button @click="confirmDeleteId = null" size="xs" variant="outline" class="h-7 text-[10px] px-2 font-bold">取消</Button>
-                    </div>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </CardContent>
+      </Card>
+    </div>
+
+    <div v-if="statusMapping" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm" @click.self="closeStatusModal">
+      <Card class="w-full max-w-md bg-white shadow-2xl">
+        <CardHeader><CardTitle class="text-base">{{ statusMapping.is_active ? '停用字段映射' : '重新启用字段映射' }}</CardTitle><CardDescription>{{ getSourceLabel(statusMapping.data_source) }} 的“{{ statusMapping.source_column }}”将{{ statusMapping.is_active ? '不再用于后续文件解析' : '重新用于后续文件解析' }}，历史导入数据不会被删除。</CardDescription></CardHeader>
+        <CardContent class="space-y-3">
+          <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">目标字段：{{ statusMapping.target_field }}</div>
+          <textarea v-model="statusReason" rows="4" maxlength="500" class="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:ring-2 focus:ring-amber-500" :placeholder="statusMapping.is_active ? '请输入停用原因' : '请输入重新启用原因'"></textarea>
+        </CardContent>
+        <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeStatusModal">取消</Button><Button :class="statusMapping.is_active ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-emerald-600 text-white hover:bg-emerald-700'" :disabled="!statusReason.trim()" @click="submitStatusChange">{{ statusMapping.is_active ? '确认停用' : '确认重新启用' }}</Button></CardFooter>
       </Card>
     </div>
   </div>
@@ -147,7 +153,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { api } from '../services/api';
 import type { FieldMapping } from '../services/api';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
@@ -182,7 +188,8 @@ const targetFieldOptions = [
 
 const selectedFilterSource = ref('');
 const mappings = ref<FieldMapping[]>([]);
-const confirmDeleteId = ref<number | null>(null);
+const statusMapping = ref<FieldMapping | null>(null);
+const statusReason = ref('');
 
 const newMapping = ref({
   data_source: 'tonglian',
@@ -230,22 +237,27 @@ const saveMapping = async () => {
   }
 };
 
-const toggleActive = async (m: FieldMapping) => {
-  try {
-    await api.updateFieldMapping(m.id, { is_active: !m.is_active });
-    fetchMappings();
-  } catch (error) {
-    alert('修改状态失败！');
-  }
+const openStatusModal = (mapping: FieldMapping) => {
+  statusMapping.value = mapping;
+  statusReason.value = '';
 };
 
-const deleteMapping = async (id: number) => {
+const closeStatusModal = () => {
+  statusMapping.value = null;
+  statusReason.value = '';
+};
+
+const submitStatusChange = async () => {
+  if (!statusMapping.value || !statusReason.value.trim()) return;
   try {
-    await api.deleteFieldMapping(id);
-    confirmDeleteId.value = null;
-    fetchMappings();
-  } catch (error) {
-    alert('删除映射失败！');
+    await api.updateFieldMapping(statusMapping.value.id, {
+      is_active: !statusMapping.value.is_active,
+      status_change_reason: statusReason.value.trim(),
+    });
+    closeStatusModal();
+    await fetchMappings();
+  } catch (error: any) {
+    alert(error.response?.data?.detail || '修改状态失败！');
   }
 };
 

@@ -8,6 +8,8 @@ from openpyxl import Workbook
 from pydantic import ValidationError
 
 from backend.app.api import batches as batches_api
+from backend.app.api import mappings as mappings_api
+from backend.app.api import stores as stores_api
 from backend.app.schemas import batch as batch_schemas
 from backend.app.api.batches import (
     close_reconciliation_batch,
@@ -29,7 +31,8 @@ from backend.app.api.files import (
 from backend.app.models.audit import AuditEvent
 from backend.app.models.import_file import ImportFile
 from backend.app.models.auth import AppUser
-from backend.app.models.store import Store
+from backend.app.models.field_mapping import FieldMapping
+from backend.app.models.store import Store, StoreAlias
 from backend.app.schemas.batch import (
     BatchCreate,
     BatchReopenRequest,
@@ -40,6 +43,8 @@ from backend.app.schemas.import_command import (
     ResetBatchCurrentDataRequest,
 )
 from backend.app.schemas import import_command as import_command_schemas
+from backend.app.schemas.field_mapping import FieldMappingUpdate
+from backend.app.schemas.store import StoreAliasConfirm, StoreUpdate
 
 
 ADMIN = AppUser(id=1, username="admin", role="admin", is_active=True)
@@ -351,3 +356,72 @@ def test_restore_last_reset_route_exposes_eligibility_and_actor(db_session):
     assert restored.version == 3
     audit = db_session.query(AuditEvent).filter_by(event_type="batch_reset_restored").one()
     assert audit.actor == ADMIN.username
+
+
+def test_master_data_routes_audit_authenticated_actor(db_session):
+    store = Store(name="无数据门店", code="MD020", is_active=True)
+    mapping = FieldMapping(
+        data_source="meituan",
+        target_field="amount",
+        source_column="总收入（元）",
+        is_active=True,
+    )
+    db_session.add_all([store, mapping])
+    db_session.commit()
+
+    stores_api.update_store(
+        store_id=store.id,
+        store=StoreUpdate(
+            is_active=False,
+            status_change_reason="门店已停止营业",
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+    mappings_api.update_field_mapping(
+        mapping_id=mapping.id,
+        mapping=FieldMappingUpdate(
+            is_active=False,
+            status_change_reason="平台模板已废弃",
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    events = db_session.query(AuditEvent).order_by(AuditEvent.id).all()
+    assert [event.actor for event in events] == [ADMIN.username, ADMIN.username]
+    assert [event.event_type for event in events] == [
+        "store_deactivated",
+        "field_mapping_deactivated",
+    ]
+
+
+def test_alias_rebind_route_passes_reason_to_audit(db_session):
+    first_store = Store(name="民院店", code="MD010")
+    second_store = Store(name="民院二店", code="MD011")
+    db_session.add_all([first_store, second_store])
+    db_session.flush()
+    alias = StoreAlias(
+        source_code="meituan",
+        alias_name="美团民院门店",
+        store_id=first_store.id,
+        status="mapped",
+        confirmed_by="admin",
+    )
+    db_session.add(alias)
+    db_session.commit()
+
+    stores_api.confirm_store_alias(
+        alias_id=alias.id,
+        confirmation=StoreAliasConfirm(
+            store_id=second_store.id,
+            reason="原门店选择错误",
+        ),
+        current_user=ADMIN,
+        db=db_session,
+    )
+
+    audit = db_session.query(AuditEvent).filter_by(
+        event_type="store_alias_confirmed"
+    ).one()
+    assert audit.event_data["reason"] == "原门店选择错误"

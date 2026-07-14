@@ -294,7 +294,7 @@ export const api = {
   getStores: () => client.get<Store[]>('/stores/').then((res) => res.data),
   createStore: (data: { name: string; code?: string; region?: string; manager?: string; phone?: string; is_active?: boolean }) =>
     client.post<Store>('/stores/', data).then((res) => res.data),
-  updateStore: (id: number, data: Partial<Store>) => client.put<Store>(`/stores/${id}`, data).then((res) => res.data),
+  updateStore: (id: number, data: Partial<Store> & { status_change_reason?: string }) => client.put<Store>(`/stores/${id}`, data).then((res) => res.data),
   deleteStore: (id: number) => client.delete(`/stores/${id}`).then((res) => res.data),
 
   getStoreAliases: (status?: string) =>
@@ -305,9 +305,9 @@ export const api = {
       store_id: storeId,
       source_code: sourceCode,
     }).then((res) => res.data),
-  confirmStoreAlias: (id: number, storeId: number) =>
-    client.post<StoreAlias>(`/stores/aliases/${id}/confirm`, { store_id: storeId }).then((res) => res.data),
-  updateStoreAlias: (id: number, data: { store_id: number }) =>
+  confirmStoreAlias: (id: number, storeId: number, reason?: string) =>
+    client.post<StoreAlias>(`/stores/aliases/${id}/confirm`, { store_id: storeId, reason }).then((res) => res.data),
+  updateStoreAlias: (id: number, data: { store_id: number; reason?: string }) =>
     client.put<StoreAlias>(`/stores/aliases/${id}`, data).then((res) => res.data),
 
   getFieldMappings: () => client.get<FieldMapping[]>('/mappings/').then((res) => res.data),
@@ -315,7 +315,7 @@ export const api = {
     client.get<FieldMapping[]>(`/mappings/source/${source}`).then((res) => res.data),
   createFieldMapping: (data: { data_source: string; target_field: string; source_column: string }) =>
     client.post<FieldMapping>('/mappings/', data).then((res) => res.data),
-  updateFieldMapping: (id: number, data: { is_active?: boolean; source_column?: string }) =>
+  updateFieldMapping: (id: number, data: { is_active?: boolean; source_column?: string; status_change_reason?: string }) =>
     client.put<FieldMapping>(`/mappings/${id}`, data).then((res) => res.data),
   deleteFieldMapping: (id: number) => client.delete(`/mappings/${id}`).then((res) => res.data),
 

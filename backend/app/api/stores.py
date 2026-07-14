@@ -16,6 +16,7 @@ from backend.app.schemas.store import (
 )
 from backend.app.crud import store as crud_store
 from backend.app.services.store_resolution import confirm_alias
+from backend.app.services.master_data_service import set_store_active
 
 router = APIRouter()
 
@@ -74,6 +75,7 @@ def confirm_store_alias(
             alias_id=alias_id,
             store_id=confirmation.store_id,
             actor=current_user.username,
+            reason=confirmation.reason,
         )
         db.commit()
         db.refresh(alias)
@@ -92,7 +94,7 @@ def update_store_alias(
 ):
     return confirm_store_alias(
         alias_id=alias_id,
-        confirmation=StoreAliasConfirm(store_id=alias.store_id),
+        confirmation=StoreAliasConfirm(store_id=alias.store_id, reason=alias.reason),
         current_user=current_user,
         db=db,
     )
@@ -137,11 +139,30 @@ def update_store(
     current_user: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    del current_user
-    db_store = crud_store.update_store(db, store_id=store_id, store_in=store)
-    if not db_store:
+    db_store = crud_store.get_store(db, store_id=store_id)
+    if db_store is None:
         raise HTTPException(status_code=404, detail="Store not found")
-    return db_store
+    values = store.model_dump(exclude_unset=True)
+    reason = values.pop("status_change_reason", None)
+    requested_active = values.pop("is_active", None)
+    try:
+        if requested_active is not None and bool(db_store.is_active) != requested_active:
+            set_store_active(
+                db,
+                store_id=store_id,
+                is_active=requested_active,
+                actor=current_user.username,
+                reason=reason or "",
+            )
+        for field, value in values.items():
+            setattr(db_store, field, value)
+        db.commit()
+        db.refresh(db_store)
+        return db_store
+    except ValueError as exc:
+        db.rollback()
+        status_code = 409 if "仍有数据" in str(exc) else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 @router.delete("/{store_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_store(
@@ -149,8 +170,19 @@ def delete_store(
     current_user: AppUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    del current_user
-    success = crud_store.delete_store(db, store_id=store_id)
-    if not success:
+    if crud_store.get_store(db, store_id=store_id) is None:
         raise HTTPException(status_code=404, detail="Store not found")
-    return None
+    try:
+        set_store_active(
+            db,
+            store_id=store_id,
+            is_active=False,
+            actor=current_user.username,
+            reason="通过兼容接口停用门店",
+        )
+        db.commit()
+        return None
+    except ValueError as exc:
+        db.rollback()
+        status_code = 409 if "仍有数据" in str(exc) else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc

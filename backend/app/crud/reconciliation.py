@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, Integer
+from backend.app.models.audit import AuditEvent
 from backend.app.models.reconciliation import ReconciliationResult
 from backend.app.schemas.reconciliation import ReconciliationResultUpdate, DashboardSummary
 from datetime import date, timedelta
@@ -40,20 +41,40 @@ def update_reconciliation_result(
     result_in: ReconciliationResultUpdate,
     actor: str,
 ) -> Optional[ReconciliationResult]:
+    clean_actor = actor.strip()
+    if not clean_actor:
+        raise ValueError("更新差异处理状态必须提供操作人")
     db_result = get_reconciliation_result(db, result_id)
     if not db_result:
         return None
+    previous_remarks = db_result.remarks
+    previous_is_resolved = bool(db_result.is_resolved)
     for field, value in result_in.model_dump(exclude_unset=True).items():
         setattr(db_result, field, value)
     
     # If resolving, set timestamp
     if result_in.is_resolved is True:
         db_result.resolved_at = utc_now_naive()
-        db_result.resolved_by = actor
+        db_result.resolved_by = clean_actor
     elif result_in.is_resolved is False:
         db_result.resolved_at = None
         db_result.resolved_by = None
 
+    db.add(
+        AuditEvent(
+            batch_id=db_result.batch_id,
+            event_type="reconciliation_result_updated",
+            actor=clean_actor,
+            entity_type="reconciliation_result",
+            entity_id=str(db_result.id),
+            event_data={
+                "previous_remarks": previous_remarks,
+                "new_remarks": db_result.remarks,
+                "previous_is_resolved": previous_is_resolved,
+                "new_is_resolved": bool(db_result.is_resolved),
+            },
+        )
+    )
     db.commit()
     db.refresh(db_result)
     return db_result
