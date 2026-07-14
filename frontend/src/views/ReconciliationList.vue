@@ -162,7 +162,7 @@
                 <tr v-for="store in activeStores" :key="store.id" class="group hover:bg-slate-50/50">
                   <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                      <div class="flex items-center gap-1.5 group/copy">
-                       <span>{{ store.name }}</span>
+                       <span class="select-text inline-block">{{ store.name?.trim() }}</span>
                        <button 
                          @click="copyText(store.name, store.id + '-overview-store')"
                          class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
@@ -255,7 +255,7 @@
                   </div>
                   <div class="text-sm font-extrabold text-slate-800">
                     <div class="flex items-center gap-1.5 group/copy inline-flex">
-                      <span>{{ issue.raw_value || '空门店名称' }}</span>
+                      <span class="select-text inline-block">{{ (issue.raw_value || '空门店名称')?.trim() }}</span>
                       <button 
                         v-if="issue.raw_value"
                         @click="copyText(issue.raw_value, issue.id + '-issue-raw')"
@@ -304,7 +304,7 @@
                 <tr v-for="result in detail?.results ?? []" :key="result.id" class="group hover:bg-slate-50/50">
                   <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                      <div class="flex items-center gap-1.5 group/copy">
-                       <span>{{ result.standard_store_name }}</span>
+                       <span class="select-text inline-block">{{ result.standard_store_name?.trim() }}</span>
                        <button 
                          @click="copyText(result.standard_store_name, result.id + '-result-store')"
                          class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"

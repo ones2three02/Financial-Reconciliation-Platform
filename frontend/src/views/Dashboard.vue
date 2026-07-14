@@ -310,7 +310,7 @@
               <div>
                 <div class="font-bold text-slate-700 text-xs">
                   <div class="flex items-center gap-1.5 group/copy inline-flex">
-                    <span>{{ store.standard_store_name }}</span>
+                    <span class="select-text inline-block">{{ store.standard_store_name?.trim() }}</span>
                     <button 
                       @click="copyText(store.standard_store_name, store.id + '-dashboard-store')"
                       class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
