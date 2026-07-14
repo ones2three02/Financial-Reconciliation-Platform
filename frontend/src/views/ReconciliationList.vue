@@ -76,10 +76,23 @@
         <Button v-if="detail?.results.length" variant="outline" size="sm" class="w-full justify-center text-xs h-9" :disabled="working" @click="downloadReport">
           <FileDown class="mr-1.5 h-3.5 w-3.5" /> 导出结果
         </Button>
-        <Button v-if="batch && batch.status !== 'closed' && canOperate" size="sm" class="w-full justify-center text-xs h-9 bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/10" :disabled="working" @click="runReconciliation">
+        <Button 
+          v-if="batch && batch.status !== 'closed' && canOperate" 
+          size="sm" 
+          class="w-full justify-center text-xs h-9 bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/10 transition-all duration-200" 
+          :class="openIssues.length === 0 && missingCoverageCount === 0 && (batch.status === 'draft' || batch.status === 'attention_required') ? 'ring-2 ring-blue-500 ring-offset-1 font-bold scale-102' : ''"
+          :disabled="working" 
+          @click="runReconciliation"
+        >
           执行对账
         </Button>
-        <Button v-if="batch?.status === 'ready_to_close' && canOperate" size="sm" class="w-full justify-center text-xs h-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/10" :disabled="working" @click="showClose = true">
+        <Button 
+          v-if="batch?.status === 'ready_to_close' && canOperate" 
+          size="sm" 
+          class="w-full justify-center text-xs h-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/10 transition-all duration-200 animate-pulse ring-2 ring-emerald-500 ring-offset-1 font-bold scale-102"
+          :disabled="working" 
+          @click="showClose = true"
+        >
           确认关账
         </Button>
         <Button v-if="batch?.status === 'closed' && canOperate" variant="outline" size="sm" class="w-full justify-center text-xs h-9 border-amber-300 text-amber-700 hover:bg-amber-50" @click="showReopen = true">
@@ -98,19 +111,86 @@
       </div>
 
       <template v-else>
+        <!-- 今日对账工作流步骤指南 -->
+        <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none">
+          <div class="flex items-center gap-2">
+            <div class="w-1.5 h-6 bg-blue-600 rounded-full"></div>
+            <div>
+              <div class="font-bold text-slate-800 text-xs">今日对账向导步骤</div>
+              <p class="text-[10px] text-slate-400 font-medium">遵循对账动线依次处理，规范高效完成关账</p>
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-bold text-[11px] text-slate-400">
+            <!-- Step 1 -->
+            <button 
+              @click="activeTab = 'issues'"
+              class="flex items-center gap-1 cursor-pointer transition-all px-2 py-1 rounded-md hover:bg-slate-50 border"
+              :class="openIssues.length > 0 ? 'text-rose-600 bg-rose-50/50 border-rose-100' : 'text-slate-500 border-transparent'"
+            >
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] border border-current">1</span>
+              <span>别名确认</span>
+              <span v-if="openIssues.length === 0" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
+            </button>
+            
+            <span class="text-slate-300">→</span>
+            
+            <!-- Step 2 -->
+            <button 
+              @click="activeTab = 'integrity'"
+              class="flex items-center gap-1 cursor-pointer transition-all px-2 py-1 rounded-md hover:bg-slate-50 border"
+              :class="openIssues.length === 0 && missingCoverageCount > 0 ? 'text-amber-600 bg-amber-50/50 border-amber-100' : 'text-slate-500 border-transparent'"
+            >
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] border border-current">2</span>
+              <span>零数据确认</span>
+              <span v-if="missingCoverageCount === 0" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
+            </button>
+            
+            <span class="text-slate-300">→</span>
+            
+            <!-- Step 3 -->
+            <div 
+              class="flex items-center gap-1 px-2 py-1 rounded-md border"
+              :class="openIssues.length === 0 && missingCoverageCount === 0 && (batch?.status === 'draft' || batch?.status === 'attention_required') ? 'text-blue-600 bg-blue-50/50 border-blue-100 animate-pulse' : 'text-slate-500 border-transparent'"
+            >
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] border border-current">3</span>
+              <span>一键对账</span>
+              <span v-if="batch && batch.status !== 'draft' && batch.status !== 'attention_required'" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
+            </div>
+            
+            <span class="text-slate-300">→</span>
+            
+            <!-- Step 4 -->
+            <div 
+              class="flex items-center gap-1 px-2 py-1 rounded-md border"
+              :class="batch?.status === 'ready_to_close' ? 'text-emerald-600 bg-emerald-50/50 border-emerald-100 animate-pulse' : batch?.status === 'closed' ? 'text-emerald-600 bg-emerald-50/50 border-emerald-100' : 'text-slate-500 border-transparent'"
+            >
+              <span class="w-4 h-4 rounded-full flex items-center justify-center text-[10px] border border-current">4</span>
+              <span>批次关账</span>
+              <span v-if="batch?.status === 'closed'" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Tab Controls -->
-        <div class="flex border border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1 shrink-0">
+        <div class="flex border border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1 shrink-0 select-none">
           <button 
-            @click="activeTab = 'results'" 
+            @click="activeTab = 'issues'" 
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
-              activeTab === 'results' 
+              activeTab === 'issues' 
                 ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
             ]"
           >
-            <TableProperties class="h-4 w-4" />
-            对账差异结果
+            <AlertTriangle class="h-4 w-4" />
+            1. 待人工确认门店
+            <span 
+              v-if="openIssues.length" 
+              class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-100 text-rose-700 animate-pulse"
+            >
+              {{ openIssues.length }}
+            </span>
           </button>
           <button 
             @click="activeTab = 'integrity'" 
@@ -122,25 +202,19 @@
             ]"
           >
             <Grid3X3 class="h-4 w-4" />
-            数据来源完整性
+            2. 数据来源完整性
           </button>
           <button 
-            @click="activeTab = 'issues'" 
+            @click="activeTab = 'results'" 
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
-              activeTab === 'issues' 
+              activeTab === 'results' 
                 ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
             ]"
           >
-            <AlertTriangle class="h-4 w-4" />
-            待人工确认门店
-            <span 
-              v-if="openIssues.length" 
-              class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-100 text-rose-700 animate-pulse"
-            >
-              {{ openIssues.length }}
-            </span>
+            <TableProperties class="h-4 w-4" />
+            3. 对账差异结果
           </button>
         </div>
 
@@ -436,7 +510,7 @@ const resolutionDone = ref(false);
 const showReopen = ref(false);
 const showClose = ref(false);
 const reopenReason = ref('');
-const activeTab = ref<'results' | 'integrity' | 'issues'>('results');
+const activeTab = ref<'results' | 'integrity' | 'issues'>('issues');
 type ZeroAction = { storeId: number; storeName: string; source: SourceCode };
 const zeroConfirmation = ref<ZeroAction | null>(null);
 const zeroRevocation = ref<ZeroAction | null>(null);
@@ -474,6 +548,19 @@ const loadWorkspace = async () => {
     aliases.value = aliasRows;
     batch.value = batchRows.find((item) => item.business_date === globalDate.value) ?? null;
     detail.value = batch.value ? await api.getBatchDetail(batch.value.id) : null;
+    
+    // 智能导向：根据当前批次所处的生命周期阶段自动选定默认激活的 Tab 栏
+    if (batch.value) {
+      if (batch.value.status === 'closed') {
+        activeTab.value = 'results';
+      } else if (openIssues.value.length > 0) {
+        activeTab.value = 'issues';
+      } else if (missingCoverageCount.value > 0) {
+        activeTab.value = 'integrity';
+      } else {
+        activeTab.value = 'results';
+      }
+    }
   } catch (error) {
     notice.value = { type: 'error', text: errorDetail(error) };
   } finally {
@@ -568,6 +655,9 @@ const runReconciliation = async () => {
     detail.value = await api.getBatchDetail(batch.value.id);
     batch.value = detail.value.batch;
     notice.value = { type: 'success', text: '对账已按当前完整性和金额重新计算。' };
+    
+    // 对账成功后，智能跳转至“对账差异结果”页，引导进行最终确认与说明填写
+    activeTab.value = 'results';
   } catch (error) {
     notice.value = { type: 'error', text: errorDetail(error) };
   } finally {
