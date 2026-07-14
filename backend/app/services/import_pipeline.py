@@ -14,6 +14,7 @@ from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.services.workbook_preflight import preflight_workbook
+from backend.app.services.extraction_engine import extract_current_batch_rows
 
 
 @dataclass(frozen=True)
@@ -181,9 +182,9 @@ def import_workbook(db: Session, command: ImportWorkbookCommand) -> ImportOutcom
                 is_current=True,
             )
             db.add(extraction_run)
-            import_file.upload_status = "parsed"
             import_file.row_count = row_count
             db.flush()
+            extract_current_batch_rows(db, extraction_run.id)
 
         db.commit()
         return ImportOutcome(
