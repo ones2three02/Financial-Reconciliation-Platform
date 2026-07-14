@@ -468,6 +468,17 @@ import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save, Copy, C
 // Tab state
 const activeTab = ref('stores'); // 'stores' or 'aliases'
 
+import { isTourActive, currentStepIndex } from '../services/tour';
+watch([isTourActive, currentStepIndex], () => {
+  if (isTourActive.value) {
+    if (currentStepIndex.value === 2) {
+      activeTab.value = 'aliases';
+    } else if (currentStepIndex.value === 1) {
+      activeTab.value = 'stores';
+    }
+  }
+});
+
 // Data states
 const stores = ref<Store[]>([]);
 const aliases = ref<StoreAlias[]>([]);

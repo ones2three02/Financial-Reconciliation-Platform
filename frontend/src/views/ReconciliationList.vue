@@ -514,6 +514,19 @@ const showReopen = ref(false);
 const showClose = ref(false);
 const reopenReason = ref('');
 const activeTab = ref<'results' | 'integrity' | 'issues'>('issues');
+
+import { isTourActive, currentStepIndex } from '../services/tour';
+watch([isTourActive, currentStepIndex], () => {
+  if (isTourActive.value) {
+    if (currentStepIndex.value === 1) {
+      activeTab.value = 'issues';
+    } else if (currentStepIndex.value === 2) {
+      activeTab.value = 'integrity';
+    } else if (currentStepIndex.value === 3) {
+      activeTab.value = 'results';
+    }
+  }
+});
 type ZeroAction = { storeId: number; storeName: string; source: SourceCode };
 const zeroConfirmation = ref<ZeroAction | null>(null);
 const zeroRevocation = ref<ZeroAction | null>(null);

@@ -15,7 +15,7 @@
     </Card>
 
     <!-- Quick Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div id="dashboard-metrics-summary" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Card 1 -->
       <Card class="shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
         <CardContent class="p-6 flex items-center gap-4">
@@ -271,7 +271,7 @@
     <!-- Charts and Leaders Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Trend Line Chart -->
-      <Card class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col h-[400px]">
+      <Card id="dashboard-chart-card" class="lg:col-span-2 shadow-sm border border-slate-200/80 flex flex-col h-[400px]">
         <CardHeader class="pb-2">
           <CardTitle class="flex items-center gap-2 text-sm font-bold text-slate-800">
             <LineChart class="w-4 h-4 text-blue-500" />

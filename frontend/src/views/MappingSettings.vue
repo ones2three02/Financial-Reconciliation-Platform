@@ -2,7 +2,7 @@
   <div class="h-[calc(100vh-8rem)] flex flex-col fade-in overflow-hidden">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 min-h-0 overflow-hidden">
       <!-- Create Mapping Form Card -->
-      <Card class="h-fit shadow-sm border border-slate-200/80">
+      <Card id="mapping-create-card" class="h-fit shadow-sm border border-slate-200/80">
         <CardHeader class="pb-4">
           <CardTitle class="flex items-center gap-2.5 text-base font-bold text-slate-800">
             <Plus class="h-4.5 w-4.5 text-blue-500" />
