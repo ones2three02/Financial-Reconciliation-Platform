@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Financial Reconciliation Platform"
     DATABASE_URL: str = "sqlite:///./frp.db"
-    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:1420,tauri://localhost,http://tauri.localhost,http://localhost:5174"
 
     @property
     def allowed_cors_origins(self) -> list[str]:

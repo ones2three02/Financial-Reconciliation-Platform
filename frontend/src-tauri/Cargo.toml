@@ -1,0 +1,19 @@
+[package]
+name = "frp-platform"
+version = "0.0.0"
+description = "Financial Reconciliation Platform Desktop Client"
+authors = ["FRP Team"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5" }
+
+[dependencies]
+tauri = { version = "1.5", features = ["api-all"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+# by default tauri system-tray is enabled
+default = [ "custom-protocol" ]
+custom-protocol = [ "tauri/custom-protocol" ]

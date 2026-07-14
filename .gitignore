@@ -17,3 +17,8 @@ backend/.env
 
 # OS
 .DS_Store
+
+# Desktop Build Outputs
+build/
+*.spec
+*.db.bak
