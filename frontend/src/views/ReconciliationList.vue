@@ -283,27 +283,40 @@
             <CardDescription class="text-xs text-slate-400">系统不会依据名称相似度自动归店。请核对来源和原始名称后，由管理员明确选择标准门店。</CardDescription>
           </CardHeader>
           <CardContent class="flex-1 overflow-auto min-h-0 p-5 border-t border-slate-100 flex flex-col gap-4">
-            <!-- Filter Toolbar -->
-            <div v-if="openIssues.length" class="flex items-center gap-1.5 bg-slate-100/85 p-1 rounded-xl w-fit self-start shrink-0">
-              <button 
-                v-for="filterOpt in [{value: 'all', label: '全部'}, {value: 'tonglian', label: '通联'}, {value: 'meituan', label: '美团'}, {value: 'douyin', label: '抖音'}]"
-                :key="filterOpt.value"
-                @click="selectedSourceFilter = filterOpt.value"
-                :class="[
-                  'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1',
-                  selectedSourceFilter === filterOpt.value 
-                    ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20' 
-                    : 'text-slate-500 hover:text-slate-800'
-                ]"
-              >
-                {{ filterOpt.label }}
-                <span 
-                  class="px-1.5 py-0.5 rounded-full text-[9px] font-mono"
-                  :class="selectedSourceFilter === filterOpt.value ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-500'"
+            <!-- Filter Toolbar & Search -->
+            <div v-if="openIssues.length" class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+              <div class="flex items-center gap-1.5 bg-slate-100/85 p-1 rounded-xl w-fit">
+                <button 
+                  v-for="filterOpt in [{value: 'all', label: '全部'}, {value: 'tonglian', label: '通联'}, {value: 'meituan', label: '美团'}, {value: 'douyin', label: '抖音'}]"
+                  :key="filterOpt.value"
+                  @click="selectedSourceFilter = filterOpt.value"
+                  :class="[
+                    'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1',
+                    selectedSourceFilter === filterOpt.value 
+                      ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20' 
+                      : 'text-slate-500 hover:text-slate-800'
+                  ]"
                 >
-                  {{ filterCount(filterOpt.value) }}
+                  {{ filterOpt.label }}
+                  <span 
+                    class="px-1.5 py-0.5 rounded-full text-[9px] font-mono"
+                    :class="selectedSourceFilter === filterOpt.value ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-500'"
+                  >
+                    {{ filterCount(filterOpt.value) }}
+                  </span>
+                </button>
+              </div>
+              <div class="relative w-full sm:w-64">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                  <Search class="h-3.5 w-3.5" />
                 </span>
-              </button>
+                <input 
+                  v-model="searchQuery" 
+                  type="text" 
+                  placeholder="搜索待确认门店名称..." 
+                  class="w-full pl-9 pr-4 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                />
+              </div>
             </div>
 
             <div v-if="!openIssues.length" class="h-full flex items-center justify-center text-center py-10">
@@ -490,10 +503,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties, Copy, Check } from 'lucide-vue-next';
+import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties, Copy, Check, Search } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
 import type { BatchDetail, DataQualityIssue, ReconciliationBatch, ReconciliationResult, SourceCode, Store, StoreAlias } from '../services/api';
 import { globalDate } from '../services/store';
+import { startDownload } from '../services/download';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Select } from '../components/ui/select';
@@ -741,12 +755,7 @@ const downloadReport = async () => {
   working.value = true;
   try {
     const blob = await api.downloadReconciliation(globalDate.value);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `对账结果_${globalDate.value}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(url);
+    await startDownload(`对账结果_${globalDate.value}.xlsx`, blob);
   } catch (error) {
     notice.value = { type: 'error', text: errorDetail(error) };
   } finally {
@@ -769,9 +778,17 @@ const filterCount = (source: string) => {
   if (source === 'all') return openIssues.value.length;
   return openIssues.value.filter(issue => issue.source_code === source).length;
 };
+const searchQuery = ref('');
 const filteredOpenIssues = computed(() => {
-  if (selectedSourceFilter.value === 'all') return openIssues.value;
-  return openIssues.value.filter(issue => issue.source_code === selectedSourceFilter.value);
+  let list = openIssues.value;
+  if (selectedSourceFilter.value !== 'all') {
+    list = list.filter(issue => issue.source_code === selectedSourceFilter.value);
+  }
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase();
+    list = list.filter(issue => (issue.raw_value || '').toLowerCase().includes(q));
+  }
+  return list;
 });
 
 const issueCardClass = (source: string) => {

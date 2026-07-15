@@ -14,17 +14,16 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-const desktopConfigPromise = (
-  !import.meta.env.VITE_API_BASE_URL && typeof window !== 'undefined'
-    ? loadDesktopBackendConfig(window)
-    : Promise.resolve(null)
-);
+let cachedDesktopConfig: any = null;
 
 client.interceptors.request.use(async (config) => {
-  const desktopConfig = await desktopConfigPromise;
-  if (desktopConfig) {
-    config.baseURL = desktopConfig.api_base_url;
-    config.headers.set(DESKTOP_TOKEN_HEADER, desktopConfig.token);
+  if (!cachedDesktopConfig && !import.meta.env.VITE_API_BASE_URL && typeof window !== 'undefined') {
+    cachedDesktopConfig = await loadDesktopBackendConfig(window);
+  }
+  
+  if (cachedDesktopConfig) {
+    config.baseURL = cachedDesktopConfig.api_base_url;
+    config.headers.set(DESKTOP_TOKEN_HEADER, cachedDesktopConfig.token);
   }
   const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
   if (token) config.headers.Authorization = `Bearer ${token}`;

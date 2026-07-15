@@ -49,6 +49,22 @@ export const loadDesktopBackendConfig = async (
 ): Promise<DesktopBackendConfig | null> => {
   if (!isTauriRuntime(runtime)) return null;
   if (!runtime.__TAURI__) throw new Error('Tauri IPC 接口不可用');
-  const config = await runtime.__TAURI__.invoke<DesktopBackendConfig>('desktop_backend_config');
-  return validateDesktopBackendConfig(config);
+  
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), 8000);
+  });
+  
+  try {
+    const configPromise = runtime.__TAURI__.invoke<DesktopBackendConfig>('desktop_backend_config')
+      .then((config) => validateDesktopBackendConfig(config))
+      .catch((err) => {
+        console.error('Invoke desktop_backend_config failed', err);
+        return null;
+      });
+      
+    return await Promise.race([configPromise, timeoutPromise]);
+  } catch (error) {
+    console.error('Failed to load desktop config', error);
+    return null;
+  }
 };

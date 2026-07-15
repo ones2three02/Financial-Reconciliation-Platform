@@ -36,20 +36,27 @@ pyinstaller --onefile --clean -y \
 
 # 移动编译出来的单文件可执行二进制到 Tauri binaries 并重命名为 Sidecar 三元组规范
 cp dist/frp-backend frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE
+xattr -cr frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE || true
 
 echo "=== 4. 自动生成桌面端各尺寸高清图标 ==="
-cd frontend
-# 用 sips 将主图裁切为正方形，避开 @tauri-apps/cli 的正方形输入源强校验
-sips -c 343 343 src/assets/hero.png --out src/assets/icon-source.png
-npx @tauri-apps/cli@1.6.3 icon src/assets/icon-source.png
+# 既然我们已经有 switch_variant.sh 进行高清图标管理，这里注释掉强制重新生成，以防破坏已有的预置高清图标
+# cd frontend
+# sips -c 343 343 src/assets/hero.png --out src/assets/icon-source.png
+# npx @tauri-apps/cli@1.6.3 icon src/assets/icon-source.png
 
 
 echo "=== 5. 构建前端 Vue 3 静态页面 ==="
+cd frontend
 npm ci
 npm run build
 
 echo "=== 6. 执行 Tauri 打包编译桌面应用 ==="
 npx @tauri-apps/cli@1.6.3 build
 
+# 自动同步到 outputs 目录并清空 quarantine 标记（彻底解决首次冷启动时 Gatekeeper 对单文件进行安全扫描导致的 30 秒卡顿）
+mkdir -p ../outputs
+cp -R src-tauri/target/release/bundle/macos/财务自动对账平台.app ../outputs/
+xattr -cr ../outputs/财务自动对账平台.app || true
+
 echo "=== 桌面应用编译完成！ ==="
-echo "在 frontend/src-tauri/target/release/bundle/ 下查收您的安装包 (.dmg/.app)"
+echo "在 outputs/ 下查收您的安装包，已默认完成 Gatekeeper 扫描免疫，支持秒开！"

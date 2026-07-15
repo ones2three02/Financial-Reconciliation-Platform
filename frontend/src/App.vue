@@ -17,8 +17,10 @@
           isCollapsed ? 'px-4 justify-center' : 'px-6'
         ]"
       >
-        <div class="p-2 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-500/20 shrink-0">
-          <Activity class="h-5 w-5" />
+        <div class="p-1.5 bg-blue-600 rounded-lg text-white shadow-lg shadow-blue-500/20 shrink-0">
+          <svg class="h-6 w-6" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" fill-rule="evenodd" d="M48 38 H145 L207 91 V108 C207 145 180 166 138 166 H94 V218 H48 Z M94 78 V126 H136 C155 126 165 117 165 102 C165 87 155 78 136 78 Z M112 148 H160 L211 218 H158 L101 163 Z"/>
+          </svg>
         </div>
         <div v-if="!isCollapsed" class="fade-in transition-all duration-300">
           <h1 class="font-bold text-sm text-zinc-50 leading-none tracking-wide">FRP 对账平台</h1>
@@ -254,12 +256,14 @@
         </div>
       </div>
     </Teleport>
+    <DownloadTracker />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import DownloadTracker from './components/DownloadTracker.vue';
 import { 
   isTourActive, 
   tourSteps, 
@@ -276,7 +280,6 @@ import {
   ClipboardCheck, 
   Sliders, 
   Store, 
-  Activity, 
   PanelLeftClose, 
   PanelLeftOpen 
 } from 'lucide-vue-next';

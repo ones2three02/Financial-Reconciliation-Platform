@@ -61,7 +61,7 @@ impl BackendRuntime {
 }
 
 #[tauri::command]
-fn desktop_backend_config(
+async fn desktop_backend_config(
     runtime: State<'_, BackendRuntime>,
 ) -> Result<DesktopBackendConfig, String> {
     wait_for_backend(runtime.port, Duration::from_secs(90)).map_err(|error| error.to_string())?;
@@ -141,10 +141,10 @@ fn wait_for_backend(port: u16, timeout: Duration) -> io::Result<()> {
     let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port);
     let started_at = Instant::now();
     while started_at.elapsed() < timeout {
-        if TcpStream::connect_timeout(&address, Duration::from_millis(100)).is_ok() {
+        if TcpStream::connect_timeout(&address, Duration::from_secs(1)).is_ok() {
             return Ok(());
         }
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(200));
     }
     Err(io::Error::new(
         io::ErrorKind::TimedOut,

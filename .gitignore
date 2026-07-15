@@ -24,3 +24,5 @@ build/
 *.db.bak
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/
+outputs/
+0714/

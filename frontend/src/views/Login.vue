@@ -7,8 +7,10 @@
     <!-- Login Card -->
     <Card class="w-full max-w-sm border border-zinc-800 bg-zinc-950/45 backdrop-blur-md shadow-2xl relative z-10 p-2">
       <CardHeader class="space-y-2 text-center pb-4">
-        <div class="mx-auto p-3 bg-blue-600/15 rounded-xl text-blue-500 w-11 h-11 flex items-center justify-center mb-1">
-          <Activity class="w-6 h-6" />
+        <div class="mx-auto p-2 bg-blue-600/15 rounded-xl text-blue-500 w-11 h-11 flex items-center justify-center mb-1">
+          <svg class="w-6 h-6" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" fill-rule="evenodd" d="M48 38 H145 L207 91 V108 C207 145 180 166 138 166 H94 V218 H48 Z M94 78 V126 H136 C155 126 165 117 165 102 C165 87 155 78 136 78 Z M112 148 H160 L211 218 H158 L101 163 Z"/>
+          </svg>
         </div>
         <CardTitle class="text-zinc-50 font-extrabold text-xl tracking-wide leading-none">财务对账平台</CardTitle>
         <CardDescription class="text-zinc-500 text-xs">
@@ -35,6 +37,7 @@
               type="text" 
               v-model="username" 
               placeholder="请输入用户名" 
+              :disabled="isInitializing || isLoading"
               class="bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-blue-600"
               required
             />
@@ -48,6 +51,7 @@
               type="password" 
               v-model="password" 
               placeholder="请输入密码" 
+              :disabled="isInitializing || isLoading"
               class="bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-blue-600"
               required
             />
@@ -80,7 +84,6 @@ import { api, saveSession } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Activity } from 'lucide-vue-next';
 import { isTauriRuntime } from '../services/desktopRuntime';
 import { submitDesktopCredentials } from '../services/desktopSetup';
 
@@ -105,6 +108,7 @@ onMounted(async () => {
 });
 
 const handleLogin = async () => {
+  if (isInitializing.value || isLoading.value) return;
   isLoading.value = true;
   errorMessage.value = '';
   try {

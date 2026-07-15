@@ -89,17 +89,32 @@ def preflight_workbook(
             (),
         )
         headers = [_clean_header(value) for value in header_values]
-        missing_columns = [
-            column for column in profile.required_columns if column not in headers
-        ]
+        missing_columns = []
+        for column in profile.required_columns:
+            if column in headers:
+                continue
+            # Special case: allow '验券/退款/调整时间' to match '验券/退款/'
+            if column == "验券/退款/" and any("验券/退款" in h for h in headers):
+                continue
+            missing_columns.append(column)
+
         if missing_columns:
             raise TemplateMismatchError(
                 f"模板 {profile.code} 缺少必需字段: {'、'.join(missing_columns)}"
             )
 
-        date_index = headers.index(profile.date_column)
+        def find_header_index(col_name):
+            if col_name in headers:
+                return headers.index(col_name)
+            if col_name == "验券/退款/":
+                for idx, h in enumerate(headers):
+                    if "验券/退款" in h:
+                        return idx
+            raise ValueError(f"未找到列: {col_name}")
+
+        date_index = find_header_index(profile.date_column)
         store_index = (
-            headers.index(profile.store_column)
+            find_header_index(profile.store_column)
             if profile.store_column is not None
             else None
         )
