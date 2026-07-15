@@ -354,6 +354,7 @@ import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/compon
 import { init, use, type EChartsType } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { globalDate, setGlobalDate } from '../services/store';
+import { createLatestCalendarRangeLoader, type CalendarRange } from '../services/calendarTrends';
 import { DatePicker } from '../components/ui/date-picker';
 
 const summary = ref<DashboardSummary>({
@@ -388,6 +389,12 @@ const viewMode = ref<'trends' | 'calendar'>('trends');
 const calendarYear = ref(new Date().getFullYear());
 const calendarMonth = ref(new Date().getMonth() + 1);
 const calendarDataMap = ref<Record<string, TrendData>>({});
+const loadLatestCalendarTrends = createLatestCalendarRangeLoader<TrendData[]>((range) => (
+  api.getDashboardTrends({
+    start_date: range.startDate,
+    end_date: range.endDate,
+  })
+));
 
 const getLocalDateString = (d: Date) => {
   const year = d.getFullYear();
@@ -457,17 +464,20 @@ const calendarWeeks = computed(() => {
   return weeks;
 });
 
-const loadCalendarTrends = async () => {
+const getCalendarRange = (): CalendarRange | null => {
   const weeks = calendarWeeks.value;
-  if (!weeks.length) return;
-  const startCellDate = weeks[0][0].date;
-  const endCellDate = weeks[weeks.length - 1][6].date;
-  
+  const startDate = weeks[0]?.[0]?.date;
+  const endDate = weeks.at(-1)?.[6]?.date;
+  return startDate && endDate ? { startDate, endDate } : null;
+};
+
+const loadCalendarTrends = async () => {
+  const requestedRange = getCalendarRange();
+  if (!requestedRange) return;
+
   try {
-    const data = await api.getDashboardTrends({
-      start_date: startCellDate,
-      end_date: endCellDate
-    });
+    const data = await loadLatestCalendarTrends(requestedRange, getCalendarRange);
+    if (data === null) return;
     const map: Record<string, TrendData> = {};
     data.forEach(item => {
       map[item.date] = item;
