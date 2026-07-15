@@ -22,3 +22,5 @@ backend/.env
 build/
 *.spec
 *.db.bak
+frontend/src-tauri/target/
+frontend/src-tauri/binaries/

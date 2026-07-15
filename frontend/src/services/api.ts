@@ -1,24 +1,10 @@
 import axios from 'axios';
+import { ref } from 'vue';
 
-const getApiBaseUrl = () => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
-  }
-  // 检测是否处于 Tauri 桌面外壳容器中（开发态或生产打包态）
-  const isTauri = typeof window !== 'undefined' && (
-    (window as any).__TAURI_METADATA__ !== undefined || 
-    (window as any).__TAURI__ !== undefined ||
-    window.location.protocol === 'tauri:' ||
-    window.location.hostname === 'tauri.localhost'
-  );
-  if (isTauri) {
-    // 桌面端直连后台侧边二进制服务进程端口
-    return 'http://127.0.0.1:8000/api/v1';
-  }
-  return '/api/v1';
-};
+import { loadDesktopBackendConfig } from './desktopRuntime';
 
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const DESKTOP_TOKEN_HEADER = 'X-FRP-Desktop-Token';
 const ACCESS_TOKEN_KEY = 'access_token';
 const USERNAME_KEY = 'username';
 const ROLE_KEY = 'role';
@@ -28,7 +14,18 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-client.interceptors.request.use((config) => {
+const desktopConfigPromise = (
+  !import.meta.env.VITE_API_BASE_URL && typeof window !== 'undefined'
+    ? loadDesktopBackendConfig(window)
+    : Promise.resolve(null)
+);
+
+client.interceptors.request.use(async (config) => {
+  const desktopConfig = await desktopConfigPromise;
+  if (desktopConfig) {
+    config.baseURL = desktopConfig.api_base_url;
+    config.headers.set(DESKTOP_TOKEN_HEADER, desktopConfig.token);
+  }
   const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
@@ -44,8 +41,6 @@ client.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
-import { ref } from 'vue';
 
 // 全局响应式会话状态，确保角色及 Token 变更时 UI 能自动感知并刷新
 export const currentSession = ref({
@@ -89,6 +84,10 @@ export interface LoginResponse {
   token_type: string;
   username: string;
   role: 'admin' | 'finance' | 'viewer';
+}
+
+export interface DesktopSetupStatus {
+  setup_required: boolean;
 }
 
 export interface Store {
@@ -270,6 +269,13 @@ const workbookForm = (file: File, fields: Record<string, string | number | null 
 };
 
 export const api = {
+  getDesktopSetupStatus: () =>
+    client.get<DesktopSetupStatus>('/auth/desktop-setup').then((res) => res.data),
+  setupDesktopAdmin: (username: string, password: string) =>
+    client.post<{ username: string; role: string }>('/auth/desktop-setup', {
+      username,
+      password,
+    }).then((res) => res.data),
   login: (username: string, password: string) =>
     client.post<LoginResponse>('/auth/login', { username, password }).then((res) => res.data),
   logout: () => client.post('/auth/logout'),

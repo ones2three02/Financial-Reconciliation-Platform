@@ -3,11 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from backend.app.core.config import settings
 from backend.app.core.db import get_db
 from backend.app.models.auth import AppUser
 from backend.app.services.auth_service import (
     authenticate_user,
     create_session,
+    create_user,
     revoke_session,
     user_for_token,
 )
@@ -32,6 +34,15 @@ class LoginResponse(BaseModel):
 class CurrentUserResponse(BaseModel):
     username: str
     role: str
+
+
+class DesktopSetupStatusResponse(BaseModel):
+    setup_required: bool
+
+
+class DesktopSetupRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=12, max_length=200)
 
 
 def get_current_user(
@@ -60,6 +71,38 @@ def require_finance(current_user: AppUser = Depends(get_current_user)) -> AppUse
     if current_user.role not in {"admin", "finance"}:
         raise HTTPException(status_code=403, detail="需要财务操作权限")
     return current_user
+
+
+def _require_desktop_mode() -> None:
+    if not settings.FRP_DESKTOP:
+        raise HTTPException(status_code=404, detail="接口不存在")
+
+
+@router.get("/desktop-setup", response_model=DesktopSetupStatusResponse)
+def desktop_setup_status(db: Session = Depends(get_db)) -> DesktopSetupStatusResponse:
+    _require_desktop_mode()
+    return DesktopSetupStatusResponse(setup_required=db.query(AppUser.id).first() is None)
+
+
+@router.post("/desktop-setup", response_model=CurrentUserResponse, status_code=201)
+def setup_desktop_admin(
+    payload: DesktopSetupRequest,
+    db: Session = Depends(get_db),
+) -> CurrentUserResponse:
+    _require_desktop_mode()
+    if db.query(AppUser.id).first() is not None:
+        raise HTTPException(status_code=409, detail="系统已经完成管理员初始化")
+    try:
+        user = create_user(
+            db,
+            username=payload.username,
+            password=payload.password,
+            role="admin",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    db.commit()
+    return CurrentUserResponse(username=user.username, role=user.role)
 
 
 @router.post("/login", response_model=LoginResponse)

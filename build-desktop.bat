@@ -2,7 +2,8 @@
 echo === 1. 确保安装编译打包依赖 ===
 if exist venv (
   call venv\Scripts\activate.bat
-  pip install -q pyinstaller
+  pip install -q pyinstaller==6.21.0
+  if errorlevel 1 exit /b 1
 ) else (
   echo 未找到 python venv 环境，请先安装虚拟环境并进行配置
   exit /b 1
@@ -24,21 +25,30 @@ echo === 3. 使用 PyInstaller 编译 Python FastAPI 离线二进制服务 ===
 pyinstaller --onefile --clean -y ^
   --name frp-backend ^
   --collect-all uvicorn ^
+  --collect-all alembic ^
   --collect-all backend ^
+  --add-data "backend/alembic.ini:backend" ^
+  --add-data "backend/migrations:backend/migrations" ^
   backend\run.py
+if errorlevel 1 exit /b 1
 
 copy dist\frp-backend.exe frontend\src-tauri\binaries\frp-backend-%TARGET_TRIPLE%.exe
+if errorlevel 1 exit /b 1
 
 echo === 4. 自动生成桌面端各尺寸高清图标 ===
 cd frontend
-call npx @tauri-apps/cli@1 icon src\assets\icon-source.png
+call npx @tauri-apps/cli@1.6.3 icon src\assets\icon-source.png
+if errorlevel 1 exit /b 1
 
 echo === 5. 构建前端 Vue 3 静态页面 ===
-call npm install
+call npm ci
+if errorlevel 1 exit /b 1
 call npm run build
+if errorlevel 1 exit /b 1
 
 echo === 6. 执行 Tauri 打包编译桌面应用 ===
-call npx @tauri-apps/cli@1 build
+call npx @tauri-apps/cli@1.6.3 build
+if errorlevel 1 exit /b 1
 
 echo === 桌面应用编译完成！ ===
 cd ..

@@ -1,9 +1,11 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.app.api import auth, batches, dashboard, files, mappings, preflight, reconciliation, stores
 from backend.app.api.auth import get_current_user
 from backend.app.core.config import settings
+from backend.app.core.desktop_security import DESKTOP_TOKEN_HEADER, desktop_request_is_authorized
 
 
 app = FastAPI(
@@ -14,39 +16,21 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_cors_origins,
     allow_credentials=False,
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", DESKTOP_TOKEN_HEADER],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 )
 
-@app.on_event("startup")
-def on_startup():
-    from backend.app.core.db import Base, engine, SessionLocal
-    import backend.app.models  # 加载所有 SQLAlchemy 模型类以进行建表注册
-    from backend.app.models.auth import AppUser
-    from backend.app.services.auth_service import create_user
-    
-    # 自动执行 SQLite 表结构创建，保障离线客户端免 Migration 初始化
-    Base.metadata.create_all(bind=engine)
-    
-    with SessionLocal() as db:
-        admin_exists = db.query(AppUser).filter(AppUser.username == "admin").first()
-        if not admin_exists:
-            try:
-                # 自动创建默认管理员账户
-                create_user(
-                    db,
-                    username="admin",
-                    password="admin_password_123",
-                    role="admin"
-                )
-                db.commit()
-                print("Database auto-seeded: default admin user created.")
-                
-                # 自动填充初始的标准门店数据，优化新手开箱体验
-                from backend.scripts.seed_stores import main as seed_stores_main
-                seed_stores_main()
-            except Exception as e:
-                print("Failed to auto-seed default database:", e)
+
+@app.middleware("http")
+async def require_desktop_launch_token(request: Request, call_next):
+    if not desktop_request_is_authorized(
+        settings,
+        request.method,
+        request.headers.get(DESKTOP_TOKEN_HEADER),
+    ):
+        return JSONResponse(status_code=401, content={"detail": "桌面客户端身份校验失败"})
+    return await call_next(request)
+
 
 authenticated = [Depends(get_current_user)]
 app.include_router(

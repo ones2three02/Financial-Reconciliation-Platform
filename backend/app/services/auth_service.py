@@ -61,6 +61,19 @@ def create_user(
     return user
 
 
+def remove_insecure_seeded_admin(db: Session) -> bool:
+    user = db.query(AppUser).filter(AppUser.username == "admin").first()
+    if user is None:
+        return False
+    insecure_hash = _password_digest("admin_password_123", user.password_salt)
+    if not hmac.compare_digest(insecure_hash, user.password_hash):
+        return False
+    db.query(UserSession).filter(UserSession.user_id == user.id).delete()
+    db.delete(user)
+    db.flush()
+    return True
+
+
 def authenticate_user(db: Session, username: str, password: str) -> AppUser | None:
     user = (
         db.query(AppUser)

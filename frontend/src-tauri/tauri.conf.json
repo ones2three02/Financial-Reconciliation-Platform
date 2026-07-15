@@ -3,7 +3,8 @@
     "distDir": "../dist",
     "devPath": "http://localhost:5174",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "",
+    "withGlobalTauri": true
   },
   "package": {
     "productName": "财务自动对账平台",
@@ -11,13 +12,7 @@
   },
   "tauri": {
     "allowlist": {
-      "all": true,
-      "shell": {
-        "all": false,
-        "execute": true,
-        "sidecar": true,
-        "open": true
-      }
+      "all": false
     },
     "bundle": {
       "active": true,
@@ -35,7 +30,7 @@
       ]
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' http://127.0.0.1:*; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
     },
     "windows": [
       {

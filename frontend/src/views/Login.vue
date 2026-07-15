@@ -11,7 +11,9 @@
           <Activity class="w-6 h-6" />
         </div>
         <CardTitle class="text-zinc-50 font-extrabold text-xl tracking-wide leading-none">财务对账平台</CardTitle>
-        <CardDescription class="text-zinc-500 text-xs">欢迎回来，请使用您的管理员账户登录</CardDescription>
+        <CardDescription class="text-zinc-500 text-xs">
+          {{ setupRequired ? '首次使用，请创建本机管理员账户' : '欢迎回来，请使用您的账户登录' }}
+        </CardDescription>
       </CardHeader>
       
       <CardContent class="space-y-4">
@@ -49,16 +51,20 @@
               class="bg-zinc-900/50 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus-visible:ring-blue-600"
               required
             />
+            <p v-if="setupRequired" class="text-[10px] text-zinc-600">至少 12 位，仅保存在本机数据库中</p>
           </div>
 
           <!-- Login Button -->
           <Button 
             type="submit" 
             class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold h-10 mt-6 shadow-lg shadow-blue-600/15"
-            :disabled="isLoading"
+            :disabled="isLoading || isInitializing"
           >
-            <span v-if="isLoading" class="animate-pulse">登录校验中...</span>
-            <span v-else>立即登录</span>
+            <span v-if="isInitializing" class="animate-pulse">正在初始化本地服务...</span>
+            <span v-else-if="isLoading" class="animate-pulse">
+              {{ setupRequired ? '正在创建管理员...' : '登录校验中...' }}
+            </span>
+            <span v-else>{{ setupRequired ? '创建管理员并登录' : '立即登录' }}</span>
           </Button>
         </form>
 
@@ -68,25 +74,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { api, saveSession } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Activity } from 'lucide-vue-next';
+import { isTauriRuntime } from '../services/desktopRuntime';
+import { submitDesktopCredentials } from '../services/desktopSetup';
 
 const router = useRouter();
 const username = ref('');
 const password = ref('');
 const isLoading = ref(false);
+const isInitializing = ref(isTauriRuntime(window));
 const errorMessage = ref('');
+const setupRequired = ref(false);
+
+onMounted(async () => {
+  if (!isTauriRuntime(window)) return;
+  try {
+    setupRequired.value = (await api.getDesktopSetupStatus()).setup_required;
+  } catch (err: unknown) {
+    const responseError = err as { response?: { data?: { detail?: string } } };
+    errorMessage.value = responseError.response?.data?.detail || '桌面服务初始化失败，请重新启动应用';
+  } finally {
+    isInitializing.value = false;
+  }
+});
 
 const handleLogin = async () => {
   isLoading.value = true;
   errorMessage.value = '';
   try {
-    const res = await api.login(username.value.trim(), password.value);
+    const cleanUsername = username.value.trim();
+    const res = await submitDesktopCredentials({
+      setupRequired: setupRequired.value,
+      username: cleanUsername,
+      password: password.value,
+      setup: api.setupDesktopAdmin,
+      login: api.login,
+    });
     
     saveSession(res);
     router.push('/');

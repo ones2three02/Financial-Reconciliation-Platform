@@ -4,6 +4,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
+import backend.app.models  # noqa: F401
+from backend.app.core.db import Base
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = PROJECT_ROOT / "backend"
@@ -67,3 +69,52 @@ def test_foundation_migration_can_downgrade_and_upgrade(tmp_path):
 
     upgrade_database(database_url, "head")
     assert "source_coverage" in table_names(database_url)
+
+
+def test_desktop_database_uses_alembic_for_a_new_database(tmp_path):
+    try:
+        from backend.app.core.desktop_database import prepare_desktop_database
+    except ModuleNotFoundError:
+        raise AssertionError("桌面数据库迁移入口尚未实现") from None
+    database_path = tmp_path / "desktop.db"
+
+    backup_path = prepare_desktop_database(f"sqlite:///{database_path}")
+
+    assert backup_path is None
+    assert "alembic_version" in table_names(f"sqlite:///{database_path}")
+    engine = create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0003_authentication_foundation"
+            )
+            assert connection.exec_driver_sql("SELECT COUNT(*) FROM app_user").scalar_one() == 0
+    finally:
+        engine.dispose()
+
+
+def test_desktop_database_backs_up_and_stamps_matching_legacy_schema(tmp_path):
+    try:
+        from backend.app.core.desktop_database import prepare_desktop_database
+    except ModuleNotFoundError:
+        raise AssertionError("桌面数据库迁移入口尚未实现") from None
+    database_path = tmp_path / "legacy-desktop.db"
+    database_url = f"sqlite:///{database_path}"
+    engine = create_engine(database_url)
+    try:
+        Base.metadata.create_all(engine)
+    finally:
+        engine.dispose()
+
+    backup_path = prepare_desktop_database(database_url)
+
+    assert backup_path is not None
+    assert backup_path.is_file()
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
+                "0003_authentication_foundation"
+            )
+    finally:
+        engine.dispose()
