@@ -46,7 +46,7 @@ npm install
 npm run build
 
 echo "=== 6. 执行 Tauri 打包编译桌面应用 ==="
-npx tauri build
+npx @tauri-apps/cli@1 build
 
 echo "=== 桌面应用编译完成！ ==="
 echo "在 frontend/src-tauri/target/release/bundle/ 下查收您的安装包 (.dmg/.app)"
