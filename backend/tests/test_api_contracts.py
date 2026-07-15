@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from pydantic import ValidationError
 
 from backend.app.api import batches as batches_api
+from backend.app.api import dashboard as dashboard_api
 from backend.app.api import mappings as mappings_api
 from backend.app.api import stores as stores_api
 from backend.app.schemas import batch as batch_schemas
@@ -59,6 +60,18 @@ def finance_workbook(amount: int = 100) -> bytes:
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()
+
+
+def test_dashboard_trends_route_returns_422_for_invalid_range(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        dashboard_api.read_dashboard_trends(
+            days=7,
+            start_date=date(2026, 7, 2),
+            end_date=date(2026, 7, 1),
+            db=db_session,
+        )
+
+    assert exc_info.value.status_code == 422
 
 
 def test_batch_routes_cover_create_zero_reconcile_close_and_reopen(db_session):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from datetime import date
 from typing import List, Optional
@@ -24,9 +24,12 @@ def read_dashboard_trends(
     end_date: Optional[date] = None,
     db: Session = Depends(get_db)
 ):
-    return crud_recon.get_dashboard_trends(
-        db,
-        days=days,
-        start_date=start_date,
-        end_date=end_date
-    )
+    try:
+        return crud_recon.get_dashboard_trends(
+            db,
+            days=days,
+            start_date=start_date,
+            end_date=end_date
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

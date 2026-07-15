@@ -103,15 +103,42 @@ def get_dashboard_summary(db: Session, target_date: date) -> DashboardSummary:
         total_difference=total_difference
     )
 
+MAX_TREND_RANGE_DAYS = 180
+
+
+def _resolve_dashboard_trend_range(
+    *,
+    days: int,
+    start_date: Optional[date],
+    end_date: Optional[date],
+) -> tuple[date, date, int]:
+    if (start_date is None) != (end_date is None):
+        raise ValueError("start_date 和 end_date 必须同时提供")
+    if start_date is not None and end_date is not None:
+        if start_date > end_date:
+            raise ValueError("start_date 不能晚于 end_date")
+        range_days = (end_date - start_date).days + 1
+        if range_days > MAX_TREND_RANGE_DAYS:
+            raise ValueError("趋势查询范围不能超过 180 天")
+        return start_date, end_date, range_days
+    if days < 1 or days > MAX_TREND_RANGE_DAYS:
+        raise ValueError("days 必须在 1 到 180 之间")
+    resolved_end = date.today()
+    resolved_start = resolved_end - timedelta(days=days - 1)
+    return resolved_start, resolved_end, days
+
+
 def get_dashboard_trends(
     db: Session,
     days: int = 7,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None
 ) -> List[dict]:
-    if not start_date or not end_date:
-        end_date = date.today()
-        start_date = end_date - timedelta(days=days - 1)
+    start_date, end_date, range_days = _resolve_dashboard_trend_range(
+        days=days,
+        start_date=start_date,
+        end_date=end_date,
+    )
     
     # Run a group-by query for dates
     db_trends = db.query(
@@ -132,8 +159,8 @@ def get_dashboard_trends(
     trends = []
     # Fill in potential missing dates with 0s
     date_map = {t[0]: t for t in db_trends}
-    curr = start_date
-    while curr <= end_date:
+    for offset in range(range_days):
+        curr = start_date + timedelta(days=offset)
         if curr in date_map:
             t = date_map[curr]
             trends.append({
@@ -153,6 +180,5 @@ def get_dashboard_trends(
                 "total_stores": 0,
                 "discrepancies": 0
             })
-        curr += timedelta(days=1)
-        
+
     return trends
