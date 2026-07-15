@@ -45,10 +45,26 @@ client.interceptors.response.use(
   },
 );
 
+import { ref } from 'vue';
+
+// 全局响应式会话状态，确保角色及 Token 变更时 UI 能自动感知并刷新
+export const currentSession = ref({
+  token: sessionStorage.getItem(ACCESS_TOKEN_KEY),
+  username: sessionStorage.getItem(USERNAME_KEY),
+  role: sessionStorage.getItem(ROLE_KEY),
+});
+
 export const saveSession = (session: LoginResponse) => {
   sessionStorage.setItem(ACCESS_TOKEN_KEY, session.access_token);
   sessionStorage.setItem(USERNAME_KEY, session.username);
   sessionStorage.setItem(ROLE_KEY, session.role);
+  
+  // 更新响应式状态触发 UI 重算
+  currentSession.value = {
+    token: session.access_token,
+    username: session.username,
+    role: session.role,
+  };
 };
 
 export const clearSession = () => {
@@ -57,13 +73,16 @@ export const clearSession = () => {
   sessionStorage.removeItem(ROLE_KEY);
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(USERNAME_KEY);
+  
+  // 清空响应式状态触发 UI 重算
+  currentSession.value = {
+    token: null,
+    username: null,
+    role: null,
+  };
 };
 
-export const getSession = () => ({
-  token: sessionStorage.getItem(ACCESS_TOKEN_KEY),
-  username: sessionStorage.getItem(USERNAME_KEY),
-  role: sessionStorage.getItem(ROLE_KEY),
-});
+export const getSession = () => currentSession.value;
 
 export interface LoginResponse {
   access_token: string;
