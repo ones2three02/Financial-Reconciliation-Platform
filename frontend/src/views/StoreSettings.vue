@@ -619,7 +619,7 @@ const fetchStores = async () => {
 
 const fetchAliases = async () => {
   try {
-    aliases.value = await api.getStoreAliases(undefined);
+    aliases.value = await api.getAllStoreAliases(undefined);
   } catch (error) {
     console.error('Failed to load aliases:', error);
   }

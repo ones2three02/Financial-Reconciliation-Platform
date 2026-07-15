@@ -170,9 +170,9 @@
                     class="rounded-full px-2.5 py-1 text-[11px] font-bold border" 
                     :class="[
                       uploadStatusClass(file.upload_status),
-                      file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canOperate ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
+                      file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canConfirmAlias ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
                     ]"
-                    @click="file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canOperate ? openMappingResolution(file) : null"
+                    @click="file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canConfirmAlias ? openMappingResolution(file) : null"
                   >
                     {{ uploadStatusLabel(file.upload_status) }}
                   </span>
@@ -180,7 +180,7 @@
                 <td class="p-4 font-mono text-slate-500">{{ formatDateTime(file.uploaded_at) }}</td>
                 <td class="p-4 text-right">
                   <div v-if="file.is_current && activeBatch?.status !== 'closed' && canOperate" class="flex justify-end gap-2">
-                    <Button v-if="file.upload_status === 'attention_required'" variant="outline" size="xs" class="border-amber-300 text-amber-700 hover:bg-amber-50" :disabled="processing" @click="openMappingResolution(file)"><AlertTriangle class="mr-1 h-3 w-3" />确认门店</Button>
+                    <Button v-if="file.upload_status === 'attention_required' && canConfirmAlias" variant="outline" size="xs" class="border-amber-300 text-amber-700 hover:bg-amber-50" :disabled="processing" @click="openMappingResolution(file)"><AlertTriangle class="mr-1 h-3 w-3" />确认门店</Button>
                     <Button variant="outline" size="xs" :disabled="processing" @click="openFileAction('replace', file)"><RefreshCw class="mr-1 h-3 w-3" />替换</Button>
                     <Button variant="outline" size="xs" class="border-rose-200 text-rose-700" :disabled="processing" @click="openFileAction('invalidate', file)"><Ban class="mr-1 h-3 w-3" />作废</Button>
                   </div>
@@ -314,8 +314,9 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { AlertTriangle, Ban, CalendarRange, FileSpreadsheet, History, RefreshCw, RotateCcw, Sliders, UploadCloud } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
-import type { BatchDetail, DataQualityIssue, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store } from '../services/api';
+import type { BatchDetail, DataQualityIssue, ImportFile, PreflightResult, ProfileCode, ReconciliationBatch, Store, StoreAlias } from '../services/api';
 import { loadExistingBatchForDate } from '../services/importBatchLoader';
+import { canConfirmStoreAlias, findAliasForIssue } from '../services/storeAliases';
 import {
   clearQueue,
   createQueueItems,
@@ -347,6 +348,7 @@ const profiles: { code: ProfileCode; label: string; description: string }[] = [
 const selectedProfile = ref<ProfileCode>('store_finance_v1');
 const selectedStoreId = ref<number | null>(null);
 const stores = ref<Store[]>([]);
+const pendingAliases = ref<StoreAlias[]>([]);
 const activeBatch = ref<ReconciliationBatch | null>(null);
 const batchDetail = ref<BatchDetail | null>(null);
 const queues = ref<ImportQueueMap<File>>({});
@@ -387,6 +389,7 @@ const queue = computed(() => getQueue(queues.value, currentContext.value) as Que
 const actionableQueue = computed(() => runnableItems(queue.value) as QueueItem[]);
 const canSelectFiles = computed(() => selectedProfile.value !== 'store_finance_v1' || selectedStoreId.value !== null);
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
+const canConfirmAlias = computed(() => canConfirmStoreAlias(getSession().role));
 const openIssueCount = computed(() => batchDetail.value?.quality_issues.filter((issue) => issue.status === 'open').length ?? 0);
 const currentFileCount = computed(() => batchDetail.value?.import_files.filter((file) => file.is_current).length ?? 0);
 const historicalFileCount = computed(() => batchDetail.value?.import_files.filter((file) => !file.is_current).length ?? 0);
@@ -532,15 +535,27 @@ const closeFileAction = () => {
   replacementFile.value = null;
 };
 
-const openMappingResolution = (file: ImportFile) => {
-  resolutionFile.value = file;
-  showMappingResolution.value = true;
+const openMappingResolution = async (file: ImportFile) => {
+  if (!canConfirmAlias.value) {
+    message.value = { type: 'error', text: '门店别名确认需要管理员权限。' };
+    return;
+  }
   message.value = null;
-  const issues = batchDetail.value?.quality_issues.filter(
-    (issue) => issue.import_file_id === file.id && issue.status === 'open'
-  ) ?? [];
-  for (const issue of issues) {
-    issueStoreSelections[issue.id] = null;
+  processing.value = true;
+  try {
+    pendingAliases.value = await api.getAllStoreAliases('pending');
+    resolutionFile.value = file;
+    showMappingResolution.value = true;
+    const issues = batchDetail.value?.quality_issues.filter(
+      (issue) => issue.import_file_id === file.id && issue.status === 'open'
+    ) ?? [];
+    for (const issue of issues) {
+      issueStoreSelections[issue.id] = null;
+    }
+  } catch (error) {
+    message.value = { type: 'error', text: errorDetail(error) };
+  } finally {
+    processing.value = false;
   }
 };
 
@@ -552,11 +567,20 @@ const closeMappingResolution = () => {
 
 const confirmIssueAlias = async (issue: DataQualityIssue) => {
   const storeId = issueStoreSelections[issue.id];
-  if (!storeId) return;
+  const alias = findAliasForIssue(pendingAliases.value, issue);
+  if (!storeId || !alias) {
+    message.value = { type: 'error', text: '没有找到与该质量问题对应的待确认别名，请刷新后重试。' };
+    return;
+  }
+  if (!canConfirmAlias.value) {
+    message.value = { type: 'error', text: '门店别名确认需要管理员权限。' };
+    return;
+  }
   processing.value = true;
   message.value = null;
   try {
-    await api.confirmStoreAlias(issue.id, storeId);
+    await api.confirmStoreAlias(alias.id, storeId);
+    pendingAliases.value = pendingAliases.value.filter((item) => item.id !== alias.id);
     await refreshBatch();
     if (!resolutionIssues.value.length) {
       showMappingResolution.value = false;

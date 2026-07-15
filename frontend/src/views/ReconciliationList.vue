@@ -493,6 +493,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { AlertTriangle, ClipboardCheck, FileDown, Grid3X3, RefreshCw, TableProperties, Copy, Check } from 'lucide-vue-next';
 import { api, getSession } from '../services/api';
 import type { BatchDetail, DataQualityIssue, ReconciliationBatch, ReconciliationResult, SourceCode, Store, StoreAlias } from '../services/api';
+import { canConfirmStoreAlias, findAliasForIssue } from '../services/storeAliases';
 import { globalDate } from '../services/store';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -549,7 +550,7 @@ const copyText = async (text: string, id: string) => {
 
 const activeStores = computed(() => stores.value.filter((store) => store.is_active));
 const canOperate = computed(() => ['admin', 'finance'].includes(getSession().role ?? ''));
-const canConfirmAlias = computed(() => getSession().role === 'admin');
+const canConfirmAlias = computed(() => canConfirmStoreAlias(getSession().role));
 const openIssues = computed(() => detail.value?.quality_issues.filter((issue) => issue.status === 'open') ?? []);
 const completeCoverageCount = computed(() => detail.value?.coverages.filter((coverage) => ['present_data', 'present_zero'].includes(coverage.status)).length ?? 0);
 const missingCoverageCount = computed(() => Math.max(0, activeStores.value.length * sourceCodes.length - completeCoverageCount.value));
@@ -559,7 +560,7 @@ const loadWorkspace = async () => {
   loading.value = true;
   notice.value = null;
   try {
-    const [storeRows, batchRows, aliasRows] = await Promise.all([api.getStores(), api.getBatches(), api.getStoreAliases('pending')]);
+    const [storeRows, batchRows, aliasRows] = await Promise.all([api.getStores(), api.getBatches(), api.getAllStoreAliases('pending')]);
     stores.value = storeRows;
     aliases.value = aliasRows;
     batch.value = batchRows.find((item) => item.business_date === globalDate.value) ?? null;
@@ -642,12 +643,12 @@ const revokeSourceZero = async () => {
 
 const confirmIssueAlias = async (issue: DataQualityIssue) => {
   const storeId = issueStoreSelections[issue.id];
-  const alias = aliases.value.find((item) => item.source_code === issue.source_code && item.alias_name === issue.raw_value);
+  const alias = findAliasForIssue(aliases.value, issue);
   if (!storeId || !alias) {
     notice.value = { type: 'error', text: '没有找到与该质量问题对应的待确认别名，请刷新后重试。' };
     return;
   }
-  if (getSession().role !== 'admin') {
+  if (!canConfirmAlias.value) {
     notice.value = { type: 'error', text: '门店别名确认需要管理员权限。' };
     return;
   }

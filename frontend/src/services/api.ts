@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import { loadAllStoreAliases } from './storeAliases';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const ACCESS_TOKEN_KEY = 'access_token';
 const USERNAME_KEY = 'username';
@@ -297,8 +299,15 @@ export const api = {
   updateStore: (id: number, data: Partial<Store> & { status_change_reason?: string }) => client.put<Store>(`/stores/${id}`, data).then((res) => res.data),
   deleteStore: (id: number) => client.delete(`/stores/${id}`).then((res) => res.data),
 
-  getStoreAliases: (status?: string) =>
-    client.get<StoreAlias[]>('/stores/aliases/list', { params: { status } }).then((res) => res.data),
+  getStoreAliases: (status?: string, skip = 0, limit = 100) =>
+    client.get<StoreAlias[]>('/stores/aliases/list', {
+      params: { status, skip, limit },
+    }).then((res) => res.data),
+  getAllStoreAliases: (status?: string) => loadAllStoreAliases(
+    (skip, limit) => client.get<StoreAlias[]>('/stores/aliases/list', {
+      params: { status, skip, limit },
+    }).then((res) => res.data),
+  ),
   createStoreAlias: (aliasName: string, storeId: number | null, sourceCode = 'legacy') =>
     client.post<StoreAlias>('/stores/aliases/create', {
       alias_name: aliasName,
