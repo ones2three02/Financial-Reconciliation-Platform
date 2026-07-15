@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ReconFlow Apex</title>
+  <desc id="desc">An engineered custom R with a precise reconciliation cut.</desc>
+  <rect width="256" height="256" fill="#FFFFFF"/>
+  <path fill="#101828" fill-rule="evenodd" d="M48 38 H145 L207 91 V108 C207 145 180 166 138 166 H94 V218 H48 Z M94 78 V126 H136 C155 126 165 117 165 102 C165 87 155 78 136 78 Z M112 148 H160 L211 218 H158 L101 163 Z"/>
+</svg>

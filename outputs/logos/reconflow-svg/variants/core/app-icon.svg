@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ReconFlow Core app icon</title>
+  <desc id="desc">White desktop icon with a dark custom R completed by a cobalt stroke.</desc>
+  <rect x="14" y="14" width="228" height="228" rx="54" fill="#FFFFFF" stroke="#E4E7EC" stroke-width="2"/>
+  <g transform="translate(22 22) scale(.82)">
+    <path fill="#101828" fill-rule="evenodd" d="M52 38 H136 C179 38 206 64 206 102 C206 140 179 166 136 166 H96 V218 H52 Z M96 78 V126 H134 C154 126 164 117 164 102 C164 87 154 78 134 78 Z"/>
+    <path d="M133 151 L201 214" fill="none" stroke="#155EEF" stroke-width="34" stroke-linecap="round"/>
+  </g>
+</svg>

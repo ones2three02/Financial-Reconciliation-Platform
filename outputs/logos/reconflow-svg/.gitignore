@@ -1,0 +1,8 @@
+backups/
+__pycache__/
+variants/*/.rendered/
+variants/*/icon.iconset/
+rendered/review-board-abstract-v1.png
+rendered/review-board-custom-r-v1.png
+rendered/review-board.svg.png
+rendered/sizes/

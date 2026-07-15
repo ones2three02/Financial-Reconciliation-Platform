@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">ReconFlow Signal</title>
+  <desc id="desc">A continuous cobalt custom R optimized for software surfaces.</desc>
+  <rect width="256" height="256" fill="#FFFFFF"/>
+  <path d="M66 216 V42 H136 C178 42 202 65 202 102 C202 139 178 162 136 162 H98 M133 162 L201 216" fill="none" stroke="#155EEF" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
