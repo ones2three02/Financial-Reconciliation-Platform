@@ -1,6 +1,24 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+const getApiBaseUrl = () => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  // 检测是否处于 Tauri 桌面外壳容器中（开发态或生产打包态）
+  const isTauri = typeof window !== 'undefined' && (
+    (window as any).__TAURI_METADATA__ !== undefined || 
+    (window as any).__TAURI__ !== undefined ||
+    window.location.protocol === 'tauri:' ||
+    window.location.hostname === 'tauri.localhost'
+  );
+  if (isTauri) {
+    // 桌面端直连后台侧边二进制服务进程端口
+    return 'http://127.0.0.1:8000/api/v1';
+  }
+  return '/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const ACCESS_TOKEN_KEY = 'access_token';
 const USERNAME_KEY = 'username';
 const ROLE_KEY = 'role';
