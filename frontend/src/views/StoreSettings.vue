@@ -2,7 +2,7 @@
   <div class="h-[calc(100vh-8rem)] flex flex-col gap-4 fade-in overflow-hidden">
     <!-- Top Tabs Selection -->
     <div id="store-tab-controls" class="flex border-b border-slate-200/80 gap-6">
-      <button 
+      <button
         @click="activeTab = 'stores'"
         class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 select-none"
         :class="activeTab === 'stores' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-700'"
@@ -10,7 +10,7 @@
         <StoreIcon class="w-4.5 h-4.5" />
         <span>标准门店管理</span>
       </button>
-      <button 
+      <button
         @click="activeTab = 'aliases'"
         class="pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 select-none"
         :class="activeTab === 'aliases' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-700'"
@@ -33,12 +33,12 @@
           </div>
           <!-- Search & Add Actions -->
           <div class="flex items-center gap-3">
-            <Input 
-              v-model="storeSearchQuery" 
-              placeholder="搜索名称/编码/区域..." 
+            <Input
+              v-model="storeSearchQuery"
+              placeholder="搜索名称/编码/区域..."
               class="h-9 w-48 text-xs font-semibold rounded-lg"
             />
-            <Button 
+            <Button
               @click="openAddModal"
               class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs flex items-center gap-1.5 h-9 shrink-0"
             >
@@ -77,7 +77,7 @@
                   <td class="p-4 font-medium text-slate-600"><span v-if="s.manager" class="select-text inline-block">{{ s.manager?.trim() }}</span><span v-else class="select-none text-slate-300/80">—</span></td>
                   <td class="p-4 font-mono text-slate-500"><span v-if="s.phone" class="select-text inline-block">{{ s.phone?.trim() }}</span><span v-else class="select-none text-slate-300/80">—</span></td>
                   <td class="p-4 text-center">
-                    <button 
+                    <button
                       @click="openStoreStatusModal(s)"
                       class="px-2.5 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 transition-all select-none"
                       :class="s.is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'"
@@ -89,7 +89,7 @@
                   </td>
                   <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-2 select-none">
-                      <Button 
+                      <Button
                         @click="openEditModal(s)"
                         variant="ghost"
                         size="xs"
@@ -118,20 +118,20 @@
               显示第 {{ (storeCurrentPage - 1) * storePageSize + 1 }} 至 {{ Math.min(storeCurrentPage * storePageSize, filteredStores.length) }} 家门店，共 {{ filteredStores.length }} 家
             </div>
             <div class="flex items-center gap-2">
-              <Button 
-                size="xs" 
-                variant="outline" 
-                :disabled="storeCurrentPage === 1" 
+              <Button
+                size="xs"
+                variant="outline"
+                :disabled="storeCurrentPage === 1"
                 @click="storeCurrentPage--"
                 class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
               >
                 上一页
               </Button>
               <span class="text-slate-600 font-bold px-2 select-none">第 {{ storeCurrentPage }} / {{ storeTotalPages }} 页</span>
-              <Button 
-                size="xs" 
-                variant="outline" 
-                :disabled="storeCurrentPage === storeTotalPages" 
+              <Button
+                size="xs"
+                variant="outline"
+                :disabled="storeCurrentPage === storeTotalPages"
                 @click="storeCurrentPage++"
                 class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
               >
@@ -158,15 +158,15 @@
           <!-- Filters -->
           <div class="flex items-center gap-4 flex-wrap shrink-0">
             <!-- Search Query Input -->
-            <Input 
-              v-model="aliasSearchQuery" 
-              placeholder="搜索渠道原始店名..." 
+            <Input
+              v-model="aliasSearchQuery"
+              placeholder="搜索渠道原始店名..."
               class="h-9 w-44 text-xs font-semibold rounded-lg"
             />
-            
+
             <!-- Tab Filters -->
             <div class="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl">
-              <button 
+              <button
                 @click="aliasFilter = 'pending'"
                 :class="[
                   'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
@@ -178,7 +178,7 @@
                   {{ aliasCounts.pending }}
                 </span>
               </button>
-              <button 
+              <button
                 @click="aliasFilter = 'mapped'"
                 :class="[
                   'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
@@ -190,7 +190,7 @@
                   {{ aliasCounts.mapped }}
                 </span>
               </button>
-              <button 
+              <button
                 @click="aliasFilter = ''"
                 :class="[
                   'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1.5',
@@ -226,8 +226,8 @@
                     </div>
                   </td>
                 </tr>
-                <tr 
-                  v-for="a in paginatedAliases" 
+                <tr
+                  v-for="a in paginatedAliases"
                   :key="a.id"
                   class="hover:bg-slate-50/40 transition-colors"
                   :class="{'bg-amber-50/10': a.status === 'pending'}"
@@ -243,7 +243,7 @@
                     />
                   </td>
                   <td class="p-4 text-center">
-                    <span 
+                    <span
                       class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold select-none"
                       :class="a.status === 'mapped' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'"
                     >
@@ -252,7 +252,7 @@
                     </span>
                   </td>
                   <td class="p-4 text-center select-none">
-                    <Button 
+                    <Button
                       v-if="a.status === 'pending'"
                       @click="a.store_id && openAliasBinding(a, a.store_id)"
                       size="xs"
@@ -278,20 +278,20 @@
               显示第 {{ (aliasCurrentPage - 1) * aliasPageSize + 1 }} 至 {{ Math.min(aliasCurrentPage * aliasPageSize, filteredAliases.length) }} 条，共 {{ filteredAliases.length }} 条
             </div>
             <div class="flex items-center gap-2">
-              <Button 
-                size="xs" 
-                variant="outline" 
-                :disabled="aliasCurrentPage === 1" 
+              <Button
+                size="xs"
+                variant="outline"
+                :disabled="aliasCurrentPage === 1"
                 @click="aliasCurrentPage--"
                 class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
               >
                 上一页
               </Button>
               <span class="text-slate-600 font-bold px-2 select-none">第 {{ aliasCurrentPage }} / {{ aliasTotalPages }} 页</span>
-              <Button 
-                size="xs" 
-                variant="outline" 
-                :disabled="aliasCurrentPage === aliasTotalPages" 
+              <Button
+                size="xs"
+                variant="outline"
+                :disabled="aliasCurrentPage === aliasTotalPages"
                 @click="aliasCurrentPage++"
                 class="h-7 text-[11px] font-bold border-slate-200/80 hover:bg-slate-50"
               >
@@ -305,8 +305,8 @@
 
     <!-- Store Add/Edit Modal Dialog -->
     <Teleport to="body">
-      <div 
-        v-if="showEditModal" 
+      <div
+        v-if="showEditModal"
         class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in"
         @click.self="showEditModal = false"
       >
@@ -324,14 +324,14 @@
               <button @click="showEditModal = false" class="text-slate-400 hover:text-slate-600 text-lg font-bold">×</button>
             </div>
           </CardHeader>
-          
+
           <CardContent class="p-6 space-y-4">
             <!-- Store Name -->
             <div class="flex flex-col gap-1.5">
               <label for="store-name" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">标准门店名称 (必填)</label>
-              <Input 
+              <Input
                 id="store-name"
-                v-model="formStore.name" 
+                v-model="formStore.name"
                 placeholder="例如: 钟祥店"
                 class="h-9 text-xs"
                 required
@@ -341,9 +341,9 @@
             <!-- Store Code -->
             <div class="flex flex-col gap-1.5">
               <label for="store-code" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">门店财务编码</label>
-              <Input 
+              <Input
                 id="store-code"
-                v-model="formStore.code" 
+                v-model="formStore.code"
                 placeholder="例如: MD013"
                 class="h-9 text-xs"
               />
@@ -352,9 +352,9 @@
             <!-- Region -->
             <div class="flex flex-col gap-1.5">
               <label for="store-region" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">所在运营区域</label>
-              <Input 
+              <Input
                 id="store-region"
-                v-model="formStore.region" 
+                v-model="formStore.region"
                 placeholder="例如: 荆州地区"
                 class="h-9 text-xs"
               />
@@ -364,9 +364,9 @@
               <!-- Manager -->
               <div class="flex flex-col gap-1.5">
                 <label for="store-manager" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">店长负责人</label>
-                <Input 
+                <Input
                   id="store-manager"
-                  v-model="formStore.manager" 
+                  v-model="formStore.manager"
                   placeholder="店长姓名"
                   class="h-9 text-xs"
                 />
@@ -375,9 +375,9 @@
               <!-- Phone -->
               <div class="flex flex-col gap-1.5">
                 <label for="store-phone" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">联系电话</label>
-                <Input 
+                <Input
                   id="store-phone"
-                  v-model="formStore.phone" 
+                  v-model="formStore.phone"
                   placeholder="手机号码"
                   class="h-9 text-xs"
                 />
@@ -386,10 +386,10 @@
 
             <!-- Active status toggle -->
             <div v-if="formStore.id === null" class="flex items-center gap-2 pt-2">
-              <input 
+              <input
                 id="store-active-cb"
-                type="checkbox" 
-                v-model="formStore.is_active" 
+                type="checkbox"
+                v-model="formStore.is_active"
                 class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
               />
               <label for="store-active-cb" class="text-xs font-bold text-slate-700 cursor-pointer">
@@ -399,7 +399,7 @@
           </CardContent>
 
           <CardFooter class="bg-slate-50/50 border-t border-slate-200/60 p-4 flex justify-end gap-3">
-            <Button 
+            <Button
               @click="showEditModal = false"
               variant="outline"
               size="sm"
@@ -407,7 +407,7 @@
             >
               取消
             </Button>
-            <Button 
+            <Button
               @click="submitForm"
               size="sm"
               class="h-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-500/10 flex items-center gap-1.5"
@@ -552,7 +552,7 @@ const isAliasRebind = computed(() => Boolean(
 const filteredStores = computed(() => {
   if (!storeSearchQuery.value.trim()) return stores.value;
   const q = storeSearchQuery.value.toLowerCase().trim();
-  return stores.value.filter(s => 
+  return stores.value.filter(s =>
     s.name.toLowerCase().includes(q) ||
     (s.code && s.code.toLowerCase().includes(q)) ||
     (s.region && s.region.toLowerCase().includes(q)) ||
@@ -577,18 +577,18 @@ watch(storeSearchQuery, () => {
 // Store Aliases computed filtered and paginated
 const filteredAliases = computed(() => {
   let list = aliases.value;
-  
+
   if (aliasFilter.value === 'pending') {
     list = list.filter(a => a.status === 'pending');
   } else if (aliasFilter.value === 'mapped') {
     list = list.filter(a => a.status === 'mapped');
   }
-  
+
   if (aliasSearchQuery.value.trim()) {
     const q = aliasSearchQuery.value.toLowerCase().trim();
     list = list.filter(a => a.alias_name.toLowerCase().includes(q));
   }
-  
+
   return list;
 });
 
@@ -656,7 +656,7 @@ const submitForm = async () => {
     alert('请输入门店名称！');
     return;
   }
-  
+
   const payload = {
     name: formStore.value.name.trim(),
     code: formStore.value.code.trim() || undefined,

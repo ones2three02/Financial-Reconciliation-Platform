@@ -50,19 +50,19 @@ const selectOption = (val: any) => {
 const updatePosition = () => {
   if (!triggerRef.value) return;
   const rect = triggerRef.value.getBoundingClientRect();
-  
+
   // Calculate if it fits below or should be placed above
   const selectHeight = 250; // max-height is 250px
   const spaceBelow = window.innerHeight - rect.bottom;
   const placeAbove = spaceBelow < selectHeight && rect.top > selectHeight;
-  
+
   dropdownStyle.value = {
     position: 'fixed',
     left: `${rect.left}px`,
     width: `${rect.width}px`,
     zIndex: '9999',
-    ...(placeAbove 
-      ? { bottom: `${window.innerHeight - rect.top + 6}px` } 
+    ...(placeAbove
+      ? { bottom: `${window.innerHeight - rect.top + 6}px` }
       : { top: `${rect.bottom + 6}px` }
     )
   };

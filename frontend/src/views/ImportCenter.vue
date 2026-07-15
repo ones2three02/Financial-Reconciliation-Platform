@@ -49,10 +49,10 @@
           <CardDescription>模板是有版本的白名单规则，不会根据相似表头随意猜测。</CardDescription>
         </CardHeader>
         <CardContent class="space-y-3">
-          <label 
-            v-for="profile in profiles" 
-            :key="profile.code" 
-            class="block cursor-pointer rounded-xl border p-3.5 transition-all duration-150" 
+          <label
+            v-for="profile in profiles"
+            :key="profile.code"
+            class="block cursor-pointer rounded-xl border p-3.5 transition-all duration-150"
             :class="selectedProfile === profile.code ? 'border-blue-500 bg-blue-50/40 shadow-sm ring-1 ring-blue-500/10' : 'border-slate-200 hover:bg-slate-50'"
           >
             <div class="flex items-start gap-3">
@@ -60,7 +60,7 @@
               <div class="flex-1 min-w-0">
                 <div class="text-xs font-bold text-slate-800">{{ profile.label }}</div>
                 <div class="mt-1 text-[11px] leading-5 text-slate-500">{{ profile.description }}</div>
-                
+
                 <!-- Queue Stats Indicator -->
                 <div class="mt-1.5 flex flex-wrap gap-2 text-[11px] font-semibold">
                   <span v-if="profileQueueSummary(profile.code).pending" class="text-blue-600">
@@ -75,18 +75,18 @@
                 </div>
 
                 <!-- Inline Store Selection -->
-                <div 
-                  v-if="profile.code === 'store_finance_v1' && selectedProfile === 'store_finance_v1'" 
+                <div
+                  v-if="profile.code === 'store_finance_v1' && selectedProfile === 'store_finance_v1'"
                   class="mt-3 pt-3 border-t border-blue-100/50"
                   @click.stop
                 >
                   <label class="mb-2 block text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
                     选择该财务表所对应的门店
                   </label>
-                  <Select 
-                    v-model="selectedStoreId" 
-                    :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" 
-                    placeholder="必须选择标准门店" 
+                  <Select
+                    v-model="selectedStoreId"
+                    :options="activeStores.map((store) => ({ value: store.id, label: store.name }))"
+                    placeholder="必须选择标准门店"
                     :disabled="processing"
                   />
                 </div>
@@ -166,8 +166,8 @@
                 <td class="p-4 text-slate-500">{{ file.row_count }}</td>
                 <td class="p-4"><span class="rounded-full px-2 py-1 font-bold" :class="file.is_current ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-600'">{{ file.is_current ? '当前有效' : '历史版本' }}</span></td>
                 <td class="p-4">
-                  <span 
-                    class="rounded-full px-2.5 py-1 text-[11px] font-bold border" 
+                  <span
+                    class="rounded-full px-2.5 py-1 text-[11px] font-bold border"
                     :class="[
                       uploadStatusClass(file.upload_status),
                       file.upload_status === 'attention_required' && file.is_current && activeBatch?.status !== 'closed' && canConfirmAlias ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''
@@ -261,13 +261,13 @@
               该导入文件中包含系统无法识别的第三方门店名称。请手动选择对应的标准门店完成映射，以继续对账。
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent class="flex-1 overflow-y-auto p-6 border-t border-b border-slate-100 min-h-0">
             <div v-if="!resolutionIssues.length" class="text-center py-8">
               <div class="text-sm font-bold text-emerald-600">所有门店映射已确认</div>
               <p class="mt-1 text-xs text-slate-500">该文件内没有需要人工确认的待处理问题。</p>
             </div>
-            
+
             <div v-else class="space-y-4">
               <div v-for="issue in resolutionIssues" :key="issue.id" class="grid items-center gap-4 rounded-xl border p-4 md:grid-cols-[1fr_1.2fr_auto] transition-all hover:shadow-sm" :class="issueCardClass(issue.source_code)">
                 <div>
@@ -281,18 +281,18 @@
                     影响 {{ issue.affected_row_count }} 行数据 · 金额 ¥{{ money(issue.affected_amount) }}
                   </div>
                 </div>
-                
-                <Select 
-                  v-model="issueStoreSelections[issue.id]" 
-                  :options="activeStores.map((store) => ({ value: store.id, label: store.name }))" 
-                  placeholder="选择确认归属的标准门店" 
+
+                <Select
+                  v-model="issueStoreSelections[issue.id]"
+                  :options="activeStores.map((store) => ({ value: store.id, label: store.name }))"
+                  placeholder="选择确认归属的标准门店"
                   :disabled="processing"
                 />
-                
-                <Button 
-                  size="sm" 
-                  class="bg-blue-600 hover:bg-blue-700 text-white" 
-                  :disabled="!issueStoreSelections[issue.id] || processing" 
+
+                <Button
+                  size="sm"
+                  class="bg-blue-600 hover:bg-blue-700 text-white"
+                  :disabled="!issueStoreSelections[issue.id] || processing"
                   @click="confirmIssueAlias(issue)"
                 >
                   确认映射
@@ -300,7 +300,7 @@
               </div>
             </div>
           </CardContent>
-          
+
           <CardFooter class="justify-end shrink-0 p-4 bg-slate-50">
             <Button variant="outline" @click="closeMappingResolution">关闭</Button>
           </CardFooter>
@@ -373,7 +373,7 @@ const restoreResetRiskAcknowledged = ref(false);
 const showMappingResolution = ref(false);
 const resolutionFile = ref<ImportFile | null>(null);
 const issueStoreSelections = reactive<Record<number, number | null>>({});
-const resolutionIssues = computed(() => 
+const resolutionIssues = computed(() =>
   batchDetail.value?.quality_issues.filter(
     (issue) => issue.import_file_id === resolutionFile.value?.id && issue.status === 'open'
   ) ?? []

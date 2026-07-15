@@ -90,10 +90,10 @@
             {{ viewMode === 'trends' ? '查阅最近 7 天的每日对账覆盖状态，点击即可快速切换到对应账期进行核实对账' : '直观查看整月每天的对账结果与差异，随时补录历史数据' }}
           </CardDescription>
         </div>
-        
+
         <!-- View Toggle Buttons -->
         <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl shrink-0">
-          <button 
+          <button
             @click="viewMode = 'trends'"
             :class="[
               'px-3 py-1 text-[11px] font-bold rounded-lg transition-all',
@@ -102,7 +102,7 @@
           >
             最近7天
           </button>
-          <button 
+          <button
             @click="viewMode = 'calendar'"
             :class="[
               'px-3 py-1 text-[11px] font-bold rounded-lg transition-all',
@@ -113,23 +113,23 @@
           </button>
         </div>
       </CardHeader>
-      
+
       <CardContent class="p-6 pt-2">
         <!-- 7-Day Trend Row View -->
         <div v-if="viewMode === 'trends'" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          <div 
-            v-for="day in recentTrends" 
+          <div
+            v-for="day in recentTrends"
             :key="day.date"
             class="p-4 rounded-xl border flex flex-col justify-between h-[125px] transition-all duration-150 bg-white"
             :class="
-              globalDate === day.date 
-                ? 'border-blue-500 bg-blue-50/10 shadow-sm ring-1 ring-blue-500/20' 
+              globalDate === day.date
+                ? 'border-blue-500 bg-blue-50/10 shadow-sm ring-1 ring-blue-500/20'
                 : 'border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md'
             "
           >
             <div>
               <div class="text-[10px] font-bold text-slate-400 font-mono tracking-wider">{{ day.date.slice(5) }} ({{ getDayOfWeek(day.date) }})</div>
-              
+
               <!-- Status text with badges -->
               <div class="mt-2.5 text-xs font-extrabold">
                 <span v-if="day.total_stores === 0" class="text-slate-400 inline-flex items-center gap-1">
@@ -148,14 +148,14 @@
             </div>
 
             <!-- Action button -->
-            <Button 
+            <Button
               @click="goToDate(day.date)"
               variant="ghost"
               size="xs"
               class="w-full text-[10px] font-bold h-7 border rounded-lg transition-all"
               :class="
-                day.date === globalDate 
-                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' 
+                day.date === globalDate
+                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                   : 'text-slate-600 hover:text-blue-600 hover:bg-slate-50 border-slate-200/60'
               "
             >
@@ -206,22 +206,22 @@
           <!-- Calendar Grid (42 Cells) -->
           <div class="grid grid-cols-7 gap-2">
             <template v-for="week in calendarWeeks">
-              <div 
-                v-for="cell in week" 
+              <div
+                v-for="cell in week"
                 :key="cell.date"
                 @click="goToDate(cell.date)"
                 class="p-2 rounded-xl border flex flex-col justify-between h-[85px] cursor-pointer transition-all duration-150 relative bg-white select-none"
                 :class="[
                   !cell.isCurrentMonth ? 'opacity-40 bg-slate-50/50 border-slate-100 hover:border-slate-200' : 'shadow-sm',
-                  cell.isCurrentMonth && globalDate === cell.date 
-                    ? 'border-blue-500 bg-blue-50/15 shadow-sm ring-1 ring-blue-500/25' 
+                  cell.isCurrentMonth && globalDate === cell.date
+                    ? 'border-blue-500 bg-blue-50/15 shadow-sm ring-1 ring-blue-500/25'
                     : cell.isCurrentMonth ? 'border-slate-100 hover:border-slate-300 hover:shadow-md' : '',
                   isToday(cell.date) ? 'ring-2 ring-indigo-500/20' : ''
                 ]"
               >
                 <!-- Day Number & Today indicator -->
                 <div class="flex items-center justify-between">
-                  <span 
+                  <span
                     class="text-xs font-mono font-bold"
                     :class="[
                       globalDate === cell.date ? 'text-blue-600 font-extrabold' : 'text-slate-700',
@@ -298,8 +298,8 @@
             <CheckCircle2 class="w-8 h-8 text-emerald-500" />
             <span class="text-xs font-semibold">当前暂无对账异常门店</span>
           </div>
-          <div 
-            v-for="(store, index) in discrepancyStores.slice(0, 5)" 
+          <div
+            v-for="(store, index) in discrepancyStores.slice(0, 5)"
             :key="store.id"
             class="flex items-center justify-between p-3.5 bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl transition-all duration-150"
           >
@@ -311,7 +311,7 @@
                 <div class="font-bold text-slate-700 text-xs">
                   <div class="flex items-center gap-1.5 group/copy inline-flex">
                     <span class="select-text inline-block">{{ store.standard_store_name?.trim() }}</span>
-                    <button 
+                    <button
                       @click="copyText(store.standard_store_name, store.id + '-dashboard-store')"
                       class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
                       title="点击复制"
@@ -412,15 +412,15 @@ const calendarWeeks = computed(() => {
   const month = calendarMonth.value;
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
-  
+
   let startOffset = firstDay.getDay(); // 0 is Sunday
   startOffset = startOffset === 0 ? 6 : startOffset - 1; // Align Sunday to index 6, Monday to index 0
-  
+
   const totalDays = lastDay.getDate();
   const prevLastDay = new Date(year, month - 1, 0).getDate();
-  
+
   const cells = [];
-  
+
   // Previous month padding
   for (let i = startOffset - 1; i >= 0; i--) {
     const dayNum = prevLastDay - i;
@@ -433,7 +433,7 @@ const calendarWeeks = computed(() => {
       isCurrentMonth: false,
     });
   }
-  
+
   // Current month days
   for (let i = 1; i <= totalDays; i++) {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -443,7 +443,7 @@ const calendarWeeks = computed(() => {
       isCurrentMonth: true,
     });
   }
-  
+
   // Next month padding
   const remaining = 42 - cells.length;
   for (let i = 1; i <= remaining; i++) {
@@ -456,7 +456,7 @@ const calendarWeeks = computed(() => {
       isCurrentMonth: false,
     });
   }
-  
+
   const weeks = [];
   for (let i = 0; i < cells.length; i += 7) {
     weeks.push(cells.slice(i, i + 7));
@@ -546,18 +546,18 @@ let trendChart: EChartsType | null = null;
 
 const initChart = (trends: TrendData[]) => {
   if (!trendChartRef.value) return;
-  
+
   if (trendChart) {
     trendChart.dispose();
   }
-  
+
   trendChart = init(trendChartRef.value);
-  
+
   const dates = trends.map(t => t.date.slice(5)); // Show as MM-DD
   const sales = trends.map(t => t.sales_amount);
   const expected = trends.map(t => t.tonglian_amount);
   const diffs = trends.map(t => t.difference);
-  
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -626,7 +626,7 @@ const initChart = (trends: TrendData[]) => {
       }
     ]
   };
-  
+
   trendChart.setOption(option);
 };
 
@@ -644,20 +644,20 @@ const fetchDashboardData = async () => {
   try {
     const sumData = await api.getDashboardSummary(globalDate.value);
     summary.value = sumData;
-    
+
     const reconData = await api.getReconciliationResults({
       trade_date: globalDate.value,
       is_resolved: false
     });
     discrepancyStores.value = reconData.filter(r => r.status !== 'consistent');
-    
+
     const trendData = await api.getDashboardTrends({ days: 7 });
     recentTrends.value = [...trendData].reverse(); // Copy and reverse to show newest first
-    
+
     if (viewMode.value === 'calendar') {
       void loadCalendarTrends();
     }
-    
+
     nextTick(() => {
       initChart(trendData);
     });

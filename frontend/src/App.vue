@@ -4,14 +4,14 @@
   </div>
   <div v-else class="flex h-screen bg-slate-50/50 text-slate-900 font-sans overflow-hidden">
     <!-- Sidebar -->
-    <aside 
+    <aside
       :class="[
         'bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800 z-20 transition-all duration-300 ease-in-out shrink-0 select-none',
         isCollapsed ? 'w-16' : 'w-64'
       ]"
     >
       <!-- App Title Header -->
-      <div 
+      <div
         :class="[
           'h-16 border-b border-zinc-800 flex items-center gap-3 transition-all duration-300 ease-in-out shrink-0',
           isCollapsed ? 'px-4 justify-center' : 'px-6'
@@ -29,9 +29,9 @@
       <!-- Navigation Links -->
       <nav class="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
         <div v-if="!isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统导航</div>
-        
-        <router-link 
-          to="/" 
+
+        <router-link
+          to="/"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -41,8 +41,8 @@
           <span v-if="!isCollapsed" class="text-sm transition-all fade-in">系统看板</span>
         </router-link>
 
-        <router-link 
-          to="/import" 
+        <router-link
+          to="/import"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -52,8 +52,8 @@
           <span v-if="!isCollapsed" class="text-sm transition-all fade-in">文件导入</span>
         </router-link>
 
-        <router-link 
-          to="/reconciliation" 
+        <router-link
+          to="/reconciliation"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -67,9 +67,9 @@
         <div v-if="isAdmin" class="h-px bg-zinc-800/80 my-5" :class="isCollapsed ? 'mx-1' : 'mx-2'"></div>
         <div v-if="isAdmin && !isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统配置</div>
 
-        <router-link 
+        <router-link
           v-if="isAdmin"
-          to="/settings/mappings" 
+          to="/settings/mappings"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -79,9 +79,9 @@
           <span v-if="!isCollapsed" class="text-sm transition-all fade-in">字段映射</span>
         </router-link>
 
-        <router-link 
+        <router-link
           v-if="isAdmin"
-          to="/settings/stores" 
+          to="/settings/stores"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -93,7 +93,7 @@
       </nav>
 
       <!-- Heartbeat Indicator -->
-      <div 
+      <div
         :class="[
           'border-t border-zinc-800 bg-zinc-950/20 text-xs text-zinc-500 flex transition-all duration-300 ease-in-out shrink-0',
           isCollapsed ? 'p-4 justify-center items-center h-14' : 'p-4 flex-col gap-1.5'
@@ -116,15 +116,15 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm z-10 shrink-0 select-none">
         <div class="flex items-center gap-4">
           <!-- Sidebar Toggle Button -->
-          <button 
-            @click="toggleSidebar" 
+          <button
+            @click="toggleSidebar"
             class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors border border-slate-200/50 shadow-sm bg-white shrink-0 flex items-center justify-center"
             :title="isCollapsed ? '展开菜单栏' : '收起菜单栏'"
           >
             <PanelLeftOpen class="w-4 h-4" v-if="isCollapsed" />
             <PanelLeftClose class="w-4 h-4" v-else />
           </button>
-          
+
           <div class="flex flex-col">
             <!-- Breadcrumbs -->
             <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -135,11 +135,11 @@
             <h2 class="font-bold text-base text-slate-800 leading-tight mt-0.5">{{ pageTitle }}</h2>
           </div>
         </div>
-        
+
         <!-- Header Right side details -->
         <div class="flex items-center gap-4 shrink-0">
           <!-- Operations Guide Onboarding Trigger Button -->
-          <button 
+          <button
             v-if="route.path !== '/login' && route.path !== '/register'"
             @click="handleStartTour"
             class="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 hover:bg-blue-100 hover:text-blue-700 text-blue-600 rounded-lg text-xs font-bold transition-all shadow-sm shadow-blue-500/5 select-none shrink-0"
@@ -162,8 +162,8 @@
             </div>
             <div class="flex flex-col text-left shrink-0">
               <span class="text-xs font-bold text-slate-700 leading-none">{{ currentRole }} ({{ currentUsername }})</span>
-              <button 
-                @click="handleLogout" 
+              <button
+                @click="handleLogout"
                 class="text-[10px] text-slate-400 font-bold hover:text-rose-500 hover:underline transition-all mt-0.5 text-left bg-transparent p-0 border-0"
               >
                 安全退出
@@ -188,25 +188,25 @@
       <div v-if="isTourActive && currentStep" class="fixed inset-0 z-[10000] pointer-events-none select-none">
         <!-- 拦截底层页面点击的透明垫片 -->
         <div class="fixed inset-0 z-[9998] pointer-events-auto bg-transparent" @click="closeTour"></div>
-        
+
         <!-- SVG 聚光灯镂空遮罩，不带任何模糊，支持圆角裁剪，彻底解决 stacking context 问题 -->
         <svg class="fixed inset-0 w-full h-full z-[9999] pointer-events-none">
-          <path 
-            fill="rgba(9, 9, 11, 0.45)" 
-            fill-rule="evenodd" 
+          <path
+            fill="rgba(9, 9, 11, 0.45)"
+            fill-rule="evenodd"
             :d="maskPath"
           />
         </svg>
 
         <!-- 元素外围呼吸高亮框，置于遮罩上方 -->
-        <div 
+        <div
           v-if="spotlightRect"
           class="fixed border-2 border-blue-500/80 rounded-xl shadow-2xl transition-all duration-200 pointer-events-none z-[10001]"
           :style="borderStyle"
         ></div>
 
         <!-- 悬浮说明气泡卡片 -->
-        <div 
+        <div
           class="fixed z-[10002] w-72 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xl flex flex-col gap-3 pointer-events-auto text-slate-800 transition-all duration-300"
           :style="tooltipStyle"
         >
@@ -218,7 +218,7 @@
               ✕
             </button>
           </div>
-          
+
           <div class="space-y-1">
             <h4 class="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
               <span>💡</span> {{ currentStep.title }}
@@ -227,24 +227,24 @@
               {{ currentStep.content }}
             </p>
           </div>
-          
+
           <div class="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
-            <button 
-              @click="prevStep" 
+            <button
+              @click="prevStep"
               class="text-[10px] font-bold text-slate-500 hover:text-slate-800 disabled:opacity-30 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
               :disabled="currentStepIndex === 0"
             >
               上一步
             </button>
             <div class="flex gap-2">
-              <button 
-                @click="closeTour" 
+              <button
+                @click="closeTour"
                 class="text-[10px] font-bold text-slate-400 hover:text-slate-600 p-1.5"
               >
                 跳过
               </button>
-              <button 
-                @click="nextStep" 
+              <button
+                @click="nextStep"
                 class="text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg shadow-sm shadow-blue-500/10 transition-colors"
               >
                 {{ currentStepIndex === tourSteps.length - 1 ? '我知道了' : '下一步' }}
@@ -260,25 +260,25 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { 
-  isTourActive, 
-  tourSteps, 
-  currentStepIndex, 
-  startTour, 
-  closeTour 
+import {
+  isTourActive,
+  tourSteps,
+  currentStepIndex,
+  startTour,
+  closeTour
 } from './services/tour';
 import { globalDate } from './services/store';
 import { DatePicker } from './components/ui/date-picker';
 import { api, clearSession, getSession } from './services/api';
-import { 
-  LayoutDashboard, 
-  FileUp, 
-  ClipboardCheck, 
-  Sliders, 
-  Store, 
-  Activity, 
-  PanelLeftClose, 
-  PanelLeftOpen 
+import {
+  LayoutDashboard,
+  FileUp,
+  ClipboardCheck,
+  Sliders,
+  Store,
+  Activity,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-vue-next';
 
 const route = useRoute();
@@ -355,13 +355,13 @@ const maskPath = computed(() => {
   const screenH = window.innerHeight;
   const { x, y, w, h } = spotlightRect.value;
   const r = 12; // spotlight hole rounded corner radius
-  
+
   // Outer screen rectangle (clockwise)
   const outer = `M 0 0 H ${screenW} V ${screenH} H 0 Z`;
-  
+
   // Inner rounded rectangle cutout path
   const inner = `M ${x + r} ${y} H ${x + w - r} A ${r} ${r} 0 0 1 ${x + w} ${y + r} V ${y + h - r} A ${r} ${r} 0 0 1 ${x + w - r} ${y + h} H ${x + r} A ${r} ${r} 0 0 1 ${x} ${y + h - r} V ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`;
-  
+
   return `${outer} ${inner}`;
 });
 
@@ -380,28 +380,28 @@ const updateSpotlight = () => {
   if (!currentStep.value) return;
   const selector = currentStep.value.targetSelector;
   const el = document.querySelector(selector) as HTMLElement;
-  
+
   if (el) {
     // 改用 behavior: 'auto' 瞬间滚动定位，彻底根除平滑滚动过渡期计算的相对位移偏移（如截图3的问题）
     el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
-    
+
     // 用 nextTick 确保 DOM 滚动完全就绪后，直接进行坐标提取
     nextTick(() => {
       const rect = el.getBoundingClientRect();
       const padding = 6;
-      
+
       spotlightRect.value = {
         x: rect.left - padding,
         y: rect.top - padding,
         w: rect.width + padding * 2,
         h: rect.height + padding * 2
       };
-      
+
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
-      
 
-      
+
+
       // 对于高度非常大（超过半屏）的表格等大型组件（如门店名录、映射配置表），直接将气泡卡片停靠在右下角，使用 bottom/right 定位，彻底解决被裁切问题
       if (rect.height > viewportHeight * 0.5) {
         tooltipStyle.value = {
@@ -415,12 +415,12 @@ const updateSpotlight = () => {
         // 默认布局：气泡在元素下方
         let top = rect.bottom + 16;
         let left = rect.left;
-        
+
         // 若下方空间不足，则将气泡置于上方
         if (rect.bottom + 180 > viewportHeight) {
           top = rect.top - 180;
         }
-        
+
         // 视口安全边界保护（彻底解决气泡超出屏幕上方或左右边缘被裁切的问题）
         if (top < 16) {
           top = 16;
@@ -434,7 +434,7 @@ const updateSpotlight = () => {
         if (left + 288 > viewportWidth) {
           left = viewportWidth - 304;
         }
-        
+
         tooltipStyle.value = {
           top: `${top}px`,
           left: `${left}px`,

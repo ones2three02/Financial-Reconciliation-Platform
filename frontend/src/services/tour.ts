@@ -14,7 +14,7 @@ export const activePageTour = ref<'dashboard' | 'reconciliation' | 'import' | 's
 export const startTour = (page: 'dashboard' | 'reconciliation' | 'import' | 'stores' | 'mappings') => {
   activePageTour.value = page;
   currentStepIndex.value = 0;
-  
+
   if (page === 'dashboard') {
     tourSteps.value = [
       {
@@ -126,7 +126,7 @@ export const startTour = (page: 'dashboard' | 'reconciliation' | 'import' | 'sto
       }
     ];
   }
-  
+
   isTourActive.value = true;
 };
 

@@ -28,8 +28,8 @@
           </div>
 
           <!-- Complete Sources -->
-          <div 
-            @click="activeTab = 'integrity'" 
+          <div
+            @click="activeTab = 'integrity'"
             class="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors border border-transparent hover:border-slate-100"
           >
             <span class="text-xs font-semibold text-slate-500">完整来源</span>
@@ -39,8 +39,8 @@
           </div>
 
           <!-- Pending Issues -->
-          <div 
-            @click="activeTab = 'issues'" 
+          <div
+            @click="activeTab = 'issues'"
             class="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors border border-transparent hover:border-slate-100"
           >
             <span class="text-xs font-semibold text-slate-500">待处理问题</span>
@@ -50,8 +50,8 @@
           </div>
 
           <!-- Discrepancies -->
-          <div 
-            @click="activeTab = 'results'" 
+          <div
+            @click="activeTab = 'results'"
             class="flex items-center justify-between cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-lg transition-colors border border-transparent hover:border-slate-100"
           >
             <span class="text-xs font-semibold text-slate-500">金额差异门店</span>
@@ -65,32 +65,32 @@
       <div id="reconciliation-sidebar-actions" class="space-y-3 mt-6">
         <!-- Actions Toolbar -->
         <div class="h-px bg-slate-100 mb-3"></div>
-        
+
         <div v-if="notice" class="rounded-xl border px-3 py-2 text-[11px] font-semibold mb-2 leading-relaxed" :class="notice.type === 'error' ? 'border-rose-100 bg-rose-50 text-rose-600' : 'border-emerald-100 bg-emerald-50 text-emerald-600'">
           {{ notice.text }}
         </div>
-        
+
         <Button variant="outline" size="sm" class="w-full justify-center text-xs h-9" :disabled="loading" @click="loadWorkspace">
           <RefreshCw class="mr-1.5 h-3.5 w-3.5" /> 刷新数据
         </Button>
         <Button v-if="detail?.results.length" variant="outline" size="sm" class="w-full justify-center text-xs h-9" :disabled="working" @click="downloadReport">
           <FileDown class="mr-1.5 h-3.5 w-3.5" /> 导出结果
         </Button>
-        <Button 
-          v-if="batch && batch.status !== 'closed' && canOperate" 
-          size="sm" 
-          class="w-full justify-center text-xs h-9 bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/10 transition-all duration-200" 
+        <Button
+          v-if="batch && batch.status !== 'closed' && canOperate"
+          size="sm"
+          class="w-full justify-center text-xs h-9 bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-500/10 transition-all duration-200"
           :class="openIssues.length === 0 && missingCoverageCount === 0 && (batch.status === 'draft' || batch.status === 'attention_required') ? 'ring-2 ring-blue-500 ring-offset-1 font-bold scale-102' : ''"
-          :disabled="working" 
+          :disabled="working"
           @click="runReconciliation"
         >
           执行对账
         </Button>
-        <Button 
-          v-if="batch?.status === 'ready_to_close' && canOperate" 
-          size="sm" 
+        <Button
+          v-if="batch?.status === 'ready_to_close' && canOperate"
+          size="sm"
           class="w-full justify-center text-xs h-9 bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-500/10 transition-all duration-200 animate-pulse ring-2 ring-emerald-500 ring-offset-1 font-bold scale-102"
-          :disabled="working" 
+          :disabled="working"
           @click="showClose = true"
         >
           确认关账
@@ -120,10 +120,10 @@
               <p class="text-[10px] text-slate-400 font-medium">遵循对账动线依次处理，规范高效完成关账</p>
             </div>
           </div>
-          
+
           <div class="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-bold text-[11px] text-slate-400">
             <!-- Step 1 -->
-            <button 
+            <button
               @click="activeTab = 'issues'"
               class="flex items-center gap-1 cursor-pointer transition-all px-2 py-1 rounded-md hover:bg-slate-50 border"
               :class="openIssues.length > 0 ? 'text-rose-600 bg-rose-50/50 border-rose-100' : 'text-slate-500 border-transparent'"
@@ -132,11 +132,11 @@
               <span>别名确认</span>
               <span v-if="openIssues.length === 0" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
             </button>
-            
+
             <span class="text-slate-300">→</span>
-            
+
             <!-- Step 2 -->
-            <button 
+            <button
               @click="activeTab = 'integrity'"
               class="flex items-center gap-1 cursor-pointer transition-all px-2 py-1 rounded-md hover:bg-slate-50 border"
               :class="openIssues.length === 0 && missingCoverageCount > 0 ? 'text-amber-600 bg-amber-50/50 border-amber-100' : 'text-slate-500 border-transparent'"
@@ -145,11 +145,11 @@
               <span>零数据确认</span>
               <span v-if="missingCoverageCount === 0" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
             </button>
-            
+
             <span class="text-slate-300">→</span>
-            
+
             <!-- Step 3 -->
-            <div 
+            <div
               class="flex items-center gap-1 px-2 py-1 rounded-md border"
               :class="openIssues.length === 0 && missingCoverageCount === 0 && (batch?.status === 'draft' || batch?.status === 'attention_required') ? 'text-blue-600 bg-blue-50/50 border-blue-100 animate-pulse' : 'text-slate-500 border-transparent'"
             >
@@ -157,11 +157,11 @@
               <span>一键对账</span>
               <span v-if="batch && batch.status !== 'draft' && batch.status !== 'attention_required'" class="text-emerald-500 font-extrabold text-[10px] ml-0.5">✓</span>
             </div>
-            
+
             <span class="text-slate-300">→</span>
-            
+
             <!-- Step 4 -->
-            <div 
+            <div
               class="flex items-center gap-1 px-2 py-1 rounded-md border"
               :class="batch?.status === 'ready_to_close' ? 'text-emerald-600 bg-emerald-50/50 border-emerald-100 animate-pulse' : batch?.status === 'closed' ? 'text-emerald-600 bg-emerald-50/50 border-emerald-100' : 'text-slate-500 border-transparent'"
             >
@@ -174,45 +174,45 @@
 
         <!-- Tab Controls -->
         <div class="flex border border-slate-200 bg-white rounded-xl p-1 shadow-sm gap-1 shrink-0 select-none">
-          <button 
+          <button
             id="issues-tab-btn"
-            @click="activeTab = 'issues'" 
+            @click="activeTab = 'issues'"
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
-              activeTab === 'issues' 
-                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
+              activeTab === 'issues'
+                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
             ]"
           >
             <AlertTriangle class="h-4 w-4" />
             1. 待人工确认门店
-            <span 
-              v-if="openIssues.length" 
+            <span
+              v-if="openIssues.length"
               class="rounded-full px-1.5 py-0.5 text-[10px] font-extrabold bg-rose-100 text-rose-700 animate-pulse"
             >
               {{ openIssues.length }}
             </span>
           </button>
-          <button 
+          <button
             id="integrity-tab-btn"
-            @click="activeTab = 'integrity'" 
+            @click="activeTab = 'integrity'"
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
-              activeTab === 'integrity' 
-                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
+              activeTab === 'integrity'
+                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
             ]"
           >
             <Grid3X3 class="h-4 w-4" />
             2. 数据来源完整性
           </button>
-          <button 
+          <button
             id="results-tab-btn"
-            @click="activeTab = 'results'" 
+            @click="activeTab = 'results'"
             :class="[
               'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5',
-              activeTab === 'results' 
-                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100' 
+              activeTab === 'results'
+                ? 'bg-blue-50 text-blue-600 shadow-sm border border-blue-100'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-transparent'
             ]"
           >
@@ -240,7 +240,7 @@
                   <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                      <div class="flex items-center gap-1.5 group/copy">
                        <span class="select-text inline-block">{{ store.name?.trim() }}</span>
-                       <button 
+                       <button
                          @click="copyText(store.name, store.id + '-overview-store')"
                          class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
                          title="点击复制"
@@ -285,19 +285,19 @@
           <CardContent class="flex-1 overflow-auto min-h-0 p-5 border-t border-slate-100 flex flex-col gap-4">
             <!-- Filter Toolbar -->
             <div v-if="openIssues.length" class="flex items-center gap-1.5 bg-slate-100/85 p-1 rounded-xl w-fit self-start shrink-0">
-              <button 
+              <button
                 v-for="filterOpt in [{value: 'all', label: '全部'}, {value: 'tonglian', label: '通联'}, {value: 'meituan', label: '美团'}, {value: 'douyin', label: '抖音'}]"
                 :key="filterOpt.value"
                 @click="selectedSourceFilter = filterOpt.value"
                 :class="[
                   'px-3.5 py-1.5 text-[11px] font-extrabold rounded-lg transition-all flex items-center gap-1',
-                  selectedSourceFilter === filterOpt.value 
-                    ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20' 
+                  selectedSourceFilter === filterOpt.value
+                    ? 'bg-white text-slate-800 shadow-sm border border-slate-200/20'
                     : 'text-slate-500 hover:text-slate-800'
                 ]"
               >
                 {{ filterOpt.label }}
-                <span 
+                <span
                   class="px-1.5 py-0.5 rounded-full text-[9px] font-mono"
                   :class="selectedSourceFilter === filterOpt.value ? 'bg-slate-100 text-slate-700' : 'bg-slate-200 text-slate-500'"
                 >
@@ -312,7 +312,7 @@
                 <p class="mt-1 text-xs text-slate-500">所有第三方账单内的店名均已正确映射为标准门店。</p>
               </div>
             </div>
-            
+
             <div v-else-if="filteredOpenIssues.length === 0" class="h-full flex items-center justify-center text-center py-10">
               <div>
                 <div class="text-sm font-bold text-slate-400">该渠道下暂无待确认的店名</div>
@@ -320,9 +320,9 @@
             </div>
 
             <div v-else class="space-y-3 flex-1 overflow-auto min-h-0 pr-1">
-              <div 
-                v-for="issue in filteredOpenIssues" 
-                :key="issue.id" 
+              <div
+                v-for="issue in filteredOpenIssues"
+                :key="issue.id"
                 class="grid items-center gap-3 rounded-xl border p-4 md:grid-cols-[1fr_1fr_auto] transition-all hover:shadow-sm"
                 :class="issueCardClass(issue.source_code)"
               >
@@ -333,7 +333,7 @@
                   <div class="text-sm font-extrabold text-slate-800">
                     <div class="flex items-center gap-1.5 group/copy inline-flex">
                       <span class="select-text inline-block">{{ (issue.raw_value || '空门店名称')?.trim() }}</span>
-                      <button 
+                      <button
                         v-if="issue.raw_value"
                         @click="copyText(issue.raw_value, issue.id + '-issue-raw')"
                         class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
@@ -382,7 +382,7 @@
                   <td class="sticky left-0 z-20 bg-white group-hover:bg-slate-50/50 font-bold text-slate-700 p-3 border-r border-slate-100 shadow-[2px_0_4px_rgba(0,0,0,0.02)]">
                      <div class="flex items-center gap-1.5 group/copy">
                        <span class="select-text inline-block">{{ result.standard_store_name?.trim() }}</span>
-                       <button 
+                       <button
                          @click="copyText(result.standard_store_name, result.id + '-result-store')"
                          class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95"
                          title="点击复制"
@@ -565,7 +565,7 @@ const loadWorkspace = async () => {
     aliases.value = aliasRows;
     batch.value = batchRows.find((item) => item.business_date === globalDate.value) ?? null;
     detail.value = batch.value ? await api.getBatchDetail(batch.value.id) : null;
-    
+
     // 智能导向：根据当前批次所处的生命周期阶段自动选定默认激活的 Tab 栏
     if (batch.value) {
       if (batch.value.status === 'closed') {
@@ -672,7 +672,7 @@ const runReconciliation = async () => {
     detail.value = await api.getBatchDetail(batch.value.id);
     batch.value = detail.value.batch;
     notice.value = { type: 'success', text: '对账已按当前完整性和金额重新计算。' };
-    
+
     // 对账成功后，智能跳转至“对账差异结果”页，引导进行最终确认与说明填写
     activeTab.value = 'results';
   } catch (error) {
