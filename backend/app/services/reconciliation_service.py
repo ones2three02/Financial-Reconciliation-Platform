@@ -211,15 +211,16 @@ def reconcile_batch(db: Session, batch_id: int) -> list[ReconciliationResult]:
     if batch.status == "closed":
         raise ValueError("已关账批次不能重新对账，请先重开")
 
-    has_open_quality_issue = (
-        db.query(DataQualityIssue)
+    open_issue_source_rows = (
+        db.query(DataQualityIssue.source_code)
         .filter(
             DataQualityIssue.batch_id == batch.id,
             DataQualityIssue.status == "open",
         )
-        .count()
-        > 0
+        .distinct()
+        .all()
     )
+    open_issue_sources = {source_code for (source_code,) in open_issue_source_rows}
     stores = (
         db.query(Store)
         .filter(Store.is_active.is_(True))
@@ -227,7 +228,7 @@ def reconcile_batch(db: Session, batch_id: int) -> list[ReconciliationResult]:
         .all()
     )
     results: list[ReconciliationResult] = []
-    all_closeable = bool(stores) and not has_open_quality_issue
+    all_closeable = bool(stores) and not open_issue_sources
     calculated_at = datetime.now(UTC)
 
     for store in stores:
@@ -267,6 +268,8 @@ def reconcile_batch(db: Session, batch_id: int) -> list[ReconciliationResult]:
                 incomplete_sources.append(source_code)
                 continue
             amounts[source_code] = Decimal(str(coverage.amount or 0))
+            if source_code in open_issue_sources:
+                incomplete_sources.append(source_code)
 
         expected = amounts["tonglian"] + amounts["meituan"] + amounts["douyin"]
         actual = amounts["sales"] - amounts["cash"]

@@ -8,6 +8,7 @@ from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.store import Store
+from backend.app.models.store_source_requirement import StoreSourceRequirement
 from backend.app.services import reconciliation_service
 from backend.app.services.closing_service import (
     BatchNotClosableError,
@@ -128,6 +129,60 @@ def test_balanced_example_becomes_ready_to_close(db_session):
     assert result.difference == Decimal("0.00")
     assert result.status == "consistent"
     assert batch.status == "ready_to_close"
+
+
+def test_open_quality_issue_marks_required_source_incomplete(db_session):
+    batch, store = setup_batch(db_session)
+    add_balanced_coverage(db_session, batch, store)
+    db_session.add(
+        DataQualityIssue(
+            batch_id=batch.id,
+            issue_type="unknown_store",
+            source_code="meituan",
+            raw_value="待确认门店",
+            affected_row_count=1,
+            affected_amount=Decimal("9.90"),
+            status="open",
+        )
+    )
+    db_session.commit()
+
+    result = reconcile_batch(db_session, batch.id)[0]
+
+    assert result.meituan_amount == Decimal("9.90")
+    assert result.status == "incomplete"
+    assert result.completeness_status == "incomplete"
+    assert batch.status == "attention_required"
+
+
+def test_open_quality_issue_does_not_block_not_required_source(db_session):
+    batch, store = setup_batch(db_session)
+    add_balanced_coverage(db_session, batch, store)
+    db_session.add_all(
+        [
+            StoreSourceRequirement(
+                store_id=store.id,
+                source_code="meituan",
+                requirement="not_required",
+                effective_from=BUSINESS_DATE,
+            ),
+            DataQualityIssue(
+                batch_id=batch.id,
+                issue_type="unknown_store",
+                source_code="meituan",
+                raw_value="待确认门店",
+                affected_row_count=1,
+                affected_amount=Decimal("9.90"),
+                status="open",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    result = reconcile_batch(db_session, batch.id)[0]
+
+    assert result.status == "discrepancy"
+    assert result.completeness_status == "complete"
 
 
 def test_close_rejects_open_quality_issue(db_session):
