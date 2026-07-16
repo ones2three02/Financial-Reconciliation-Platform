@@ -16,7 +16,7 @@ jobs:
           - platform: "macos-latest"
             args: ""
           - platform: "windows-latest"
-            args: "--bundle nsis"
+            args: "--bundles nsis"
 
     runs-on: ${{ matrix.platform }}
     steps:
