@@ -56,7 +56,7 @@
               class="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg text-[10px] font-bold transition-colors"
             >
               <FolderOpen class="w-3 h-3" />
-              在访达中显示
+              打开所在文件夹
             </button>
           </div>
         </div>

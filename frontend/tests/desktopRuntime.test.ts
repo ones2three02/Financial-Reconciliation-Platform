@@ -46,3 +46,16 @@ test('拒绝非回环地址的桌面后端配置', async () => {
     /无效的桌面后端地址/,
   );
 });
+
+
+test('Tauri IPC 启动失败时保留错误而不回退到 Web API', async () => {
+  await assert.rejects(
+    loadDesktopBackendConfig({
+      location: { protocol: 'https:', hostname: 'tauri.localhost' },
+      __TAURI__: {
+        invoke: async () => { throw new Error('桌面后端未能在 90 秒内启动'); },
+      },
+    }),
+    /90 秒内启动/,
+  );
+});

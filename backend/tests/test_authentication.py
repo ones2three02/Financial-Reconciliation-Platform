@@ -160,10 +160,12 @@ def test_desktop_cors_origins_are_only_added_in_desktop_mode():
     assert web_settings.allowed_cors_origins == ["https://finance.example.com"]
     assert desktop_settings.allowed_cors_origins == [
         "https://finance.example.com",
+        "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:1420",
         "tauri://localhost",
         "http://tauri.localhost",
+        "https://tauri.localhost",
     ]
 
 

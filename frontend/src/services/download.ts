@@ -101,15 +101,22 @@ export const openFile = async (filePath: string) => {
   }
 };
 
+export const parentDirectory = (filePath: string): string | null => {
+  const path = filePath.trim();
+  const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+  if (lastSlash < 0) return null;
+  if (lastSlash === 0) return path.slice(0, 1);
+  const withSeparator = path.slice(0, lastSlash + 1);
+  if (/^[a-zA-Z]:[\\/]$/.test(withSeparator)) return withSeparator;
+  return path.slice(0, lastSlash);
+};
+
 export const openFolder = async (filePath: string) => {
   if (isTauri()) {
     try {
       const tauri = (window as any).__TAURI__;
-      // Extract parent directory path
-      // Handle both forward and backward slashes (Windows/macOS)
-      const lastSlash = Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\'));
-      if (lastSlash !== -1) {
-        const parentPath = filePath.substring(0, lastSlash);
+      const parentPath = parentDirectory(filePath);
+      if (parentPath) {
         await tauri.shell.open(parentPath);
       }
     } catch (e) {

@@ -28,6 +28,17 @@
           <span>{{ errorMessage }}</span>
         </div>
 
+        <Button
+          v-if="desktopInitializationFailed"
+          type="button"
+          variant="outline"
+          class="w-full border-rose-500/30 text-rose-300"
+          :disabled="isInitializing"
+          @click="initializeDesktop(true)"
+        >
+          {{ isInitializing ? '正在重试本地服务...' : '重试本地服务' }}
+        </Button>
+
         <form @submit.prevent="handleLogin" class="space-y-4">
           <!-- Username Input -->
           <div class="space-y-1.5">
@@ -62,7 +73,7 @@
           <Button 
             type="submit" 
             class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold h-10 mt-6 shadow-lg shadow-blue-600/15"
-            :disabled="isLoading || isInitializing"
+            :disabled="isLoading || isInitializing || desktopInitializationFailed"
           >
             <span v-if="isInitializing" class="animate-pulse">正在初始化本地服务...</span>
             <span v-else-if="isLoading" class="animate-pulse">
@@ -85,27 +96,38 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { isTauriRuntime } from '../services/desktopRuntime';
-import { submitDesktopCredentials } from '../services/desktopSetup';
+import { resetDesktopBackendConnection } from '../services/desktopConnection';
+import {
+  desktopInitializationErrorMessage,
+  submitDesktopCredentials,
+} from '../services/desktopSetup';
 
 const router = useRouter();
 const username = ref('');
 const password = ref('');
 const isLoading = ref(false);
 const isInitializing = ref(isTauriRuntime(window));
+const desktopInitializationFailed = ref(false);
 const errorMessage = ref('');
 const setupRequired = ref(false);
 
-onMounted(async () => {
+const initializeDesktop = async (forceReset = false) => {
   if (!isTauriRuntime(window)) return;
+  isInitializing.value = true;
+  desktopInitializationFailed.value = false;
+  errorMessage.value = '';
+  if (forceReset) resetDesktopBackendConnection();
   try {
     setupRequired.value = (await api.getDesktopSetupStatus()).setup_required;
-  } catch (err: unknown) {
-    const responseError = err as { response?: { data?: { detail?: string } } };
-    errorMessage.value = responseError.response?.data?.detail || '桌面服务初始化失败，请重新启动应用';
+  } catch (error: unknown) {
+    desktopInitializationFailed.value = true;
+    errorMessage.value = desktopInitializationErrorMessage(error);
   } finally {
     isInitializing.value = false;
   }
-});
+};
+
+onMounted(() => { void initializeDesktop(); });
 
 const handleLogin = async () => {
   if (isInitializing.value || isLoading.value) return;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ref } from 'vue';
 
-import { loadDesktopBackendConfig } from './desktopRuntime';
+import { getDesktopBackendConfig } from './desktopConnection';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const DESKTOP_TOKEN_HEADER = 'X-FRP-Desktop-Token';
@@ -14,16 +14,13 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-let cachedDesktopConfig: any = null;
-
 client.interceptors.request.use(async (config) => {
-  if (!cachedDesktopConfig && !import.meta.env.VITE_API_BASE_URL && typeof window !== 'undefined') {
-    cachedDesktopConfig = await loadDesktopBackendConfig(window);
-  }
-  
-  if (cachedDesktopConfig) {
-    config.baseURL = cachedDesktopConfig.api_base_url;
-    config.headers.set(DESKTOP_TOKEN_HEADER, cachedDesktopConfig.token);
+  if (!import.meta.env.VITE_API_BASE_URL && typeof window !== 'undefined') {
+    const desktopConfig = await getDesktopBackendConfig(window);
+    if (desktopConfig) {
+      config.baseURL = desktopConfig.api_base_url;
+      config.headers.set(DESKTOP_TOKEN_HEADER, desktopConfig.token);
+    }
   }
   const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
   if (token) config.headers.Authorization = `Bearer ${token}`;
