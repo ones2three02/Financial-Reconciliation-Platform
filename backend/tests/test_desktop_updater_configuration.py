@@ -41,4 +41,5 @@ def test_release_workflow_signs_and_prefers_nsis():
     assert "uploadUpdaterJson" not in workflow
     assert "uploadUpdaterSignatures" not in workflow
     assert "updaterJsonPreferNsis: true" in workflow
+    assert 'args: "--bundles nsis,updater"' in workflow
     assert "verify_updater_manifest.py" in workflow
