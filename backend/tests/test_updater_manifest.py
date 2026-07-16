@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 
 import pytest
 
+from backend.scripts.create_updater_manifest import create_windows_updater_manifest
 from backend.scripts.verify_updater_manifest import (
     validate_windows_updater_manifest,
 )
@@ -88,3 +90,33 @@ def test_manifest_cli_does_not_need_to_print_signature(tmp_path):
     result = validate_windows_updater_manifest(loaded, "v1.0.9")
 
     assert result["signature"] not in f"{result['version']} {result['url']}"
+
+
+def test_create_windows_manifest_uses_signed_nsis_asset(tmp_path):
+    signature = tmp_path / "app_1.0.11_x64-setup.nsis.zip.sig"
+    signature.write_text("public-signature\n", encoding="utf-8")
+
+    payload = create_windows_updater_manifest(
+        signature,
+        "v1.0.11",
+        publication_date="2026-07-16T15:17:54Z",
+    )
+
+    assert payload["version"] == "1.0.11"
+    assert payload["pub_date"] == "2026-07-16T15:17:54Z"
+    assert payload["platforms"]["windows-x86_64"] == {
+        "signature": "public-signature",
+        "url": (
+            "https://github.com/ones2three02/Financial-Reconciliation-Platform/"
+            "releases/download/v1.0.11/app_1.0.11_x64-setup.nsis.zip"
+        ),
+    }
+
+
+@pytest.mark.parametrize("filename", ["app.sig", "app.nsis.zip.sig.txt"])
+def test_create_windows_manifest_rejects_invalid_asset_name(tmp_path, filename):
+    signature = tmp_path / Path(filename).name
+    signature.write_text("public-signature", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        create_windows_updater_manifest(signature, "v1.0.11")
