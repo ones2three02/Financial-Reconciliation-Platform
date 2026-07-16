@@ -24,10 +24,12 @@ class Settings(BaseSettings):
         if not self.FRP_DESKTOP:
             return origins
         desktop_origins = [
+            "http://localhost:5173",
             "http://localhost:5174",
             "http://localhost:1420",
             "tauri://localhost",
             "http://tauri.localhost",
+            "https://tauri.localhost",
         ]
         for origin in desktop_origins:
             if origin not in origins:
