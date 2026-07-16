@@ -2,7 +2,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 import backend.app.models  # noqa: F401
 from backend.app.core.db import Base
@@ -86,8 +86,9 @@ def test_desktop_database_uses_alembic_for_a_new_database(tmp_path):
     try:
         with engine.connect() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0003_authentication_foundation"
+                "0004_field_mapping_runtime"
             )
+            assert connection.exec_driver_sql("SELECT COUNT(*) FROM field_mapping").scalar_one() == 14
             assert connection.exec_driver_sql("SELECT COUNT(*) FROM app_user").scalar_one() == 0
     finally:
         engine.dispose()
@@ -114,7 +115,49 @@ def test_desktop_database_backs_up_and_stamps_matching_legacy_schema(tmp_path):
     try:
         with engine.connect() as connection:
             assert connection.exec_driver_sql("SELECT version_num FROM alembic_version").scalar_one() == (
-                "0003_authentication_foundation"
+                "0004_field_mapping_runtime"
             )
+            assert connection.exec_driver_sql("SELECT COUNT(*) FROM field_mapping").scalar_one() == 14
+    finally:
+        engine.dispose()
+
+
+def test_field_mapping_runtime_migration_replaces_legacy_configuration(tmp_path):
+    database_url = f"sqlite:///{tmp_path / 'field-mapping.db'}"
+    upgrade_database(database_url, "0003_authentication_foundation")
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "INSERT INTO field_mapping "
+                "(data_source, target_field, source_column, is_active) VALUES "
+                "('cash', 'amount', '金额', 1), "
+                "('sales', 'amount', '实收金额', 1), "
+                "('tonglian', 'store_name', '旧门店列', 1)"
+            ))
+    finally:
+        engine.dispose()
+
+    upgrade_database(database_url, "head")
+
+    engine = create_engine(database_url)
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(text(
+                "SELECT data_source, target_field, source_column "
+                "FROM field_mapping ORDER BY data_source, target_field, source_column"
+            )).all()
+            assert len(rows) == 14
+            assert {row.data_source for row in rows} == {
+                "tonglian", "douyin", "meituan", "store_finance"
+            }
+            assert {
+                row.source_column
+                for row in rows
+                if row.data_source == "meituan" and row.target_field == "trade_date"
+            } == {"验券/退款/", "验券/退款/调整时间"}
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == "0004_field_mapping_runtime"
     finally:
         engine.dispose()

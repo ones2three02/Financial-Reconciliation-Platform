@@ -10,6 +10,7 @@ from backend.app.models.audit import AuditEvent
 from backend.app.models.clean_data import CleanData
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
+from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.models.reconciliation import ReconciliationResult
@@ -43,6 +44,28 @@ def finance_workbook(*rows: tuple[str, int]) -> bytes:
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()
+
+
+def custom_finance_workbook(amount: int) -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "收入流水表"
+    sheet.append(["记账日期", "收款渠道", "实收金额"])
+    sheet.append([datetime(2026, 7, 10), "微信", amount])
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def add_custom_finance_mappings(db_session) -> list[FieldMapping]:
+    mappings = [
+        FieldMapping(data_source="store_finance", target_field="trade_date", source_column="记账日期", is_active=True),
+        FieldMapping(data_source="store_finance", target_field="payment_method", source_column="收款渠道", is_active=True),
+        FieldMapping(data_source="store_finance", target_field="amount", source_column="实收金额", is_active=True),
+    ]
+    db_session.add_all(mappings)
+    db_session.commit()
+    return mappings
 
 
 def meituan_workbook(raw_store_name: str, amount: int) -> bytes:
@@ -159,6 +182,29 @@ def test_replace_finance_file_uses_only_new_version(db_session):
     assert coverage(db_session, batch.id, store.id, "cash").amount == Decimal("30.00")
     assert db_session.query(RawData).filter_by(import_file_id=old_file.id).count() == 2
     assert db_session.query(AuditEvent).filter_by(event_type="file_replaced").one().actor == "finance-user"
+
+
+def test_replace_file_uses_current_field_mapping(db_session):
+    batch, store = setup_batch(db_session)
+    old = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        finance_workbook(("微信", 100)),
+    )
+    add_custom_finance_mappings(db_session)
+
+    outcome = replace_import_file(
+        db_session,
+        file_id=old.import_file_id,
+        filename="自定义列财务表.xlsx",
+        content=custom_finance_workbook(200),
+        reason="平台导出列名已调整",
+        actor="finance-user",
+    )
+
+    assert outcome.status == "imported"
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("200.00")
 
 
 def test_failed_replace_keeps_old_version_current(db_session):
@@ -374,6 +420,35 @@ def test_invalidated_file_can_be_restored_from_raw_data(db_session):
     assert old_run.is_current is False
     assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("100.00")
     assert db_session.query(AuditEvent).filter_by(event_type="file_restored").one().event_data["reason"] == "误作废"
+
+
+def test_restore_uses_import_time_field_binding_snapshot(db_session):
+    batch, store = setup_batch(db_session)
+    mappings = add_custom_finance_mappings(db_session)
+    imported = import_finance(
+        db_session,
+        batch.id,
+        store.id,
+        custom_finance_workbook(123),
+    )
+    invalidate_import_file(
+        db_session,
+        file_id=imported.import_file_id,
+        reason="测试作废",
+        actor="finance-user",
+    )
+    for index, mapping in enumerate(mappings, start=1):
+        mapping.source_column = f"后来列名{index}"
+    db_session.commit()
+
+    import_version_service.restore_import_file(
+        db_session,
+        file_id=imported.import_file_id,
+        reason="恢复旧文件",
+        actor="finance-user",
+    )
+
+    assert current_amount(db_session, batch.id, store.id, "sales") == Decimal("123.00")
 
 
 def test_restoring_old_version_retires_current_descendant(db_session):

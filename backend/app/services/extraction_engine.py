@@ -14,6 +14,7 @@ from backend.app.models.store import Store
 from backend.app.domain.extraction_profiles import ProfileDefinition, get_profile
 from backend.app.services.cleaner import clean_amount, clean_date
 from backend.app.services.coverage_service import upsert_coverage
+from backend.app.services.field_binding import FieldBindingError, bindings_from_raw_content
 from backend.app.services.quality_service import reset_open_run_issues
 from backend.app.services.store_resolution import resolve_store
 from backend.app.services.workbook_rows import is_summary_row
@@ -94,6 +95,7 @@ def _extract_finance_rows(
     import_file: ImportFile,
     batch: ReconciliationBatch,
     store: Store,
+    profile: ProfileDefinition,
 ) -> ExtractionSummary:
     previous_rows = (
         db.query(CleanData)
@@ -117,12 +119,22 @@ def _extract_finance_rows(
         .order_by(RawData.row_index)
         .all()
     )
+    expected_bindings: dict[str, str] | None = None
     for raw_row in raw_rows:
         content = raw_row.content or {}
-        if clean_date(content.get("日期")) != batch.business_date:
+        bindings = bindings_from_raw_content(profile, content)
+        if expected_bindings is None:
+            expected_bindings = bindings
+        elif bindings != expected_bindings:
+            raise FieldBindingError("同一导入文件的字段绑定快照不一致")
+        if clean_date(content.get(bindings[profile.date_field])) != batch.business_date:
             continue
-        amount = clean_amount(content.get("金额"))
-        payment_method = str(content.get("付款方式") or "").strip()
+        amount = clean_amount(content.get(bindings[profile.amount_fields[0]]))
+        if profile.payment_method_field is None:
+            raise ValueError(f"模板 {profile.code} 缺少付款方式标准字段")
+        payment_method = str(
+            content.get(bindings[profile.payment_method_field]) or ""
+        ).strip()
         common_fields = {
             "raw_data_id": raw_row.id,
             "import_file_id": import_file.id,
@@ -236,19 +248,30 @@ def _extract_channel_rows(
         .order_by(RawData.row_index)
         .all()
     )
+    expected_bindings: dict[str, str] | None = None
     for raw_row in raw_rows:
         content = raw_row.content or {}
-        if is_summary_row(profile, content):
+        bindings = bindings_from_raw_content(profile, content)
+        if expected_bindings is None:
+            expected_bindings = bindings
+        elif bindings != expected_bindings:
+            raise FieldBindingError("同一导入文件的字段绑定快照不一致")
+        if is_summary_row(profile, content, bindings):
             continue
-        if clean_date(content.get(profile.date_column)) != batch.business_date:
+        if clean_date(content.get(bindings[profile.date_field])) != batch.business_date:
             continue
-        raw_store_name = str(content.get(profile.store_column) or "").strip()
+        if profile.store_field is None:
+            raise ValueError(f"模板 {profile.code} 缺少门店标准字段")
+        raw_store_name = str(content.get(bindings[profile.store_field]) or "").strip()
         if not raw_store_name:
             raise ValueError(
                 f"模板 {profile.code} 第 {raw_row.row_index} 行缺少门店名称"
             )
         amount = sum(
-            (clean_amount(content.get(column)) for column in profile.amount_columns),
+            (
+                clean_amount(content.get(bindings[field]))
+                for field in profile.amount_fields
+            ),
             Decimal("0.00"),
         )
         resolution = resolve_store(
@@ -331,6 +354,7 @@ def extract_current_batch_rows(
         raise ValueError("导入文件关联的批次不存在")
 
     if extraction_run.profile_code == "store_finance_v1":
+        profile = get_profile(extraction_run.profile_code)
         if import_file.store_id is None:
             raise ValueError("门店财务表缺少文件级标准门店")
         store = db.get(Store, import_file.store_id)
@@ -342,6 +366,7 @@ def extract_current_batch_rows(
             import_file=import_file,
             batch=batch,
             store=store,
+            profile=profile,
         )
 
     if extraction_run.profile_code in {"douyin_v1", "meituan_v1", "tonglian_v1"}:

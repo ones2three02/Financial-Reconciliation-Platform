@@ -5,6 +5,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pytest
 from openpyxl import Workbook
 
+from backend.app.models.field_mapping import FieldMapping
 from backend.app.services.workbook_preflight import (
     PreflightValidationError,
     TemplateMismatchError,
@@ -50,6 +51,60 @@ def test_tonglian_profile_ignores_explicit_summary_footer():
     )
     assert result.total_data_rows == 1
     assert result.matching_row_count == 1
+
+
+def test_tonglian_profile_uses_configured_store_alias(db_session):
+    db_session.add_all([
+        FieldMapping(data_source="tonglian", target_field="trade_date", source_column="统计日期", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="store_name", source_column="门店名称", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="amount", source_column="成功交易金额", is_active=True),
+    ])
+    db_session.commit()
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "sheet1"
+    sheet.append(["交易统计汇总"])
+    sheet.append(["统计日期", "门店名称", "成功交易金额"])
+    sheet.append(["2026-07-10", "民院店", 100])
+    output = BytesIO()
+    workbook.save(output)
+
+    result = preflight_workbook(
+        output.getvalue(),
+        profile_code="tonglian_v1",
+        business_date=date(2026, 7, 10),
+        store_id=None,
+        db=db_session,
+    )
+
+    assert result.detected_store_names == ["民院店"]
+
+
+def test_tonglian_profile_rejects_two_configured_aliases_in_same_file(db_session):
+    db_session.add_all([
+        FieldMapping(data_source="tonglian", target_field="trade_date", source_column="统计日期", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="store_name", source_column="门店名", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="store_name", source_column="门店名称", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="amount", source_column="成功交易金额", is_active=True),
+    ])
+    db_session.commit()
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "sheet1"
+    sheet.append(["交易统计汇总"])
+    sheet.append(["统计日期", "门店名", "门店名称", "成功交易金额"])
+    sheet.append(["2026-07-10", "民院店", "民院店", 100])
+    output = BytesIO()
+    workbook.save(output)
+
+    with pytest.raises(TemplateMismatchError, match="同时命中多个列"):
+        preflight_workbook(
+            output.getvalue(),
+            profile_code="tonglian_v1",
+            business_date=date(2026, 7, 10),
+            store_id=None,
+            db=db_session,
+        )
 
 
 @pytest.mark.parametrize("store_value", [0, False], ids=["zero", "false"])

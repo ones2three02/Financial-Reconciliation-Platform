@@ -2,10 +2,13 @@ from datetime import date, datetime
 from zipfile import BadZipFile
 
 from openpyxl.utils.exceptions import InvalidFileException
+from sqlalchemy.orm import Session
 
+from backend.app.crud.field_mapping import get_mappings_by_source
 from backend.app.domain.extraction_profiles import get_profile
 from backend.app.schemas.preflight import PreflightResult
 from backend.app.services.cleaner import clean_date
+from backend.app.services.field_binding import FieldBindingError, resolve_field_bindings
 from backend.app.services.workbook_io import WorkbookArchiveLimitError, load_data_workbook
 from backend.app.services.workbook_rows import is_summary_row
 
@@ -44,6 +47,7 @@ def preflight_workbook(
     profile_code: str,
     business_date: date,
     store_id: int | None,
+    db: Session | None = None,
 ) -> PreflightResult:
     profile = get_profile(profile_code)
     if not content:
@@ -89,33 +93,25 @@ def preflight_workbook(
             (),
         )
         headers = [_clean_header(value) for value in header_values]
-        missing_columns = []
-        for column in profile.required_columns:
-            if column in headers:
-                continue
-            # Special case: allow '验券/退款/调整时间' to match '验券/退款/'
-            if column == "验券/退款/" and any("验券/退款" in h for h in headers):
-                continue
-            missing_columns.append(column)
-
-        if missing_columns:
-            raise TemplateMismatchError(
-                f"模板 {profile.code} 缺少必需字段: {'、'.join(missing_columns)}"
+        mappings = (
+            get_mappings_by_source(
+                db,
+                data_source=profile.input_source,
+                is_active_only=False,
             )
+            if db is not None
+            else []
+        )
+        try:
+            bindings = resolve_field_bindings(profile, headers, mappings)
+        except FieldBindingError as exc:
+            raise TemplateMismatchError(str(exc)) from exc
 
-        def find_header_index(col_name):
-            if col_name in headers:
-                return headers.index(col_name)
-            if col_name == "验券/退款/":
-                for idx, h in enumerate(headers):
-                    if "验券/退款" in h:
-                        return idx
-            raise ValueError(f"未找到列: {col_name}")
-
-        date_index = find_header_index(profile.date_column)
+        date_column = bindings[profile.date_field]
+        date_index = headers.index(date_column)
         store_index = (
-            find_header_index(profile.store_column)
-            if profile.store_column is not None
+            headers.index(bindings[profile.store_field])
+            if profile.store_field is not None
             else None
         )
         total_data_rows = 0
@@ -133,7 +129,7 @@ def preflight_workbook(
                 header: row[index] if index < len(row) else None
                 for index, header in enumerate(headers)
             }
-            if is_summary_row(profile, content_row):
+            if is_summary_row(profile, content_row, bindings):
                 continue
             total_data_rows += 1
             try:
@@ -141,7 +137,7 @@ def preflight_workbook(
             except (ValueError, TypeError, IndexError) as exc:
                 raise PreflightValidationError(
                     f"模板 {profile.code} 工作表 {sheet_name} 第 {excel_row_number} 行的"
-                    f"{profile.date_column}无法解析"
+                    f"{date_column}无法解析"
                 ) from exc
             parsed_dates.append(row_date)
             if row_date == business_date:

@@ -6,12 +6,14 @@ from typing import Literal
 
 from sqlalchemy.orm import Session
 
+from backend.app.crud.field_mapping import get_mappings_by_source
 from backend.app.domain.extraction_profiles import ProfileDefinition, get_profile
 from backend.app.models.batch import ReconciliationBatch
 from backend.app.models.extraction import ExtractionRun
 from backend.app.models.import_file import ImportFile
 from backend.app.models.raw_data import RawData
 from backend.app.services.extraction_engine import extract_current_batch_rows
+from backend.app.services.field_binding import FIELD_BINDINGS_KEY, resolve_field_bindings
 from backend.app.services.workbook_io import load_data_workbook
 from backend.app.services.workbook_preflight import preflight_workbook
 from backend.app.services.workbook_rows import is_summary_row
@@ -79,6 +81,16 @@ def _persist_raw_rows(
                 values_only=True,
             )
         )
+        clean_headers = [
+            str(value).strip() if value not in (None, "") else f"column_{index}"
+            for index, value in enumerate(header_values, start=1)
+        ]
+        mappings = get_mappings_by_source(
+            db,
+            data_source=profile.input_source,
+            is_active_only=False,
+        )
+        bindings = resolve_field_bindings(profile, clean_headers, mappings)
         headers = _unique_headers(header_values)
         row_count = 0
         for excel_row_number, values in enumerate(
@@ -91,7 +103,8 @@ def _persist_raw_rows(
                 header: _json_safe(values[index] if index < len(values) else None)
                 for index, header in enumerate(headers)
             }
-            if is_summary_row(profile, content_row):
+            content_row[FIELD_BINDINGS_KEY] = dict(bindings)
+            if is_summary_row(profile, content_row, bindings):
                 continue
             db.add(
                 RawData(
@@ -160,6 +173,7 @@ def import_workbook_in_transaction(
         profile_code=profile.code,
         business_date=batch.business_date,
         store_id=command.store_id,
+        db=db,
     )
 
     try:

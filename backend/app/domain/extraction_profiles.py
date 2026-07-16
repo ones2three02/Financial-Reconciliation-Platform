@@ -12,14 +12,23 @@ class ProfileDefinition:
     input_source: str
     sheet_names: tuple[str, ...]
     header_row: int
-    required_columns: tuple[str, ...]
+    default_columns: tuple[tuple[str, str], ...]
+    required_fields: tuple[str, ...]
     extractor: ExtractorName
-    date_column: str
-    store_column: str | None
-    amount_columns: tuple[str, ...]
+    date_field: str
+    store_field: str | None
+    amount_fields: tuple[str, ...]
     output_sources: tuple[str, ...]
+    payment_method_field: str | None = None
     requires_store_id: bool = False
     summary_date_markers: tuple[str, ...] = ()
+
+    @property
+    def default_bindings(self) -> dict[str, str]:
+        bindings: dict[str, str] = {}
+        for field, column in self.default_columns:
+            bindings.setdefault(field, column)
+        return bindings
 
 
 class UnknownProfileError(ValueError):
@@ -33,11 +42,17 @@ PROFILES: dict[str, ProfileDefinition] = {
         input_source="store_finance",
         sheet_names=("收入流水表",),
         header_row=1,
-        required_columns=("日期", "付款方式", "金额"),
+        default_columns=(
+            ("trade_date", "日期"),
+            ("amount", "金额"),
+            ("payment_method", "付款方式"),
+        ),
+        required_fields=("trade_date", "amount", "payment_method"),
         extractor="sum_filtered_column",
-        date_column="日期",
-        store_column=None,
-        amount_columns=("金额",),
+        date_field="trade_date",
+        store_field=None,
+        amount_fields=("amount",),
+        payment_method_field="payment_method",
         output_sources=("sales", "cash"),
         requires_store_id=True,
     ),
@@ -47,11 +62,16 @@ PROFILES: dict[str, ProfileDefinition] = {
         input_source="douyin",
         sheet_names=("核销明细",),
         header_row=1,
-        required_columns=("核销时间", "核销门店", "订单实收"),
+        default_columns=(
+            ("trade_date", "核销时间"),
+            ("store_name", "核销门店"),
+            ("amount", "订单实收"),
+        ),
+        required_fields=("trade_date", "store_name", "amount"),
         extractor="sum_column",
-        date_column="核销时间",
-        store_column="核销门店",
-        amount_columns=("订单实收",),
+        date_field="trade_date",
+        store_field="store_name",
+        amount_fields=("amount",),
         output_sources=("douyin",),
     ),
     "meituan_v1": ProfileDefinition(
@@ -60,16 +80,18 @@ PROFILES: dict[str, ProfileDefinition] = {
         input_source="meituan",
         sheet_names=("收益明细表",),
         header_row=1,
-        required_columns=(
-            "验券/退款/",
-            "消费门店",
-            "总收入（元）",
-            "商家营销费用（元）",
+        default_columns=(
+            ("trade_date", "验券/退款/调整时间"),
+            ("trade_date", "验券/退款/"),
+            ("store_name", "消费门店"),
+            ("amount", "总收入（元）"),
+            ("marketing_fee", "商家营销费用（元）"),
         ),
+        required_fields=("trade_date", "store_name", "amount", "marketing_fee"),
         extractor="sum_columns",
-        date_column="验券/退款/",
-        store_column="消费门店",
-        amount_columns=("总收入（元）", "商家营销费用（元）"),
+        date_field="trade_date",
+        store_field="store_name",
+        amount_fields=("amount", "marketing_fee"),
         output_sources=("meituan",),
     ),
     "tonglian_v1": ProfileDefinition(
@@ -78,11 +100,16 @@ PROFILES: dict[str, ProfileDefinition] = {
         input_source="tonglian",
         sheet_names=("sheet1",),
         header_row=2,
-        required_columns=("统计日期", "门店名", "成功交易金额"),
+        default_columns=(
+            ("trade_date", "统计日期"),
+            ("store_name", "门店名"),
+            ("amount", "成功交易金额"),
+        ),
+        required_fields=("trade_date", "store_name", "amount"),
         extractor="sum_column",
-        date_column="统计日期",
-        store_column="门店名",
-        amount_columns=("成功交易金额",),
+        date_field="trade_date",
+        store_field="store_name",
+        amount_fields=("amount",),
         output_sources=("tonglian",),
         summary_date_markers=("汇总",),
     ),

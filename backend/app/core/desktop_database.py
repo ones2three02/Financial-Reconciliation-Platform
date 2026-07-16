@@ -87,7 +87,13 @@ def prepare_desktop_database(database_url: str) -> Path | None:
                 raise RuntimeError(
                     f"检测到未知版本的桌面数据库，已备份到 {backup_path}，请先人工确认结构"
                 )
-            command.stamp(config, head_revision)
+            # ORM 直接建出的旧桌面库已有最新表结构，但仍需执行当前头迁移中的
+            # 默认数据初始化，不能直接盖章到 head 跳过数据迁移。
+            head_script = ScriptDirectory.from_config(config).get_revision(head_revision)
+            if head_script is None or not isinstance(head_script.down_revision, str):
+                raise RuntimeError("无法确定桌面数据库的数据初始化迁移起点")
+            command.stamp(config, head_script.down_revision)
+            command.upgrade(config, "head")
             return backup_path
 
     command.upgrade(config, "head")

@@ -78,6 +78,30 @@ def test_duplicate_create_does_not_silently_reactivate_mapping(db_session):
     assert db_session.query(AuditEvent).count() == 0
 
 
+def test_field_mapping_rejects_target_not_supported_by_source(db_session):
+    with pytest.raises(ValueError, match="不支持的目标字段"):
+        create_field_mapping(
+            db_session,
+            FieldMappingCreate(
+                data_source="tonglian",
+                target_field="payment_method",
+                source_column="付款方式",
+            ),
+        )
+
+
+def test_field_mapping_rejects_legacy_output_source(db_session):
+    with pytest.raises(ValueError, match="不支持的数据来源"):
+        create_field_mapping(
+            db_session,
+            FieldMappingCreate(
+                data_source="cash",
+                target_field="amount",
+                source_column="金额",
+            ),
+        )
+
+
 def test_store_with_current_open_batch_data_cannot_be_disabled(db_session):
     store = Store(name="民院店", code="MD010", is_active=True)
     batch = ReconciliationBatch(

@@ -26,7 +26,7 @@ async def preflight_file(
     current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
-    del current_user, db  # 保持统一依赖入口；预检本身不写数据库。
+    del current_user
     filename = (file.filename or "").strip()
     if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="当前仅支持 .xlsx 工作簿")
@@ -37,6 +37,7 @@ async def preflight_file(
             profile_code=profile_code,
             business_date=business_date,
             store_id=store_id,
+            db=db,
         )
     except PreflightValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

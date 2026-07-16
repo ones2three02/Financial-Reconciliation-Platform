@@ -4,9 +4,11 @@ from typing import List, Optional
 from backend.app.core.db import get_db
 from backend.app.api.auth import require_admin
 from backend.app.models.auth import AppUser
+from backend.app.models.field_mapping import FieldMapping as FieldMappingModel
 from backend.app.schemas.field_mapping import FieldMapping, FieldMappingCreate, FieldMappingUpdate
 from backend.app.crud import field_mapping as crud_field_mapping
 from backend.app.services.master_data_service import set_field_mapping_active
+from backend.app.services.field_binding import validate_field_mapping_values
 
 router = APIRouter()
 
@@ -33,7 +35,11 @@ def create_field_mapping(
     db: Session = Depends(get_db),
 ):
     del current_user
-    return crud_field_mapping.create_field_mapping(db, mapping=mapping)
+    try:
+        return crud_field_mapping.create_field_mapping(db, mapping=mapping)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 @router.put("/{mapping_id}", response_model=FieldMapping)
 def update_field_mapping(
@@ -49,6 +55,24 @@ def update_field_mapping(
     reason = values.pop("status_change_reason", None)
     requested_active = values.pop("is_active", None)
     try:
+        data_source, target_field, source_column = validate_field_mapping_values(
+            values.get("data_source", db_mapping.data_source),
+            values.get("target_field", db_mapping.target_field),
+            values.get("source_column", db_mapping.source_column),
+        )
+        duplicate = db.query(FieldMappingModel).filter(
+            FieldMappingModel.id != mapping_id,
+            FieldMappingModel.data_source == data_source,
+            FieldMappingModel.target_field == target_field,
+            FieldMappingModel.source_column == source_column,
+        ).first()
+        if duplicate:
+            raise ValueError("相同字段映射已存在")
+        values.update(
+            data_source=data_source,
+            target_field=target_field,
+            source_column=source_column,
+        )
         if requested_active is not None and bool(db_mapping.is_active) != requested_active:
             set_field_mapping_active(
                 db,

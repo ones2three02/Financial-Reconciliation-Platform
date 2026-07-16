@@ -43,7 +43,7 @@ from backend.app.schemas.import_command import (
     ResetBatchCurrentDataRequest,
 )
 from backend.app.schemas import import_command as import_command_schemas
-from backend.app.schemas.field_mapping import FieldMappingUpdate
+from backend.app.schemas.field_mapping import FieldMappingCreate, FieldMappingUpdate
 from backend.app.schemas.store import StoreAliasConfirm, StoreUpdate
 
 
@@ -394,6 +394,22 @@ def test_master_data_routes_audit_authenticated_actor(db_session):
         "store_deactivated",
         "field_mapping_deactivated",
     ]
+
+
+def test_field_mapping_route_rejects_source_target_mismatch(db_session):
+    with pytest.raises(HTTPException) as exc_info:
+        mappings_api.create_field_mapping(
+            mapping=FieldMappingCreate(
+                data_source="tonglian",
+                target_field="payment_method",
+                source_column="付款方式",
+            ),
+            current_user=ADMIN,
+            db=db_session,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "不支持的目标字段" in exc_info.value.detail
 
 
 def test_alias_rebind_route_passes_reason_to_audit(db_session):

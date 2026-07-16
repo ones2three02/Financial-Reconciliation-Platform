@@ -10,11 +10,13 @@ from backend.app.services import extraction_engine
 from backend.app.models.clean_data import CleanData
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
+from backend.app.models.field_mapping import FieldMapping
 from backend.app.models.import_file import ImportFile
 from backend.app.models.quality_issue import DataQualityIssue
 from backend.app.models.raw_data import RawData
 from backend.app.models.store import Store, StoreAlias
 from backend.app.services.batch_service import get_or_create_batch
+from backend.app.services.field_binding import FIELD_BINDINGS_KEY
 from backend.app.services.import_pipeline import ImportWorkbookCommand, import_workbook
 from backend.app.services.store_resolution import confirm_alias
 
@@ -123,7 +125,7 @@ def test_meituan_preserves_signed_marketing_amount(db_session):
     add_confirmed_alias(db_session, "meituan", raw_store, store.id)
     content = workbook_bytes(
         "收益明细表",
-        ["验券/退款/", "消费门店", "总收入（元）", "商家营销费用（元）"],
+        ["验券/退款/调整时间", "消费门店", "总收入（元）", "商家营销费用（元）"],
         [[datetime(2026, 7, 10), raw_store, 377.40, -35]],
     )
 
@@ -158,6 +160,42 @@ def test_tonglian_aggregates_multiple_confirmed_aliases(db_session):
     )
     assert coverage.status == "present_data"
     assert coverage.valid_row_count == 2
+
+
+def test_tonglian_custom_mapping_is_snapshotted_and_reused(db_session):
+    batch, store = setup_batch(db_session)
+    raw_store = "通联自定义门店"
+    add_confirmed_alias(db_session, "tonglian", raw_store, store.id)
+    mappings = [
+        FieldMapping(data_source="tonglian", target_field="trade_date", source_column="交易日期", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="store_name", source_column="门店名称", is_active=True),
+        FieldMapping(data_source="tonglian", target_field="amount", source_column="交易金额", is_active=True),
+    ]
+    db_session.add_all(mappings)
+    db_session.commit()
+    content = workbook_bytes(
+        "sheet1",
+        ["交易日期", "门店名称", "交易金额"],
+        [[datetime(2026, 7, 10), raw_store, 88]],
+        header_row=2,
+    )
+
+    outcome = import_channel(db_session, batch.id, "tonglian_v1", content)
+
+    raw = db_session.query(RawData).filter_by(import_file_id=outcome.import_file_id).one()
+    assert raw.content[FIELD_BINDINGS_KEY] == {
+        "trade_date": "交易日期",
+        "store_name": "门店名称",
+        "amount": "交易金额",
+    }
+    assert source_amount(db_session, batch.id, store.id, "tonglian") == Decimal("88.00")
+
+    for mapping in mappings:
+        mapping.is_active = False
+    db_session.commit()
+    extraction_engine.extract_current_batch_rows(db_session, outcome.extraction_run_id)
+
+    assert source_amount(db_session, batch.id, store.id, "tonglian") == Decimal("88.00")
 
 
 def test_tonglian_reextract_skips_historical_summary_raw_data(db_session):

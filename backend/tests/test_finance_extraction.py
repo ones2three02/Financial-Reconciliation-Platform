@@ -8,8 +8,11 @@ from sqlalchemy import func
 from backend.app.models.clean_data import CleanData
 from backend.app.models.coverage import SourceCoverage
 from backend.app.models.extraction import ExtractionRun
+from backend.app.models.field_mapping import FieldMapping
+from backend.app.models.raw_data import RawData
 from backend.app.models.store import Store
 from backend.app.services.batch_service import get_or_create_batch
+from backend.app.services.field_binding import FIELD_BINDINGS_KEY
 from backend.app.services.import_pipeline import ImportWorkbookCommand, import_workbook
 
 
@@ -114,3 +117,30 @@ def test_finance_without_cash_creates_present_zero(db_session):
     assert cash_coverage.status == "present_zero"
     assert cash_coverage.evidence_type == "file_scope"
     assert cash_coverage.amount == Decimal("0.00")
+
+
+def test_finance_uses_custom_field_mapping(db_session):
+    db_session.add_all([
+        FieldMapping(data_source="store_finance", target_field="trade_date", source_column="记账日期", is_active=True),
+        FieldMapping(data_source="store_finance", target_field="payment_method", source_column="收款渠道", is_active=True),
+        FieldMapping(data_source="store_finance", target_field="amount", source_column="实收金额", is_active=True),
+    ])
+    db_session.commit()
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "收入流水表"
+    sheet.append(["记账日期", "收款渠道", "实收金额"])
+    sheet.append([datetime(2026, 7, 10), "现金", 66])
+    output = BytesIO()
+    workbook.save(output)
+
+    batch, store, outcome = import_finance(db_session, output.getvalue())
+
+    raw = db_session.query(RawData).filter_by(import_file_id=outcome.import_file_id).one()
+    assert raw.content[FIELD_BINDINGS_KEY] == {
+        "trade_date": "记账日期",
+        "amount": "实收金额",
+        "payment_method": "收款渠道",
+    }
+    assert source_amount(db_session, batch.id, store.id, "sales") == Decimal("66.00")
+    assert source_amount(db_session, batch.id, store.id, "cash") == Decimal("66.00")

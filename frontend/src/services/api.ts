@@ -113,7 +113,7 @@ export interface StoreAlias {
 export interface FieldMapping {
   id: number;
   data_source: string;
-  target_field: 'trade_date' | 'store_name' | 'amount';
+  target_field: 'trade_date' | 'store_name' | 'amount' | 'marketing_fee' | 'payment_method';
   source_column: string;
   is_active: boolean;
   created_at: string;

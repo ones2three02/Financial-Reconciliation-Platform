@@ -8,7 +8,7 @@
             <Plus class="h-4.5 w-4.5 text-blue-500" />
             <span>新增字段映射</span>
           </CardTitle>
-          <CardDescription>配置新的三方平台 Excel 列名头以适配标准字段</CardDescription>
+          <CardDescription>同一标准字段可配置多个列名；单个文件同时出现多个别名时会阻止导入</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
           <!-- Source Selector -->
@@ -101,7 +101,7 @@
                       {{ getSourceLabel(m.data_source) }}
                     </span>
                   </td>
-                  <td class="p-4"><div class="flex items-center gap-1.5 group/copy"><code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700 select-text inline-block">{{ m.target_field?.trim() }}</code><button @click="copyText(m.target_field, m.id + '-target')" class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95" title="点击复制"><Check v-if="copiedId === m.id + '-target'" class="w-3 h-3 text-emerald-500" /><Copy v-else class="w-3 h-3" /><span v-if="copiedId === m.id + '-target'" class="text-[9px] text-emerald-500 font-bold">已复制</span></button></div></td>
+                  <td class="p-4"><div class="flex items-center gap-1.5 group/copy"><code class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold font-mono text-slate-700 select-text inline-block">{{ getTargetFieldLabel(m.target_field) }}</code><button @click="copyText(m.target_field, m.id + '-target')" class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95" title="点击复制"><Check v-if="copiedId === m.id + '-target'" class="w-3 h-3 text-emerald-500" /><Copy v-else class="w-3 h-3" /><span v-if="copiedId === m.id + '-target'" class="text-[9px] text-emerald-500 font-bold">已复制</span></button></div></td>
                   <td class="p-4 font-bold text-slate-800"><div class="flex items-center gap-1.5 group/copy"><span class="select-text inline-block">{{ m.source_column?.trim() }}</span><button @click="copyText(m.source_column, m.id + '-source')" class="opacity-0 group-hover/copy:opacity-100 transition-opacity p-0.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 shrink-0 flex items-center gap-1 scale-95" title="点击复制"><Check v-if="copiedId === m.id + '-source'" class="w-3 h-3 text-emerald-500" /><Copy v-else class="w-3 h-3" /><span v-if="copiedId === m.id + '-source'" class="text-[9px] text-emerald-500 font-bold">已复制</span></button></div></td>
                   <td class="p-4 text-center">
                     <Button 
@@ -149,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { api } from '../services/api';
 import type { FieldMapping } from '../services/api';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/card';
@@ -157,32 +157,19 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
 import { Sliders, Plus, FolderOpen, Copy, Check } from 'lucide-vue-next';
+import {
+  FIELD_MAPPING_SOURCES,
+  targetFieldLabel,
+  targetFieldOptionsForSource,
+} from '../services/fieldMappingOptions';
 
-const sources = [
-  { value: 'tonglian', label: '通联后台', badge: 'bg-violet-50 text-violet-600' },
-  { value: 'meituan', label: '美团收入', badge: 'bg-amber-50 text-amber-600' },
-  { value: 'douyin', label: '抖音收入', badge: 'bg-slate-100 text-slate-700' },
-  { value: 'cash', label: '现金收入', badge: 'bg-teal-50 text-teal-600' },
-  { value: 'sales', label: '销售收入', badge: 'bg-blue-50 text-blue-600' },
-];
+const sources = FIELD_MAPPING_SOURCES;
 
-const sourceOptions = [
-  { value: 'tonglian', label: '通联后台' },
-  { value: 'meituan', label: '美团收入' },
-  { value: 'douyin', label: '抖音收入' },
-  { value: 'cash', label: '现金收入' },
-  { value: 'sales', label: '销售收入' }
-];
+const sourceOptions = sources.map(({ value, label }) => ({ value, label }));
 
 const filterSourceOptions = [
   { value: '', label: '全部来源' },
   ...sourceOptions
-];
-
-const targetFieldOptions = [
-  { value: 'trade_date', label: '交易日期 (trade_date)' },
-  { value: 'store_name', label: '门店名称 (store_name)' },
-  { value: 'amount', label: '交易金额 (amount)' }
 ];
 
 const copiedId = ref('');
@@ -211,6 +198,20 @@ const newMapping = ref({
   source_column: '',
 });
 
+const targetFieldOptions = computed(() => (
+  targetFieldOptionsForSource(newMapping.value.data_source)
+));
+
+watch(
+  () => newMapping.value.data_source,
+  (source) => {
+    const options = targetFieldOptionsForSource(source);
+    if (!options.some((option) => option.value === newMapping.value.target_field)) {
+      newMapping.value.target_field = options[0]?.value ?? 'trade_date';
+    }
+  },
+);
+
 const getSourceLabel = (val: string) => {
   return sources.find(s => s.value === val)?.label || val;
 };
@@ -218,6 +219,8 @@ const getSourceLabel = (val: string) => {
 const getSourceBadgeClass = (val: string) => {
   return sources.find(s => s.value === val)?.badge || 'bg-slate-100 text-slate-600';
 };
+
+const getTargetFieldLabel = (val: string) => targetFieldLabel(val);
 
 const filteredMappings = computed(() => {
   if (!selectedFilterSource.value) return mappings.value;
@@ -246,8 +249,8 @@ const saveMapping = async () => {
     });
     newMapping.value.source_column = '';
     fetchMappings();
-  } catch (error) {
-    alert('保存字段映射失败！');
+  } catch (error: any) {
+    alert(error.response?.data?.detail || '保存字段映射失败！');
   }
 };
 
