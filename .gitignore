@@ -26,3 +26,4 @@ frontend/src-tauri/target/
 frontend/src-tauri/binaries/
 outputs/
 0714/
+.superpowers/

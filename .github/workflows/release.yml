@@ -74,11 +74,36 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           projectPath: frontend
           tagName: ${{ github.ref_name }}
           releaseName: "ReconFlow ${{ github.ref_name }}"
-          releaseBody: "自动生成的 ReconFlow 桌面安装包（包含 macOS 与 Windows 平台）"
           releaseDraft: false
           prerelease: false
+          generateReleaseNotes: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
+          updaterJsonPreferNsis: true
           args: ${{ matrix.args }}
+
+  verify-updater-release:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download updater manifest
+        run: >-
+          curl --fail --location --retry 8 --retry-all-errors
+          "https://github.com/ones2three02/Financial-Reconciliation-Platform/releases/download/${GITHUB_REF_NAME}/latest.json"
+          --output latest.json
+
+      - name: Verify Windows updater manifest
+        run: python backend/scripts/verify_updater_manifest.py latest.json "${GITHUB_REF_NAME}"

@@ -3,8 +3,49 @@ export interface DesktopBackendConfig {
   token: string;
 }
 
+export type TauriUnlisten = () => void;
+
+export interface TauriUpdaterManifest {
+  version: string;
+  date?: string;
+  body?: string;
+}
+
+export interface TauriUpdateResult {
+  shouldUpdate: boolean;
+  manifest?: TauriUpdaterManifest;
+}
+
+export interface TauriUpdaterStatus {
+  status: 'PENDING' | 'ERROR' | 'DONE' | 'UPTODATE';
+  error?: string;
+}
+
+export interface TauriEvent<T> {
+  payload: T;
+}
+
 export interface TauriBridge {
   invoke<T>(command: string): Promise<T>;
+  app?: {
+    getVersion(): Promise<string>;
+  };
+  os?: {
+    platform(): Promise<string>;
+  };
+  updater?: {
+    checkUpdate(): Promise<TauriUpdateResult>;
+    installUpdate(): Promise<void>;
+    onUpdaterEvent(
+      handler: (event: TauriUpdaterStatus) => void,
+    ): Promise<TauriUnlisten>;
+  };
+  event?: {
+    listen<T>(
+      event: string,
+      handler: (event: TauriEvent<T>) => void,
+    ): Promise<TauriUnlisten>;
+  };
 }
 
 export interface RuntimeWindow {

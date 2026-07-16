@@ -30,17 +30,17 @@
 
       <!-- Navigation Links -->
       <nav class="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
-        <div v-if="!isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统导航</div>
+        <div v-if="!isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">日常工作</div>
         
         <router-link 
           to="/" 
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
-          :title="isCollapsed ? '系统看板' : ''"
+          :title="isCollapsed ? '工作台' : ''"
         >
           <LayoutDashboard class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
-          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">系统看板</span>
+          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">工作台</span>
         </router-link>
 
         <router-link 
@@ -48,10 +48,10 @@
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
-          :title="isCollapsed ? '文件导入' : ''"
+          :title="isCollapsed ? '导入数据' : ''"
         >
           <FileUp class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
-          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">文件导入</span>
+          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">导入数据</span>
         </router-link>
 
         <router-link 
@@ -59,19 +59,31 @@
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
-          :title="isCollapsed ? '对账明细' : ''"
+          :title="isCollapsed ? '对账结果' : ''"
         >
           <ClipboardCheck class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
-          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">对账明细</span>
+          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">对账结果</span>
         </router-link>
 
         <!-- Config Section -->
         <div v-if="isAdmin" class="h-px bg-zinc-800/80 my-5" :class="isCollapsed ? 'mx-1' : 'mx-2'"></div>
-        <div v-if="isAdmin && !isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">系统配置</div>
+        <div v-if="isAdmin && !isCollapsed" class="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3 transition-all fade-in">数据配置</div>
 
         <router-link 
           v-if="isAdmin"
-          to="/settings/mappings" 
+          to="/settings/stores"
+          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
+          :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
+          active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
+          :title="isCollapsed ? '门店管理' : ''"
+        >
+          <Store class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
+          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">门店管理</span>
+        </router-link>
+
+        <router-link 
+          v-if="isAdmin"
+          to="/settings/mappings"
           class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
           :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
           active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
@@ -80,35 +92,24 @@
           <Sliders class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
           <span v-if="!isCollapsed" class="text-sm transition-all fade-in">字段映射</span>
         </router-link>
-
-        <router-link 
-          v-if="isAdmin"
-          to="/settings/stores" 
-          class="flex items-center gap-3 rounded-lg transition-all duration-150 group text-zinc-400 hover:text-zinc-50 hover:bg-zinc-900 border border-transparent"
-          :class="isCollapsed ? 'justify-center p-2.5 w-10 h-10 mx-auto' : 'px-3 py-2.5'"
-          active-class="bg-zinc-900 text-zinc-50 font-medium border border-zinc-800 shadow-sm"
-          :title="isCollapsed ? '门店标准化' : ''"
-        >
-          <Store class="h-4.5 w-4.5 shrink-0 transition-transform group-hover:scale-105" />
-          <span v-if="!isCollapsed" class="text-sm transition-all fade-in">门店标准化</span>
-        </router-link>
       </nav>
+
+      <DesktopUpdater :collapsed="isCollapsed" />
 
       <!-- Heartbeat Indicator -->
       <div 
         :class="[
           'border-t border-zinc-800 bg-zinc-950/20 text-xs text-zinc-500 flex transition-all duration-300 ease-in-out shrink-0',
-          isCollapsed ? 'p-4 justify-center items-center h-14' : 'p-4 flex-col gap-1.5'
+          isCollapsed ? 'p-4 justify-center items-center h-14' : 'p-4 items-center'
         ]"
       >
         <div class="flex items-center justify-between w-full" :class="isCollapsed ? 'justify-center' : ''">
-          <span v-if="!isCollapsed">对账服务引擎</span>
+          <span v-if="!isCollapsed">本地服务正常</span>
           <span class="flex h-2 w-2 relative shrink-0">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
         </div>
-        <div v-if="!isCollapsed" class="text-[10px] text-zinc-600 fade-in">FRP Engine V1.0 (MVP)</div>
       </div>
     </aside>
 
@@ -264,6 +265,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import DownloadTracker from './components/DownloadTracker.vue';
+import DesktopUpdater from './components/DesktopUpdater.vue';
 import { 
   isTourActive, 
   tourSteps, 
