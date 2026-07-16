@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p frontend/src-tauri/binaries
-          pyinstaller --onefile --clean -y --name frp-backend --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini;backend" --add-data "backend/migrations;backend/migrations" backend/run.py
+          pyinstaller --onefile --noconsole --clean -y --name frp-backend --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini;backend" --add-data "backend/migrations;backend/migrations" backend/run.py
           cp dist/frp-backend.exe frontend/src-tauri/binaries/frp-backend-x86_64-pc-windows-msvc.exe
 
       - name: Build Python Sidecar (macOS)

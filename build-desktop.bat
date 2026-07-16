@@ -22,7 +22,7 @@ if not exist frontend\src-tauri\binaries (
 )
 
 echo === 3. 使用 PyInstaller 编译 Python FastAPI 离线二进制服务 ===
-pyinstaller --onefile --clean -y ^
+pyinstaller --onefile --noconsole --clean -y ^
   --name frp-backend ^
   --collect-all uvicorn ^
   --collect-all alembic ^
