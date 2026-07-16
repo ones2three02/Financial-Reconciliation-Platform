@@ -37,7 +37,8 @@ def test_release_workflow_signs_and_prefers_nsis():
 
     assert "secrets.TAURI_PRIVATE_KEY" in workflow
     assert "secrets.TAURI_KEY_PASSWORD" in workflow
-    assert "uploadUpdaterJson: true" in workflow
-    assert "uploadUpdaterSignatures: true" in workflow
+    assert "includeUpdaterJson: true" in workflow
+    assert "uploadUpdaterJson" not in workflow
+    assert "uploadUpdaterSignatures" not in workflow
     assert "updaterJsonPreferNsis: true" in workflow
     assert "verify_updater_manifest.py" in workflow
