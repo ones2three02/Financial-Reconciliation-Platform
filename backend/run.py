@@ -2,6 +2,18 @@ import os
 import sys
 from pathlib import Path
 
+# Fix: PyInstaller --noconsole mode will set sys.stdout/sys.stderr to None on Windows,
+# which causes Uvicorn configure_logging to crash with "AttributeError: 'NoneType' object has no attribute 'isatty'"
+class DummyStream:
+    def write(self, *args, **kwargs): pass
+    def flush(self, *args, **kwargs): pass
+    def isatty(self): return False
+
+if sys.stdout is None:
+    sys.stdout = DummyStream()
+if sys.stderr is None:
+    sys.stderr = DummyStream()
+
 import uvicorn
 
 # Add project root to path so "backend" package is discoverable
