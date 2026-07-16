@@ -71,6 +71,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: frontend
           tagName: ${{ github.ref_name }}
           releaseName: "ReconFlow ${{ github.ref_name }}"
           releaseBody: "自动生成的 ReconFlow 桌面安装包（包含 macOS 与 Windows 平台）"
