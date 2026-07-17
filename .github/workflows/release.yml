@@ -49,18 +49,17 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          mkdir -p frontend/src-tauri/binaries
-          pyinstaller --onefile --noconsole --clean -y --name frp-backend --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini;backend" --add-data "backend/migrations;backend/migrations" backend/run.py
-          cp dist/frp-backend.exe frontend/src-tauri/binaries/frp-backend-x86_64-pc-windows-msvc.exe
+          mkdir -p frontend/src-tauri/resources
+          pyinstaller --onedir --noconsole --clean -y --name frp-backend-dir --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini;backend" --add-data "backend/migrations;backend/migrations" backend/run.py
+          cp -r dist/frp-backend-dir frontend/src-tauri/resources/frp-backend-dir
 
       - name: Build Python Sidecar (macOS)
         if: matrix.platform == 'macos-latest'
         run: |
-          mkdir -p frontend/src-tauri/binaries
-          TARGET_TRIPLE=$(rustc -vV | grep host | cut -d ' ' -f 2)
-          pyinstaller --onefile --clean -y --name frp-backend --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini:backend" --add-data "backend/migrations:backend/migrations" backend/run.py
-          cp dist/frp-backend frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE
-          xattr -cr frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE || true
+          mkdir -p frontend/src-tauri/resources
+          pyinstaller --onedir --clean -y --name frp-backend-dir --collect-all uvicorn --collect-all alembic --collect-all backend --add-data "backend/alembic.ini:backend" --add-data "backend/migrations:backend/migrations" backend/run.py
+          cp -R dist/frp-backend-dir frontend/src-tauri/resources/frp-backend-dir
+          xattr -cr frontend/src-tauri/resources/frp-backend-dir || true
 
       - name: Install frontend dependencies
         working-directory: frontend
