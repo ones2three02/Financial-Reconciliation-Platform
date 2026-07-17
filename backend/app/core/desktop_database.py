@@ -59,11 +59,40 @@ def _matches_current_metadata(database_url: str) -> bool:
 def prepare_desktop_database(database_url: str) -> Path | None:
     database_path = _sqlite_path(database_url)
     database_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 极速校验缓存路径，规避日常启动时导入 Alembic 和创建 SQLAlchemy 引擎的大量耗时
+    version_cache_file = database_path.parent / "db_version.txt"
+    if database_path.exists() and version_cache_file.exists():
+        try:
+            cached_head = version_cache_file.read_text(encoding="utf-8").strip()
+            if cached_head:
+                import sqlite3
+                conn = sqlite3.connect(database_path)
+                cursor = conn.cursor()
+                # 检查 alembic_version 表是否存在
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='alembic_version'")
+                if cursor.fetchone():
+                    cursor.execute("SELECT version_num FROM alembic_version")
+                    row = cursor.fetchone()
+                    current_rev = row[0] if row else None
+                    if current_rev == cached_head:
+                        conn.close()
+                        return None  # 版本一致，直接闪电就绪！
+                conn.close()
+        except Exception:
+            pass  # 任何异常都降级走慢速的 Alembic 真实检测
+
     config = _alembic_config(database_url)
     head_revision = ScriptDirectory.from_config(config).get_current_head()
     current_revision = _current_revision(database_url) if database_path.exists() else None
 
     if current_revision == head_revision:
+        # 更新或写入本地缓存文件
+        if head_revision:
+            try:
+                version_cache_file.write_text(head_revision, encoding="utf-8")
+            except Exception:
+                pass
         return None
 
     backup_path: Path | None = None
@@ -94,7 +123,19 @@ def prepare_desktop_database(database_url: str) -> Path | None:
                 raise RuntimeError("无法确定桌面数据库的数据初始化迁移起点")
             command.stamp(config, head_script.down_revision)
             command.upgrade(config, "head")
+            # 升级成功，更新缓存文件
+            if head_revision:
+                try:
+                    version_cache_file.write_text(head_revision, encoding="utf-8")
+                except Exception:
+                    pass
             return backup_path
 
     command.upgrade(config, "head")
+    # 升级成功，更新缓存文件
+    if head_revision:
+        try:
+            version_cache_file.write_text(head_revision, encoding="utf-8")
+        except Exception:
+            pass
     return backup_path

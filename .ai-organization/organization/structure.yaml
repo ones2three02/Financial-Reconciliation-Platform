@@ -1,0 +1,55 @@
+# AI Organization Tree Structure v1.0
+organization:
+  company_name: "Virtual AI Enterprise"
+  root:
+    role: "CEO"
+    agent_id: "ceo-agent-01"
+    subordinates:
+      - role: "Organization Manager"
+        agent_id: "org-manager-01"
+        subordinates:
+          - department: "Human Resources (HR)"
+            lead_role: "AI HR Manager"
+            lead_agent_id: "hr-manager-01"
+            subordinates:
+              - role: "Recruiter"
+                agent_id: "recruiter-01"
+              - role: "Interviewer"
+                agent_id: "interviewer-01"
+              - role: "Onboarding Specialist"
+                agent_id: "onboarding-01"
+          - department: "Project Management Office (PMO)"
+            lead_role: "Project Manager"
+            lead_agent_id: "project-manager-01"
+            subordinates:
+              - role: "Product Manager"
+                agent_id: "product-manager-01"
+          - department: "Architecture & Engineering"
+            lead_role: "Solution Architect"
+            lead_agent_id: "solution-architect-01"
+            subordinates:
+              - role: "Database Architect"
+                agent_id: "database-architect-01"
+              - role: "Security Architect"
+                agent_id: "security-architect-01"
+              - role: "Backend Engineer"
+                agent_id: "backend-engineer-01"
+              - role: "Frontend Engineer"
+                agent_id: "frontend-engineer-01"
+              - role: "DevOps Engineer"
+                agent_id: "devops-engineer-01"
+          - department: "Quality Assurance (QA)"
+            lead_role: "Quality Reviewer"
+            lead_agent_id: "quality-reviewer-01"
+            subordinates:
+              - role: "QA Engineer"
+                agent_id: "qa-engineer-01"
+          - department: "Domain Expert Pool"
+            lead_role: "Organization Manager" # 虚线汇报
+            subordinates:
+              - role: "HR Expert"
+                agent_id: "hr-expert-01"
+              - role: "Finance Expert"
+                agent_id: "finance-expert-01"
+              - role: "Legal Expert"
+                agent_id: "legal-expert-01"

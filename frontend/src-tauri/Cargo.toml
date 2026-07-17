@@ -9,7 +9,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "window-show", "shell-open", "fs-write-file", "dialog-save", "devtools", "updater", "os-all"] }
+tauri = { version = "1.5", features = [ "window-show", "shell-open", "fs-read-file", "fs-write-file", "dialog-save", "devtools", "os-all", "system-tray", "shell-sidecar"] }
 serde = { version = "1.0", features = ["derive"] }
 rand = "0.8"
 

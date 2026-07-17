@@ -24,9 +24,9 @@ echo "Host 平台三元组: $TARGET_TRIPLE"
 mkdir -p frontend/src-tauri/binaries
 
 echo "=== 3. 使用 PyInstaller 编译 Python FastAPI 离线二进制服务 ==="
-# --collect-all 自动加载 uvicorn 运行时依赖及其相关子模块，解决动态引用丢失问题
-pyinstaller --onefile --clean -y \
-  --name frp-backend \
+# 使用 --onedir 模式进行编译，消除 --onefile 模式在冷启动时解压到临时目录造成的长达几十秒的严重卡顿和系统安全扫描延迟
+pyinstaller --onedir --clean -y \
+  --name frp-backend-dir \
   --collect-all uvicorn \
   --collect-all alembic \
   --collect-all backend \
@@ -34,9 +34,11 @@ pyinstaller --onefile --clean -y \
   --add-data "backend/migrations:backend/migrations" \
   backend/run.py
 
-# 移动编译出来的单文件可执行二进制到 Tauri binaries 并重命名为 Sidecar 三元组规范
-cp dist/frp-backend frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE
-xattr -cr frontend/src-tauri/binaries/frp-backend-$TARGET_TRIPLE || true
+# 创建 resources 目录并拷贝整个后端文件夹作为 Tauri 资源打包
+mkdir -p frontend/src-tauri/resources
+rm -rf frontend/src-tauri/resources/frp-backend-dir
+cp -R dist/frp-backend-dir frontend/src-tauri/resources/
+xattr -cr frontend/src-tauri/resources/frp-backend-dir || true
 
 echo "=== 4. 自动生成桌面端各尺寸高清图标 ==="
 # 既然我们已经有 switch_variant.sh 进行高清图标管理，这里注释掉强制重新生成，以防破坏已有的预置高清图标
@@ -51,6 +53,24 @@ npm ci
 npm run build
 
 echo "=== 6. 执行 Tauri 打包编译桌面应用 ==="
+# 备份 tauri.conf.json 以便在退出时自动还原
+cp src-tauri/tauri.conf.json src-tauri/tauri.conf.json.bak
+restore_config() {
+  if [ -f src-tauri/tauri.conf.json.bak ]; then
+    mv src-tauri/tauri.conf.json.bak src-tauri/tauri.conf.json
+  fi
+}
+trap restore_config EXIT
+
+# 临时将 updater.active 设为 false 以防本地打包缺少私钥报错
+node -e "
+  const fs = require('fs');
+  const path = 'src-tauri/tauri.conf.json';
+  const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+  config.tauri.updater.active = false;
+  fs.writeFileSync(path, JSON.stringify(config, null, 2), 'utf8');
+"
+
 npx @tauri-apps/cli@1.6.3 build
 
 # 自动同步到 outputs 目录并清空 quarantine 标记（彻底解决首次冷启动时 Gatekeeper 对单文件进行安全扫描导致的 30 秒卡顿）
@@ -58,5 +78,12 @@ mkdir -p ../outputs
 cp -R src-tauri/target/release/bundle/macos/财务自动对账平台.app ../outputs/
 xattr -cr ../outputs/财务自动对账平台.app || true
 
+# 将清除隔离后的 .app 压缩为 zip 绿色便携免安装版
+echo "=== 7. 打包 macOS 绿色便携免安装版 ==="
+cd ../outputs
+rm -f 财务自动对账平台-macOS便携免安装版.zip
+zip -q -r -y 财务自动对账平台-macOS便携免安装版.zip 财务自动对账平台.app
+cd ../frontend
+
 echo "=== 桌面应用编译完成！ ==="
-echo "在 outputs/ 下查收您的安装包，已默认完成 Gatekeeper 扫描免疫，支持秒开！"
+echo "在 outputs/ 下查收您的安装包、DMG 镜像及 ZIP 绿色便携版，支持秒开！"

@@ -2,15 +2,19 @@
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5174",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
     "withGlobalTauri": true
   },
   "package": {
     "productName": "财务自动对账平台",
-    "version": "1.0.11"
+    "version": "1.0.12"
   },
   "tauri": {
+    "systemTray": {
+      "iconPath": "icons/128x128.png",
+      "iconAsTemplate": true
+    },
     "allowlist": {
       "all": false,
       "dialog": {
@@ -19,13 +23,15 @@
       },
       "fs": {
         "all": false,
-        "writeFile": true
+        "writeFile": true,
+        "readFile": true
       },
       "os": {
         "all": true
       },
       "shell": {
         "all": false,
+        "sidecar": true,
         "open": "^(?:[a-zA-Z]:\\\\.*|/.*)$"
       },
       "window": {
@@ -44,8 +50,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "externalBin": [
-        "binaries/frp-backend"
+      "resources": [
+        "resources/frp-backend-dir/**/*"
       ]
     },
     "security": {

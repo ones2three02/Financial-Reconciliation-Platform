@@ -24,6 +24,7 @@ build/
 *.db.bak
 frontend/src-tauri/target/
 frontend/src-tauri/binaries/
+frontend/src-tauri/resources/
 outputs/
 0714/
 .superpowers/

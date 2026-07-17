@@ -1,8 +1,18 @@
 <template>
-  <div v-if="route.path === '/login'" class="h-screen w-screen bg-[#09090b] flex items-center justify-center">
-    <router-view />
+  <div v-if="isInitializing" class="h-screen w-screen bg-[#09090b] flex flex-col items-center justify-center text-zinc-100 font-sans select-none">
+    <div class="p-3 bg-blue-600 rounded-2xl text-white shadow-2xl shadow-blue-500/20 mb-6 animate-pulse">
+      <svg class="h-10 w-10" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="currentColor" fill-rule="evenodd" d="M48 38 H145 L207 91 V108 C207 145 180 166 138 166 H94 V218 H48 Z M94 78 V126 H136 C155 126 165 117 165 102 C165 87 155 78 136 78 Z M112 148 H160 L211 218 H158 L101 163 Z"/>
+      </svg>
+    </div>
+    <h3 class="text-sm font-bold tracking-wider text-zinc-100">财务自动对账平台</h3>
+    <p class="text-[10px] text-zinc-500 mt-2 font-medium tracking-wide animate-pulse">正在启动安全沙箱与本地计算服务，请稍候...</p>
   </div>
-  <div v-else class="flex h-screen bg-slate-50/50 text-slate-900 font-sans overflow-hidden">
+  <template v-else>
+    <div v-if="route.path === '/login'" class="h-screen w-screen bg-[#09090b] flex items-center justify-center">
+      <router-view />
+    </div>
+    <div v-else class="flex h-screen bg-slate-50/50 text-slate-900 font-sans overflow-hidden">
     <!-- Sidebar -->
     <aside 
       :class="[
@@ -259,6 +269,7 @@
     </Teleport>
     <DownloadTracker />
   </div>
+  </template>
 </template>
 
 <script setup lang="ts">
@@ -266,6 +277,9 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import DownloadTracker from './components/DownloadTracker.vue';
 import DesktopUpdater from './components/DesktopUpdater.vue';
+import { getDesktopBackendConfig } from './services/desktopConnection';
+
+const isInitializing = ref(true);
 import { 
   isTourActive, 
   tourSteps, 
@@ -482,9 +496,21 @@ const handleResize = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('resize', handleResize);
   window.addEventListener('scroll', handleResize, true);
+  
+  if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    try {
+      await getDesktopBackendConfig(window);
+    } catch (err) {
+      console.error('初始化本地服务失败:', err);
+    } finally {
+      isInitializing.value = false;
+    }
+  } else {
+    isInitializing.value = false;
+  }
 });
 
 onUnmounted(() => {

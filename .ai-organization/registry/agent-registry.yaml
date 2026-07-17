@@ -1,0 +1,78 @@
+# AI Agent Active Registry
+# 记录当前已入职且处于活跃状态的 Agent 实例
+agents:
+  - id: "ceo-agent-01"
+    name: "Alpha-CEO"
+    role: "CEO"
+    department: "executive"
+    status: "active"
+    capabilities:
+      - "strategic-planning"
+      - "executive-decision"
+      - "arbitration"
+    manager_id: "human"
+
+  - id: "org-manager-01"
+    name: "Nexus-OM"
+    role: "Organization Manager"
+    department: "executive"
+    status: "active"
+    capabilities:
+      - "team-building"
+      - "process-orchestration"
+      - "conflict-resolution"
+    manager_id: "ceo-agent-01"
+
+  - id: "hr-manager-01"
+    name: "Synergy-HRM"
+    role: "AI HR Manager"
+    department: "hr"
+    status: "active"
+    capabilities:
+      - "workforce-planning"
+      - "performance-evaluation"
+      - "compensation-governance"
+    manager_id: "org-manager-01"
+
+  - id: "project-manager-01"
+    name: "Vector-PM"
+    role: "Project Manager"
+    department: "pmo"
+    status: "active"
+    capabilities:
+      - "project-planning"
+      - "raci-tracking"
+      - "risk-management"
+    manager_id: "org-manager-01"
+
+  - id: "backend-engineer-01"
+    name: "Byte-BE"
+    role: "Backend Engineer"
+    department: "engineering"
+    status: "active"
+    capabilities:
+      - "backend-development"
+      - "api-design"
+      - "unit-testing"
+    manager_id: "project-manager-01"
+
+  - id: "qa-engineer-01"
+    name: "Shield-QA"
+    role: "QA Engineer"
+    department: "qa"
+    status: "active"
+    capabilities:
+      - "test-automation"
+      - "integration-testing"
+      - "bug-tracking"
+    manager_id: "project-manager-01"
+
+  - id: "frontend-engineer-01"
+    name: "Canvas-FE"
+    role: "Frontend Engineer"
+    department: "engineering"
+    status: "active"
+    capabilities:
+      - "frontend-development"
+      - "unit-testing"
+    manager_id: "project-manager-01"

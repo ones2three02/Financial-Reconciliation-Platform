@@ -46,6 +46,9 @@ export interface TauriBridge {
       handler: (event: TauriEvent<T>) => void,
     ): Promise<TauriUnlisten>;
   };
+  fs?: {
+    readBinaryFile(path: string): Promise<Uint8Array>;
+  };
 }
 
 export interface RuntimeWindow {

@@ -709,10 +709,60 @@ const issueTagClass = (source: string) => {
   }
 };
 
+const setupTauriFileDrop = async () => {
+  const tauri = typeof window !== 'undefined' ? window.__TAURI__ : undefined;
+  if (tauri && tauri.event && tauri.fs) {
+    const eventApi = tauri.event;
+    const fsApi = tauri.fs;
+    try {
+      await eventApi.listen<string[]>('tauri://file-drop', async (event) => {
+        const filePaths = event.payload;
+        if (!filePaths || filePaths.length === 0) return;
+        if (!canSelectFiles.value) {
+          message.value = { type: 'error', text: '请先选择门店，再拖入门店财务表文件。' };
+          return;
+        }
+        
+        const newFiles: File[] = [];
+        for (const path of filePaths) {
+          if (!path.toLowerCase().endsWith('.xlsx')) continue;
+          try {
+            const content = await fsApi.readBinaryFile(path);
+            const name = path.split(/[/\\]/).pop() || 'dropped.xlsx';
+            const file = new File([content as any], name, {
+              type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            });
+            newFiles.push(file);
+          } catch (err) {
+            console.error('读取拖放文件失败:', err);
+          }
+        }
+        
+        if (newFiles.length > 0) {
+          const context = { ...currentContext.value };
+          const items = createQueueItems(
+            newFiles,
+            context,
+            (file, index) => `${file.name}-${file.size}-${index}`,
+          );
+          queues.value = replaceQueue(queues.value, context, items);
+          message.value = null;
+        }
+      });
+    } catch (err) {
+      console.error('注册拖放事件失败:', err);
+    }
+  }
+};
+
 watch(globalDate, () => {
   queues.value = {};
   message.value = null;
   void loadExistingBatch();
 });
-onMounted(async () => { stores.value = await api.getStores(); await loadExistingBatch(); });
+onMounted(async () => {
+  stores.value = await api.getStores();
+  await loadExistingBatch();
+  void setupTauriFileDrop();
+});
 </script>

@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
-use tauri::{Manager, State, WindowEvent};
+use tauri::{CustomMenuItem, Manager, State, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowEvent};
 
 #[derive(Clone, Serialize)]
 struct DesktopBackendConfig {
@@ -29,13 +29,12 @@ impl DesktopBackendConfig {
     }
 }
 
-struct BackendChild(Option<std::process::Child>);
+struct BackendChild(Option<tauri::api::process::CommandChild>);
 
 impl BackendChild {
     fn terminate(&mut self) {
-        if let Some(mut child) = self.0.take() {
+        if let Some(child) = self.0.take() {
             let _ = child.kill();
-            let _ = child.wait();
         }
     }
 }
@@ -86,27 +85,7 @@ fn find_project_root(start: &Path) -> Option<PathBuf> {
         .map(Path::to_path_buf)
 }
 
-fn packaged_sidecar_path() -> io::Result<PathBuf> {
-    let executable = std::env::current_exe()?;
-    let directory = executable
-        .parent()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "无法定位桌面程序目录"))?;
-    let file_name = if cfg!(target_os = "windows") {
-        "frp-backend.exe"
-    } else {
-        "frp-backend"
-    };
-    Ok(directory.join(file_name))
-}
-
-fn spawn_backend(port: u16, token: &str) -> io::Result<BackendChild> {
-    let configure_command = |command: &mut std::process::Command| {
-        command
-            .env("FRP_DESKTOP", "true")
-            .env("FRP_PORT", port.to_string())
-            .env("FRP_DESKTOP_TOKEN", token);
-    };
-
+fn spawn_backend(app: &tauri::App, port: u16, token: &str) -> io::Result<BackendChild> {
     if cfg!(debug_assertions) {
         let current_dir = std::env::current_dir()?;
         if let Some(root) = find_project_root(&current_dir) {
@@ -117,24 +96,55 @@ fn spawn_backend(port: u16, token: &str) -> io::Result<BackendChild> {
             };
             let run_py = root.join("backend").join("run.py");
             if venv_python.is_file() {
-                let mut command = std::process::Command::new(venv_python);
-                configure_command(&mut command);
-                let child = command.arg(run_py).current_dir(root).spawn()?;
+                let mut env_map = std::collections::HashMap::new();
+                env_map.insert("FRP_DESKTOP".to_string(), "true".to_string());
+                env_map.insert("FRP_PORT".to_string(), port.to_string());
+                env_map.insert("FRP_DESKTOP_TOKEN".to_string(), token.to_string());
+
+                let (_, child) = tauri::api::process::Command::new(venv_python.to_string_lossy().to_string())
+                    .args([run_py.to_string_lossy().to_string()])
+                    .current_dir(root)
+                    .envs(env_map)
+                    .spawn()
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("启动 Python 调试服务失败: {e}")))?;
                 return Ok(BackendChild(Some(child)));
             }
         }
     }
 
-    let sidecar = packaged_sidecar_path()?;
-    if !sidecar.is_file() {
+    // 打包模式下，从资源（Resources）中寻找解压好的 Python 离线服务文件夹，实现零解压零扫描秒开
+    let resource_path = app
+        .path_resolver()
+        .resource_dir()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "未找到程序资源目录"))?
+        .join("resources")
+        .join("frp-backend-dir");
+
+    let exe_name = if cfg!(target_os = "windows") {
+        "frp-backend-dir.exe"
+    } else {
+        "frp-backend-dir"
+    };
+    let backend_bin = resource_path.join(exe_name);
+    if !backend_bin.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("未找到桌面后端程序: {}", sidecar.display()),
+            format!("未找到桌面后端离线服务: {}", backend_bin.display()),
         ));
     }
-    let mut command = std::process::Command::new(sidecar);
-    configure_command(&mut command);
-    Ok(BackendChild(Some(command.spawn()?)))
+
+    let mut env_map = std::collections::HashMap::new();
+    env_map.insert("FRP_DESKTOP".to_string(), "true".to_string());
+    env_map.insert("FRP_PORT".to_string(), port.to_string());
+    env_map.insert("FRP_DESKTOP_TOKEN".to_string(), token.to_string());
+
+    let (_, child) = tauri::api::process::Command::new(backend_bin.to_string_lossy().to_string())
+        .current_dir(resource_path) // 在该目录运行，确保依赖的 dll / dylib 正确解析
+        .envs(env_map)
+        .spawn()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("启动桌面后端离线服务失败: {e}")))?;
+
+    Ok(BackendChild(Some(child)))
 }
 
 fn wait_for_backend(port: u16, timeout: Duration) -> io::Result<()> {
@@ -153,12 +163,40 @@ fn wait_for_backend(port: u16, timeout: Duration) -> io::Result<()> {
 }
 
 fn main() {
+    let quit = CustomMenuItem::new("quit".to_string(), "退出对账平台");
+    let show = CustomMenuItem::new("show".to_string(), "显示主窗口");
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(show)
+        .add_native_item(tauri::SystemTrayMenuItem::Separator)
+        .add_item(quit);
+    let system_tray = SystemTray::new().with_menu(tray_menu);
+
     tauri::Builder::default()
+        .system_tray(system_tray)
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::MenuItemClick { id, .. } => {
+                match id.as_str() {
+                    "quit" => {
+                        if let Some(runtime) = app.try_state::<BackendRuntime>() {
+                            runtime.terminate();
+                        }
+                        std::process::exit(0);
+                    }
+                    "show" => {
+                        let window = app.get_window("main").unwrap();
+                        window.show().unwrap();
+                        window.set_focus().unwrap();
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        })
         .invoke_handler(tauri::generate_handler![desktop_backend_config])
         .setup(|app| {
             let port = select_backend_port()?;
             let token = generate_launch_token();
-            let child = spawn_backend(port, &token)?;
+            let child = spawn_backend(app, port, &token)?;
             app.manage(BackendRuntime {
                 config: DesktopBackendConfig::new(port, token),
                 port,
@@ -167,8 +205,9 @@ fn main() {
             Ok(())
         })
         .on_window_event(|event| {
-            if matches!(event.event(), WindowEvent::CloseRequested { .. }) {
-                event.window().state::<BackendRuntime>().terminate();
+            if let WindowEvent::CloseRequested { api, .. } = event.event() {
+                api.prevent_close();
+                event.window().hide().unwrap();
             }
         })
         .run(tauri::generate_context!())

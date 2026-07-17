@@ -1,0 +1,54 @@
+# AI Organization Departments definition
+departments:
+  - id: "executive"
+    name: "Executive Committee"
+    purpose: "制定企业战略，调配全局资源，进行组织治理与终审决策。"
+    responsibilities:
+      - "公司长期方向制定"
+      - "组织架构调整及 Registry 审核"
+      - "跨部门纠纷仲裁"
+    authority_level: "L3"
+
+  - id: "hr"
+    name: "Human Resources"
+    purpose: "负责人力资源规划，执行 Agent 招聘、面试、入职与绩效管理。"
+    responsibilities:
+      - "解析项目编制需求与缺口"
+      - "生成招聘 JD，模拟面试打分"
+      - "新录用 Agent 的 Onboarding 培训与能力验证"
+    authority_level: "L2"
+
+  - id: "pmo"
+    name: "Project Management Office"
+    purpose: "负责项目的全生命周期管理，制定 RACI 矩阵，监控交付进度与质量。"
+    responsibilities:
+      - "需求分析与产品定义"
+      - "任务分解 (WBS) 与分发"
+      - "项目进度监控与风险预警"
+    authority_level: "L2"
+
+  - id: "engineering"
+    name: "Engineering & Architecture"
+    purpose: "系统架构设计、数据库建模、核心代码实现与持续部署运维。"
+    responsibilities:
+      - "技术架构方案设计与合规性审查"
+      - "前后端代码开发与技术自测"
+      - "CI/CD 自动化流水线搭建与环境运维"
+    authority_level: "L1"
+
+  - id: "qa"
+    name: "Quality Assurance"
+    purpose: "确保产品交付质量符合规范，进行代码审计与自动化测试。"
+    responsibilities:
+      - "测试用例编写与覆盖率校验"
+      - "代码规范性静态审查"
+      - "发布前集成测试与质量打分"
+    authority_level: "L1"
+
+  - id: "domain"
+    name: "Domain Expert Pool"
+    purpose: "在财务、税务、法务、医疗、人力等专业受限领域提供业务合规专家意见。"
+    responsibilities:
+      - "对应领域政策解答与合规初审"
+      - "协助 PMO 和架构师做业务规则建模"
+    authority_level: "L2"
