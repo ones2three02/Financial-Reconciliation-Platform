@@ -108,6 +108,7 @@
 
       <!-- Heartbeat Indicator -->
       <div 
+        id="sidebar-heartbeat-status"
         :class="[
           'border-t border-zinc-800 bg-zinc-950/20 text-xs text-zinc-500 flex transition-all duration-300 ease-in-out shrink-0',
           isCollapsed ? 'p-4 justify-center items-center h-14' : 'p-4 items-center'

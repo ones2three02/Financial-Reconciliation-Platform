@@ -4,7 +4,7 @@
     <div class="w-full md:w-80 shrink-0 flex flex-col bg-white border border-slate-200 rounded-xl p-5 shadow-sm justify-between overflow-y-auto">
       <div class="space-y-6">
         <!-- Title & description -->
-        <div>
+        <div id="reconciliation-overview-header">
           <div class="flex items-center gap-2 font-bold text-slate-800">
             <ClipboardCheck class="h-5 w-5 text-blue-600" />
             <span class="text-base">{{ globalDate }} 对账概览</span>
