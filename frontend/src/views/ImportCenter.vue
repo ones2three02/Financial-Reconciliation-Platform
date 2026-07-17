@@ -1,5 +1,24 @@
 <template>
   <div class="space-y-6 fade-in">
+    <!-- 批次未创建小白强引导 Banner -->
+    <div 
+      v-if="!loadingBatch && !activeBatch" 
+      class="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-xl text-xs font-bold flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm"
+    >
+      <div class="flex items-center gap-2">
+        <span class="text-base">💡</span>
+        <span>当前对账日期 <strong class="text-slate-850">{{ globalDate }}</strong> 尚未开辟对账批次。所有账单导入都必须归属于一个具体批次。</span>
+      </div>
+      <Button 
+        size="sm" 
+        class="bg-amber-600 hover:bg-amber-700 text-white shrink-0 shadow-md shadow-amber-500/10 font-bold" 
+        :disabled="loadingBatch || !canOperate"
+        @click="ensureBatch"
+      >
+        一键创建对账批次
+      </Button>
+    </div>
+
     <Card id="import-upload-card" class="border-slate-200/80 shadow-sm">
       <CardHeader class="flex flex-row items-start justify-between gap-4">
         <div>
@@ -124,8 +143,15 @@
             </div>
           </div>
 
-          <div v-if="message" class="rounded-xl border px-4 py-3 text-xs font-semibold" :class="message.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">
-            {{ message.text }}
+          <div v-if="message" class="rounded-xl border px-4 py-3 text-xs font-semibold flex items-center justify-between gap-4" :class="message.type === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'">
+            <span>{{ message.text }}</span>
+            <router-link 
+              v-if="message.type === 'success'" 
+              to="/reconciliation" 
+              class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-sm transition-colors duration-150 shrink-0"
+            >
+              去对账明细
+            </router-link>
           </div>
 
           <div class="flex justify-end gap-3">
