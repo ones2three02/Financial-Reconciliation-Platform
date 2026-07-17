@@ -4,7 +4,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from backend.scripts.verify_updater_manifest import (
+# 兼容直接以脚本方式运行（python backend/scripts/create_updater_manifest.py）
+# 以及作为包导入（from backend.scripts.create_updater_manifest import ...）两种场景。
+# 将脚本所在目录加入 sys.path，确保同包内 verify_updater_manifest 可被找到。
+_SCRIPTS_DIR = Path(__file__).parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from verify_updater_manifest import (  # noqa: E402
     REPOSITORY_PATH,
     _release_version,
     validate_windows_updater_manifest,
