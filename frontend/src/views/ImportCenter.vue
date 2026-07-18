@@ -332,6 +332,26 @@
           </CardFooter>
         </Card>
       </div>
+
+      <!-- 密码输入弹窗 (替代 Web 端的 window.prompt 以便在 Tauri 桌面端顺畅弹出) -->
+      <div v-if="passwordPrompt && passwordPrompt.visible" class="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <h3 class="text-sm font-bold text-slate-800 mb-2">输入文件密码</h3>
+          <p class="text-xs text-slate-500 mb-4 whitespace-pre-wrap leading-relaxed">{{ passwordPrompt.message }}</p>
+          <input 
+            v-model="passwordPrompt.value" 
+            type="password" 
+            placeholder="请输入密码" 
+            class="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs focus:border-blue-500 focus:outline-none mb-4"
+            @keyup.enter="passwordPrompt.resolve(passwordPrompt.value)"
+            autofocus
+          />
+          <div class="flex justify-end gap-2 text-xs">
+            <Button variant="outline" size="sm" class="h-8 px-4" @click="passwordPrompt.resolve(null)">取消</Button>
+            <Button size="sm" class="h-8 px-4 bg-blue-600 text-white hover:bg-blue-700" @click="passwordPrompt.resolve(passwordPrompt.value)">确定</Button>
+          </div>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -379,6 +399,28 @@ const queues = ref<ImportQueueMap<File>>({});
 const loadingBatch = ref(false);
 let loadExistingBatchRequestId = 0;
 const processing = ref(false);
+
+const passwordPrompt = ref<{
+  visible: boolean;
+  message: string;
+  value: string;
+  resolve: (value: string | null) => void;
+} | null>(null);
+
+const showPasswordPrompt = (message: string): Promise<string | null> => {
+  return new Promise((resolve) => {
+    passwordPrompt.value = {
+      visible: true,
+      message,
+      value: '',
+      resolve: (val) => {
+        passwordPrompt.value = null;
+        resolve(val);
+      }
+    };
+  });
+};
+
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null);
 const showHistory = ref(false);
 const actionFile = ref<ImportFile | null>(null);
@@ -516,11 +558,11 @@ const processQueue = async () => {
               } catch (err: any) {
                 const detail = err.response?.data?.detail;
                 if (detail === 'PASSWORD_REQUIRED') {
-                  const pwd = prompt(`文件 “${item.file.name}” 已加密，请输入密码以解密：`);
+                  const pwd = await showPasswordPrompt(`文件 “${item.file.name}” 已加密，请输入密码以解密：`);
                   if (pwd === null) throw err; // 用户取消
                   currentPassword = pwd;
                 } else if (detail === 'INVALID_PASSWORD') {
-                  const pwd = prompt(`密码错误！文件 “${item.file.name}” 已加密，请重新输入密码：`);
+                  const pwd = await showPasswordPrompt(`密码错误！文件 “${item.file.name}” 已加密，请重新输入密码：`);
                   if (pwd === null) throw err; // 用户取消
                   currentPassword = pwd;
                 } else {
@@ -645,11 +687,11 @@ const submitFileAction = async () => {
         } catch (err: any) {
           const detail = err.response?.data?.detail;
           if (detail === 'PASSWORD_REQUIRED') {
-            const pwd = prompt(`文件已加密，请输入密码以解密：`);
+            const pwd = await showPasswordPrompt(`文件已加密，请输入密码以解密：`);
             if (pwd === null) throw err; // 用户取消
             currentPassword = pwd;
           } else if (detail === 'INVALID_PASSWORD') {
-            const pwd = prompt(`密码错误！文件已加密，请重新输入密码：`);
+            const pwd = await showPasswordPrompt(`密码错误！文件已加密，请重新输入密码：`);
             if (pwd === null) throw err; // 用户取消
             currentPassword = pwd;
           } else {

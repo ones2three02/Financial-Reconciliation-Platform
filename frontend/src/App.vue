@@ -323,7 +323,22 @@ const currentRole = computed(() => {
 const isAdmin = computed(() => getSession().role === 'admin');
 
 const handleLogout = async () => {
-  const confirmed = confirm('确定要安全退出当前登录账号吗？');
+  let confirmed = false;
+  const hasTauriDialog = typeof window !== 'undefined' && (window as any).__TAURI__?.dialog;
+  if (hasTauriDialog) {
+    try {
+      confirmed = await (window as any).__TAURI__.dialog.ask('确定要安全退出当前登录账号吗？', {
+        title: '安全退出',
+        type: 'warning',
+      });
+    } catch (e) {
+      console.error('Tauri dialog failed:', e);
+      confirmed = confirm('确定要安全退出当前登录账号吗？');
+    }
+  } else {
+    confirmed = confirm('确定要安全退出当前登录账号吗？');
+  }
+
   if (!confirmed) return;
   try {
     await api.logout();
