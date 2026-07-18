@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "ReconFlow",
-    "version": "1.0.22"
+    "version": "1.0.23"
   },
   "tauri": {
     "systemTray": {
@@ -52,7 +52,12 @@
       ],
       "resources": [
         "resources/frp-backend-dir/**/*"
-      ]
+      ],
+      "windows": {
+        "nsis": {
+          "installerHooks": "hooks.nsh"
+        }
+      }
     },
     "security": {
       "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' http://127.0.0.1:*; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
