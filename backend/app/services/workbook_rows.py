@@ -18,4 +18,6 @@ def is_summary_row(
     store_is_blank = store_value is None or (
         isinstance(store_value, str) and not store_value.strip()
     )
+    if raw_date.startswith(("注：", "注:")) and store_is_blank:
+        return True
     return raw_date in profile.summary_date_markers and store_is_blank
