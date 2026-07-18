@@ -60,12 +60,12 @@ def prepare_desktop_database(database_url: str) -> Path | None:
     database_path = _sqlite_path(database_url)
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 极速校验缓存路径，规避日常启动时导入 Alembic 和创建 SQLAlchemy 引擎的大量耗时
-    version_cache_file = database_path.parent / "db_version.txt"
-    if database_path.exists() and version_cache_file.exists():
+    # 极速校验缓存，对比只读程序目录下的最新 app_version_head.txt 与 SQLite 版本，防止新版本发布不触发 Alembic 自动迁移
+    app_head_file = Path(__file__).resolve().parent / "app_version_head.txt"
+    if database_path.exists() and app_head_file.exists():
         try:
-            cached_head = version_cache_file.read_text(encoding="utf-8").strip()
-            if cached_head:
+            expected_head = app_head_file.read_text(encoding="utf-8").strip()
+            if expected_head:
                 import sqlite3
                 conn = sqlite3.connect(database_path)
                 cursor = conn.cursor()
@@ -75,9 +75,9 @@ def prepare_desktop_database(database_url: str) -> Path | None:
                     cursor.execute("SELECT version_num FROM alembic_version")
                     row = cursor.fetchone()
                     current_rev = row[0] if row else None
-                    if current_rev == cached_head:
+                    if current_rev == expected_head:
                         conn.close()
-                        return None  # 版本一致，直接闪电就绪！
+                        return None  # 版本匹配，直接秒开就绪！
                 conn.close()
         except Exception:
             pass  # 任何异常都降级走慢速的 Alembic 真实检测
@@ -87,12 +87,6 @@ def prepare_desktop_database(database_url: str) -> Path | None:
     current_revision = _current_revision(database_url) if database_path.exists() else None
 
     if current_revision == head_revision:
-        # 更新或写入本地缓存文件
-        if head_revision:
-            try:
-                version_cache_file.write_text(head_revision, encoding="utf-8")
-            except Exception:
-                pass
         return None
 
     backup_path: Path | None = None
@@ -123,19 +117,7 @@ def prepare_desktop_database(database_url: str) -> Path | None:
                 raise RuntimeError("无法确定桌面数据库的数据初始化迁移起点")
             command.stamp(config, head_script.down_revision)
             command.upgrade(config, "head")
-            # 升级成功，更新缓存文件
-            if head_revision:
-                try:
-                    version_cache_file.write_text(head_revision, encoding="utf-8")
-                except Exception:
-                    pass
             return backup_path
 
     command.upgrade(config, "head")
-    # 升级成功，更新缓存文件
-    if head_revision:
-        try:
-            version_cache_file.write_text(head_revision, encoding="utf-8")
-        except Exception:
-            pass
     return backup_path

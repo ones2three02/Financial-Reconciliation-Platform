@@ -28,8 +28,8 @@ pyinstaller --onedir --noconsole --clean -y ^
   --collect-all uvicorn ^
   --collect-all alembic ^
   --collect-all backend ^
-  --add-data "backend/alembic.ini:backend" ^
-  --add-data "backend/migrations:backend/migrations" ^
+  --add-data "backend/alembic.ini;backend" ^
+  --add-data "backend/migrations;backend/migrations" ^
   backend\run.py
 if errorlevel 1 exit /b 1
 

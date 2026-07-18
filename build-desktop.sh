@@ -23,6 +23,9 @@ echo "Host 平台三元组: $TARGET_TRIPLE"
 # 创建 binaries 侧边程序存放目录
 mkdir -p frontend/src-tauri/binaries
 
+echo "=== 2.5. 生成当前数据库 migrations 最新 Head 缓存 ==="
+python -c "from alembic.config import Config; from alembic.script import ScriptDirectory; print(ScriptDirectory.from_config(Config('backend/alembic.ini')).get_current_head())" > backend/app/core/app_version_head.txt
+
 echo "=== 3. 使用 PyInstaller 编译 Python FastAPI 离线二进制服务 ==="
 # 使用 --onedir 模式进行编译，消除 --onefile 模式在冷启动时解压到临时目录造成的长达几十秒的严重卡顿和系统安全扫描延迟
 pyinstaller --onedir --clean -y \

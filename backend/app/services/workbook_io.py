@@ -7,6 +7,7 @@ from openpyxl import load_workbook
 
 _AUTOFILTER_BLOCK = re.compile(rb"<autoFilter\b.*?</autoFilter>", re.DOTALL)
 _AUTOFILTER_EMPTY = re.compile(rb"<autoFilter\b[^>]*/>")
+_DIMENSION_BLOCK = re.compile(rb"<dimension\b[^>]*>")
 MAX_ARCHIVE_ENTRIES = 10_000
 MAX_UNCOMPRESSED_SIZE = 200 * 1024 * 1024
 MAX_ENTRY_COMPRESSION_RATIO = 100
@@ -46,6 +47,7 @@ def _without_worksheet_filters(content: bytes) -> bytes:
             if info.filename.startswith("xl/worksheets/") and info.filename.endswith(".xml"):
                 payload = _AUTOFILTER_BLOCK.sub(b"", payload)
                 payload = _AUTOFILTER_EMPTY.sub(b"", payload)
+                payload = _DIMENSION_BLOCK.sub(b"", payload)
             output_zip.writestr(info, payload)
     return output.getvalue()
 

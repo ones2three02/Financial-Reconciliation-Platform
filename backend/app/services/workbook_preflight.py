@@ -79,7 +79,9 @@ def preflight_workbook(
             )
 
         sheet = workbook[sheet_name]
-        if sheet.max_row > MAX_ROWS or sheet.max_column > MAX_COLUMNS:
+        max_row = sheet.max_row
+        max_col = sheet.max_column
+        if (max_row is not None and max_row > MAX_ROWS) or (max_col is not None and max_col > MAX_COLUMNS):
             raise WorkbookLimitError(
                 f"工作表规模超过限制: 最大 {MAX_ROWS} 行、{MAX_COLUMNS} 列"
             )
