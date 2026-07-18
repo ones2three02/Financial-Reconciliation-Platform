@@ -268,6 +268,38 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 美观的二次确认安全退出弹窗 (替代丑陋的系统原生/浏览器弹窗) -->
+    <Teleport to="body">
+      <div v-if="showLogoutConfirm" class="fixed inset-0 z-[10000] flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-bold text-slate-800">安全退出</h3>
+          </div>
+          <p class="text-xs text-slate-500 mb-6 leading-relaxed">确定要安全退出并注销当前登录的对账平台账号吗？</p>
+          <div class="flex justify-end gap-2 text-xs">
+            <button 
+              class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors"
+              @click="cancelLogout"
+            >
+              取消
+            </button>
+            <button 
+              class="px-4 py-2 rounded-lg bg-rose-600 text-white font-bold hover:bg-rose-700 shadow-sm shadow-rose-500/10 transition-colors"
+              @click="confirmLogout"
+            >
+              确定退出
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <DownloadTracker />
   </div>
   </template>
@@ -322,24 +354,18 @@ const currentRole = computed(() => {
 });
 const isAdmin = computed(() => getSession().role === 'admin');
 
-const handleLogout = async () => {
-  let confirmed = false;
-  const hasTauriDialog = typeof window !== 'undefined' && (window as any).__TAURI__?.dialog;
-  if (hasTauriDialog) {
-    try {
-      confirmed = await (window as any).__TAURI__.dialog.ask('确定要安全退出当前登录账号吗？', {
-        title: '安全退出',
-        type: 'warning',
-      });
-    } catch (e) {
-      console.error('Tauri dialog failed:', e);
-      confirmed = confirm('确定要安全退出当前登录账号吗？');
-    }
-  } else {
-    confirmed = confirm('确定要安全退出当前登录账号吗？');
-  }
+const showLogoutConfirm = ref(false);
 
-  if (!confirmed) return;
+const handleLogout = () => {
+  showLogoutConfirm.value = true;
+};
+
+const cancelLogout = () => {
+  showLogoutConfirm.value = false;
+};
+
+const confirmLogout = async () => {
+  showLogoutConfirm.value = false;
   try {
     await api.logout();
   } finally {
