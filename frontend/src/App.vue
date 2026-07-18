@@ -323,6 +323,8 @@ const currentRole = computed(() => {
 const isAdmin = computed(() => getSession().role === 'admin');
 
 const handleLogout = async () => {
+  const confirmed = confirm('确定要安全退出当前登录账号吗？');
+  if (!confirmed) return;
   try {
     await api.logout();
   } finally {
