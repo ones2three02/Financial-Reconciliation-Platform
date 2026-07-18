@@ -5,7 +5,7 @@
         <path fill="currentColor" fill-rule="evenodd" d="M48 38 H145 L207 91 V108 C207 145 180 166 138 166 H94 V218 H48 Z M94 78 V126 H136 C155 126 165 117 165 102 C165 87 155 78 136 78 Z M112 148 H160 L211 218 H158 L101 163 Z"/>
       </svg>
     </div>
-    <h3 class="text-sm font-bold tracking-wider text-zinc-100">财务自动对账平台</h3>
+    <h3 class="text-sm font-bold tracking-wider text-zinc-100">ReconFlow</h3>
     <p class="text-[10px] text-zinc-500 mt-2 font-medium tracking-wide animate-pulse">正在启动安全沙箱与本地计算服务，请稍候...</p>
   </div>
   <template v-else>
@@ -344,7 +344,7 @@ const pageTitle = computed(() => {
     case 'StoreSettings':
       return '门店标准化中心';
     default:
-      return '财务自动对账平台';
+      return 'ReconFlow';
   }
 });
 
