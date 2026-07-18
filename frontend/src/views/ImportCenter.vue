@@ -491,21 +491,43 @@ const processQueue = async () => {
         for (const item of items) {
           prepareQueueItemRetry(item);
           try {
-            item.status = 'preflighting';
-            item.preflight = await api.preflightWorkbook(
-              item.file,
-              item.context.profileCode as ProfileCode,
-              item.context.businessDate,
-              item.context.storeId,
-            );
-            item.status = 'importing';
-            const outcome = await api.importWorkbook(
-              item.file,
-              batch.id,
-              item.context.profileCode as ProfileCode,
-              item.context.storeId,
-            );
-            item.status = outcome.status === 'duplicate' ? 'duplicate' : outcome.status === 'attention_required' ? 'attention' : 'imported';
+            let success = false;
+            let currentPassword = '';
+            while (!success) {
+              try {
+                item.status = 'preflighting';
+                item.preflight = await api.preflightWorkbook(
+                  item.file,
+                  item.context.profileCode as ProfileCode,
+                  item.context.businessDate,
+                  item.context.storeId,
+                  currentPassword,
+                );
+                item.status = 'importing';
+                const outcome = await api.importWorkbook(
+                  item.file,
+                  batch.id,
+                  item.context.profileCode as ProfileCode,
+                  item.context.storeId,
+                  currentPassword,
+                );
+                item.status = outcome.status === 'duplicate' ? 'duplicate' : outcome.status === 'attention_required' ? 'attention' : 'imported';
+                success = true;
+              } catch (err: any) {
+                const detail = err.response?.data?.detail;
+                if (detail === 'PASSWORD_REQUIRED') {
+                  const pwd = prompt(`文件 “${item.file.name}” 已加密，请输入密码以解密：`);
+                  if (pwd === null) throw err; // 用户取消
+                  currentPassword = pwd;
+                } else if (detail === 'INVALID_PASSWORD') {
+                  const pwd = prompt(`密码错误！文件 “${item.file.name}” 已加密，请重新输入密码：`);
+                  if (pwd === null) throw err; // 用户取消
+                  currentPassword = pwd;
+                } else {
+                  throw err;
+                }
+              }
+            }
           } catch (error) {
             item.status = 'failed';
             item.error = errorDetail(error);
@@ -609,7 +631,32 @@ const submitFileAction = async () => {
     const filename = actionFile.value.filename;
     if (fileAction.value === 'replace') {
       if (!replacementFile.value) return;
-      await api.replaceImportFile(actionFile.value.id, replacementFile.value, actionReason.value.trim());
+      let success = false;
+      let currentPassword = '';
+      while (!success) {
+        try {
+          await api.replaceImportFile(
+            actionFile.value.id,
+            replacementFile.value,
+            actionReason.value.trim(),
+            currentPassword,
+          );
+          success = true;
+        } catch (err: any) {
+          const detail = err.response?.data?.detail;
+          if (detail === 'PASSWORD_REQUIRED') {
+            const pwd = prompt(`文件已加密，请输入密码以解密：`);
+            if (pwd === null) throw err; // 用户取消
+            currentPassword = pwd;
+          } else if (detail === 'INVALID_PASSWORD') {
+            const pwd = prompt(`密码错误！文件已加密，请重新输入密码：`);
+            if (pwd === null) throw err; // 用户取消
+            currentPassword = pwd;
+          } else {
+            throw err;
+          }
+        }
+      }
       message.value = { type: 'success', text: `已用新文件替换“${filename}”，覆盖状态和对账结果已自动重算。` };
     } else if (fileAction.value === 'invalidate') {
       await api.invalidateImportFile(actionFile.value.id, actionReason.value.trim());

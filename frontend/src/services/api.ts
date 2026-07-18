@@ -309,20 +309,22 @@ export const api = {
       risk_acknowledged: riskAcknowledged,
     }).then((res) => res.data),
 
-  preflightWorkbook: (file: File, profileCode: ProfileCode, businessDate: string, storeId?: number | null) =>
+  preflightWorkbook: (file: File, profileCode: ProfileCode, businessDate: string, storeId?: number | null, password?: string | null) =>
     client.post<PreflightResult>('/files/preflight', workbookForm(file, {
       profile_code: profileCode,
       business_date: businessDate,
       store_id: storeId,
+      password: password,
     }), { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data),
-  importWorkbook: (file: File, batchId: number, profileCode: ProfileCode, storeId?: number | null) =>
+  importWorkbook: (file: File, batchId: number, profileCode: ProfileCode, storeId?: number | null, password?: string | null) =>
     client.post<ImportOutcome>('/files/import', workbookForm(file, {
       batch_id: batchId,
       profile_code: profileCode,
       store_id: storeId,
+      password: password,
     }), { headers: { 'Content-Type': 'multipart/form-data' } }).then((res) => res.data),
-  replaceImportFile: (fileId: number, file: File, reason: string) =>
-    client.post<ImportOutcome>(`/files/${fileId}/replace`, workbookForm(file, { reason }), {
+  replaceImportFile: (fileId: number, file: File, reason: string, password?: string | null) =>
+    client.post<ImportOutcome>(`/files/${fileId}/replace`, workbookForm(file, { reason, password }), {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((res) => res.data),
   invalidateImportFile: (fileId: number, reason: string) =>

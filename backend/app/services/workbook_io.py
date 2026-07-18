@@ -17,6 +17,26 @@ class WorkbookArchiveLimitError(ValueError):
     """工作簿压缩包超过安全资源边界。"""
 
 
+class DecryptionError(ValueError):
+    """解密相关的错误。"""
+    pass
+
+
+class PasswordRequiredError(DecryptionError):
+    """需要输入密码。"""
+    pass
+
+
+class InvalidPasswordError(DecryptionError):
+    """密码错误。"""
+    pass
+
+
+def is_excel_encrypted(content: bytes) -> bool:
+    """检查是否包含 OLE 复合文档头，加密的 .xlsx 通常存放在 OLE 容器中。"""
+    return content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+
+
 def _validate_archive(input_zip: ZipFile) -> None:
     entries = input_zip.infolist()
     if len(entries) > MAX_ARCHIVE_ENTRIES:
@@ -52,8 +72,24 @@ def _without_worksheet_filters(content: bytes) -> bytes:
     return output.getvalue()
 
 
-def load_data_workbook(content: bytes):
-    """以只读、公式结果模式打开工作簿，筛选器不影响任何业务数据。"""
+def load_data_workbook(content: bytes, password: str | None = None):
+    """以只读、公式结果模式打开工作簿，支持对加密文件进行动态解密。"""
+    if is_excel_encrypted(content):
+        if not password:
+            raise PasswordRequiredError("PASSWORD_REQUIRED")
+        try:
+            import msoffcrypto
+        except ImportError:
+            raise DecryptionError("系统缺失加密文件解密模块，请安装 msoffcrypto-tool")
+        try:
+            decrypted = BytesIO()
+            office_file = msoffcrypto.OfficeFile(BytesIO(content))
+            office_file.load_key(password=password)
+            office_file.decrypt(decrypted)
+            content = decrypted.getvalue()
+        except Exception as exc:
+            raise InvalidPasswordError("INVALID_PASSWORD") from exc
+
     try:
         sanitized = _without_worksheet_filters(content)
     except BadZipFile:

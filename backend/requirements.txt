@@ -9,3 +9,5 @@ pydantic-settings==2.2.1
 python-multipart==0.0.9
 pytest==8.1.1
 cryptography==42.0.5
+msoffcrypto-tool==6.0.0
+

@@ -213,6 +213,7 @@ def replace_import_file(
     content: bytes,
     reason: str,
     actor: str,
+    password: str | None = None,
 ) -> ImportOutcome:
     clean_reason = _clean_reason(reason, "替换原因不能为空")
     clean_actor = _clean_required(actor, "替换操作人不能为空")
@@ -232,6 +233,7 @@ def replace_import_file(
                     profile_code=old_file.profile_code or "",
                     store_id=old_file.store_id,
                     actor=clean_actor,
+                    password=password,
                 ),
                 supersedes_file_id=old_file.id,
                 duplicate_exclude_file_id=old_file.id,

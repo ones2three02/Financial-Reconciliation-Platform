@@ -14,6 +14,12 @@ from backend.app.services.workbook_preflight import (
 from backend.app.api.upload_utils import read_upload_limited
 
 
+from backend.app.services.workbook_io import (
+    PasswordRequiredError,
+    InvalidPasswordError,
+)
+
+
 router = APIRouter()
 
 
@@ -23,6 +29,7 @@ async def preflight_file(
     profile_code: str = Form(...),
     business_date: date = Form(...),
     store_id: int | None = Form(None),
+    password: str | None = Form(None),
     current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
@@ -38,8 +45,13 @@ async def preflight_file(
             business_date=business_date,
             store_id=store_id,
             db=db,
+            password=password,
         )
     except PreflightValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PasswordRequiredError as exc:
+        raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED") from exc
+    except InvalidPasswordError as exc:
+        raise HTTPException(status_code=400, detail="INVALID_PASSWORD") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

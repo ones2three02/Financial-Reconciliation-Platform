@@ -28,6 +28,12 @@ from backend.app.services.import_version_service import (
 )
 
 
+from backend.app.services.workbook_io import (
+    PasswordRequiredError,
+    InvalidPasswordError,
+)
+
+
 router = APIRouter()
 LEGACY_DISABLED_MESSAGE = (
     "旧文件操作已停用，请使用批次化的 /files/preflight 和 /files/import 接口"
@@ -49,6 +55,7 @@ async def import_file(
     batch_id: int = Form(...),
     profile_code: str = Form(...),
     store_id: int | None = Form(None),
+    password: str | None = Form(None),
     current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
@@ -66,12 +73,17 @@ async def import_file(
                 profile_code=profile_code,
                 store_id=store_id,
                 actor=current_user.username,
+                password=password,
             ),
         )
     except BatchClosedError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except PreflightValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PasswordRequiredError as exc:
+        raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED") from exc
+    except InvalidPasswordError as exc:
+        raise HTTPException(status_code=400, detail="INVALID_PASSWORD") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -86,6 +98,7 @@ async def replace_file(
     file_id: int,
     file: UploadFile = File(...),
     reason: str = Form(..., min_length=1, max_length=500),
+    password: str | None = Form(None),
     current_user: AppUser = Depends(require_finance),
     db: Session = Depends(get_db),
 ):
@@ -101,6 +114,7 @@ async def replace_file(
             content=content,
             reason=reason,
             actor=current_user.username,
+            password=password,
         )
     except ImportVersionNotFoundError as exc:
         db.rollback()
@@ -108,6 +122,12 @@ async def replace_file(
     except ImportVersionConflictError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except PasswordRequiredError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED") from exc
+    except InvalidPasswordError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="INVALID_PASSWORD") from exc
     except (PreflightValidationError, ValueError) as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc)) from exc

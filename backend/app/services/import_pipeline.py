@@ -27,6 +27,7 @@ class ImportWorkbookCommand:
     profile_code: str
     store_id: int | None
     actor: str
+    password: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,8 +70,9 @@ def _persist_raw_rows(
     import_file_id: int,
     content: bytes,
     profile: ProfileDefinition,
+    password: str | None = None,
 ) -> int:
-    workbook = load_data_workbook(content)
+    workbook = load_data_workbook(content, password=password)
     try:
         sheet_name = next(name for name in profile.sheet_names if name in workbook.sheetnames)
         sheet = workbook[sheet_name]
@@ -92,6 +94,11 @@ def _persist_raw_rows(
         )
         bindings = resolve_field_bindings(profile, clean_headers, mappings)
         headers = _unique_headers(header_values)
+        
+        # 找到交易日期在 headers 中的索引，过滤完全空的行或者没有日期的数据行
+        date_column = bindings[profile.date_field]
+        date_index = headers.index(date_column)
+        
         row_count = 0
         for excel_row_number, values in enumerate(
             sheet.iter_rows(min_row=profile.header_row + 1, values_only=True),
@@ -99,6 +106,13 @@ def _persist_raw_rows(
         ):
             if not any(value not in (None, "") for value in values):
                 continue
+            
+            # 过滤掉交易日期为空的无效行
+            if date_index < len(values):
+                raw_date_val = values[date_index]
+                if raw_date_val is None or str(raw_date_val).strip() == "":
+                    continue
+
             content_row = {
                 header: _json_safe(values[index] if index < len(values) else None)
                 for index, header in enumerate(headers)
@@ -200,6 +214,7 @@ def import_workbook_in_transaction(
                 import_file_id=import_file.id,
                 content=command.content,
                 profile=profile,
+                password=command.password,
             )
             now = datetime.now(UTC)
             extraction_run = ExtractionRun(

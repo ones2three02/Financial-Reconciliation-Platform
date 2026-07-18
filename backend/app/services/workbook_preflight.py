@@ -48,6 +48,7 @@ def preflight_workbook(
     business_date: date,
     store_id: int | None,
     db: Session | None = None,
+    password: str | None = None,
 ) -> PreflightResult:
     profile = get_profile(profile_code)
     if not content:
@@ -58,7 +59,7 @@ def preflight_workbook(
         raise PreflightValidationError("该模板必须指定归属标准门店")
 
     try:
-        workbook = load_data_workbook(content)
+        workbook = load_data_workbook(content, password=password)
     except WorkbookArchiveLimitError as exc:
         raise WorkbookLimitError(str(exc)) from exc
     except (BadZipFile, InvalidFileException, OSError, ValueError) as exc:
@@ -127,6 +128,11 @@ def preflight_workbook(
         ):
             if not any(value not in (None, "") for value in row):
                 continue
+            # 过滤交易日期为空的无效行
+            if date_index < len(row):
+                raw_date_val = row[date_index]
+                if raw_date_val is None or str(raw_date_val).strip() == "":
+                    continue
             content_row = {
                 header: row[index] if index < len(row) else None
                 for index, header in enumerate(headers)
