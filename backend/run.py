@@ -97,6 +97,48 @@ def prepare_desktop_backend(database_url: str) -> None:
             db.commit()
 
 
+import threading
+
+
+def start_parent_watchdog() -> None:
+    """守护线程，检查父进程是否存在，不存在时强制自毁以释放文件锁定。"""
+    parent_pid = os.getppid()
+    if parent_pid <= 1:
+        return
+
+    def watchdog() -> None:
+        import time
+        is_windows = platform.system() == "Windows"
+        while True:
+            time.sleep(1)
+            alive = False
+            if is_windows:
+                try:
+                    import ctypes
+                    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+                    STILL_ACTIVE = 259
+                    handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, parent_pid)
+                    if handle:
+                        exit_code = ctypes.c_ulong()
+                        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                        ctypes.windll.kernel32.CloseHandle(handle)
+                        alive = (exit_code.value == STILL_ACTIVE)
+                except Exception:
+                    alive = True
+            else:
+                try:
+                    os.kill(parent_pid, 0)
+                    alive = True
+                except OSError:
+                    alive = False
+
+            if not alive:
+                os._exit(0)
+
+    thread = threading.Thread(target=watchdog, daemon=True)
+    thread.start()
+
+
 def main() -> None:
     desktop = os.environ.get("FRP_DESKTOP", "").casefold() == "true"
     frozen = getattr(sys, "frozen", False)
@@ -106,6 +148,7 @@ def main() -> None:
 
     desktop_logger: logging.Logger | None = None
     if desktop:
+        start_parent_watchdog()
         base_dir = desktop_data_dir()
         desktop_logger = configure_desktop_logging(base_dir)
         try:
