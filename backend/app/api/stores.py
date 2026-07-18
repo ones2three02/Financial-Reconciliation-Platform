@@ -100,6 +100,21 @@ def update_store_alias(
     )
 
 
+@router.delete("/aliases/{alias_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_store_alias(
+    alias_id: int,
+    current_user: AppUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    success = crud_store.delete_store_alias(db, alias_id=alias_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Store alias mapping not found",
+        )
+    return
+
+
 # --- Standard Stores ---
 
 @router.get("/", response_model=List[Store])

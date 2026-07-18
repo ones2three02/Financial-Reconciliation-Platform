@@ -350,6 +350,8 @@ export const api = {
     client.post<StoreAlias>(`/stores/aliases/${id}/confirm`, { store_id: storeId, reason }).then((res) => res.data),
   updateStoreAlias: (id: number, data: { store_id: number; reason?: string }) =>
     client.put<StoreAlias>(`/stores/aliases/${id}`, data).then((res) => res.data),
+  deleteStoreAlias: (id: number) =>
+    client.delete(`/stores/aliases/${id}`).then((res) => res.data),
 
   getFieldMappings: () => client.get<FieldMapping[]>('/mappings/').then((res) => res.data),
   getFieldMappingsBySource: (source: string) =>

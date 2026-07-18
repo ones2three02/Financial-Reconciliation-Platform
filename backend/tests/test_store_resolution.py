@@ -179,3 +179,24 @@ def test_alias_rebind_requires_reason_and_audits_old_new_store(db_session):
     assert audit.event_data["previous_store_id"] == first_store.id
     assert audit.event_data["new_store_id"] == second_store.id
     assert audit.event_data["reason"] == "原门店选择错误"
+
+
+def test_delete_store_alias(db_session):
+    alias = StoreAlias(
+        source_code="meituan",
+        alias_name="测试待删除别名",
+        status="pending",
+    )
+    db_session.add(alias)
+    db_session.commit()
+
+    from backend.app.crud.store import delete_store_alias
+    
+    # 验证删除不存在的别名
+    assert delete_store_alias(db_session, 999999) is False
+
+    # 验证删除已存在的别名
+    assert delete_store_alias(db_session, alias.id) is True
+    
+    # 验证数据库中已经不存在
+    assert db_session.get(StoreAlias, alias.id) is None

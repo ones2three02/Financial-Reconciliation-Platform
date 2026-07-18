@@ -252,20 +252,32 @@
                     </span>
                   </td>
                   <td class="p-4 text-center select-none">
-                    <Button 
-                      v-if="a.status === 'pending'"
-                      @click="a.store_id && openAliasBinding(a, a.store_id)"
-                      size="xs"
-                      :disabled="!a.store_id"
-                      class="h-7 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium inline-flex items-center gap-1"
-                    >
-                      <CheckCircle2 class="w-3.5 h-3.5" />
-                      <span>确认绑定</span>
-                    </Button>
-                    <span v-else class="text-xs text-slate-400 font-semibold inline-flex items-center gap-1">
-                      <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
-                      <span>已同步</span>
-                    </span>
+                    <div class="flex items-center justify-center gap-2">
+                      <Button 
+                        v-if="a.status === 'pending'"
+                        @click="a.store_id && openAliasBinding(a, a.store_id)"
+                        size="xs"
+                        :disabled="!a.store_id"
+                        class="h-7 px-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium inline-flex items-center gap-1"
+                      >
+                        <CheckCircle2 class="w-3.5 h-3.5" />
+                        <span>确认绑定</span>
+                      </Button>
+                      <span v-else class="text-xs text-slate-400 font-semibold inline-flex items-center gap-1">
+                        <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500" />
+                        <span>已同步</span>
+                      </span>
+
+                      <Button
+                        @click="triggerDeleteAlias(a)"
+                        size="xs"
+                        variant="outline"
+                        class="h-7 px-2 border-slate-200 text-slate-500 hover:text-rose-600 hover:border-rose-100 hover:bg-rose-50"
+                        title="删除别名绑定"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -451,6 +463,26 @@
           <CardFooter class="justify-end gap-3"><Button variant="outline" @click="closeAliasBinding">取消</Button><Button :disabled="isAliasRebind && !aliasBindingReason.trim()" @click="submitAliasBinding">确认绑定</Button></CardFooter>
         </Card>
       </div>
+
+      <!-- 别名删除确认弹窗 (高颜值自定义弹窗) -->
+      <div v-if="deleteConfirmAlias" class="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="cancelDeleteAlias">
+        <div class="w-full max-w-sm rounded-2xl border border-slate-100 bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 shrink-0">
+              <Trash2 class="w-5 h-5" />
+            </div>
+            <h3 class="text-sm font-bold text-slate-800">删除别名</h3>
+          </div>
+          <p class="text-xs text-slate-500 mb-6 leading-relaxed">
+            确定要永久删除原始别名记录 <strong class="text-slate-800">“{{ deleteConfirmAlias.alias_name }}”</strong> 吗？
+            <br/><span class="text-rose-600 font-semibold">删除后该记录将不复存在。</span>如果它是数据提取中的无效名称（例如注释或错位行），应当予以清除。下次导入新文件时，若重新识别到该列，会再次提示。
+          </p>
+          <div class="flex justify-end gap-2 text-xs">
+            <Button variant="outline" size="sm" class="h-8 px-4" @click="cancelDeleteAlias">取消</Button>
+            <Button size="sm" class="h-8 px-4 bg-rose-600 text-white hover:bg-rose-700 shadow-sm shadow-rose-500/10" @click="confirmDeleteAlias">确认删除</Button>
+          </div>
+        </div>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -463,7 +495,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Select } from '../components/ui/select';
-import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save, Copy, Check } from 'lucide-vue-next';
+import { Store as StoreIcon, Link, Plus, CheckCircle2, FolderOpen, Save, Copy, Check, Trash2 } from 'lucide-vue-next';
 
 // Tab state
 const activeTab = ref('stores'); // 'stores' or 'aliases'
@@ -735,6 +767,27 @@ const submitAliasBinding = async () => {
     await fetchAliases();
   } catch (error: any) {
     alert(error.response?.data?.detail || '绑定别名失败！');
+  }
+};
+
+const deleteConfirmAlias = ref<StoreAlias | null>(null);
+
+const triggerDeleteAlias = (alias: StoreAlias) => {
+  deleteConfirmAlias.value = alias;
+};
+
+const cancelDeleteAlias = () => {
+  deleteConfirmAlias.value = null;
+};
+
+const confirmDeleteAlias = async () => {
+  if (!deleteConfirmAlias.value) return;
+  try {
+    await api.deleteStoreAlias(deleteConfirmAlias.value.id);
+    deleteConfirmAlias.value = null;
+    await fetchAliases();
+  } catch (error: any) {
+    alert(error.response?.data?.detail || '删除别名失败！');
   }
 };
 

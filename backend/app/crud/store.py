@@ -101,3 +101,12 @@ def create_store_alias(db: Session, alias: StoreAliasCreate) -> StoreAlias:
     db.commit()
     db.refresh(db_alias)
     return db_alias
+
+
+def delete_store_alias(db: Session, alias_id: int) -> bool:
+    db_alias = db.query(StoreAlias).filter(StoreAlias.id == alias_id).first()
+    if db_alias:
+        db.delete(db_alias)
+        db.commit()
+        return True
+    return False
