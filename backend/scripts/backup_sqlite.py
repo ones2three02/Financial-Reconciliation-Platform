@@ -24,8 +24,13 @@ def backup_sqlite(source: Path, destination: Path | None = None) -> Path:
     destination_path.parent.mkdir(parents=True, exist_ok=True)
     partial_path = destination_path.with_suffix(f"{destination_path.suffix}.partial")
     try:
-        with sqlite3.connect(source_path) as source_db, sqlite3.connect(partial_path) as target_db:
+        source_db = sqlite3.connect(source_path)
+        target_db = sqlite3.connect(partial_path)
+        try:
             source_db.backup(target_db)
+        finally:
+            source_db.close()
+            target_db.close()
         os.replace(partial_path, destination_path)
     except Exception:
         partial_path.unlink(missing_ok=True)
